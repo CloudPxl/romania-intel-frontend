@@ -12,7 +12,7 @@ import {
 } from "../components/EnterpriseModals";
 
 export default function DeskPage() {
-  const { user } = useAuth();
+  const { user, signInWithGoogle, signOut } = useAuth();
   const [tenantId, setTenantId] = useState("t1_infra_transilvania");
   const [products, setProducts] = useState<any[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<string>("");
@@ -24,6 +24,7 @@ export default function DeskPage() {
   const [selectedCounty, setSelectedCounty] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [report72h, setReport72h] = useState<any>(null);
+  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
 
   // Modals
   const [pricingOpen, setPricingOpen] = useState(false);
@@ -59,12 +60,12 @@ export default function DeskPage() {
   }, [tenantId, activeCategory, selectedProduct]);
 
   const filteredLeads = leads.filter((l) => {
-    const matchCounty = selectedCounty === "all" || l.county.toLowerCase() === selectedCounty.toLowerCase();
+    const matchCounty = selectedCounty === "all" || l.county?.toLowerCase() === selectedCounty.toLowerCase();
     const matchSearch =
       !searchQuery ||
-      l.project_title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      l.entity_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      l.locality.toLowerCase().includes(searchQuery.toLowerCase());
+      l.project_title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      l.entity_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      l.locality?.toLowerCase().includes(searchQuery.toLowerCase());
     return matchCounty && matchSearch;
   });
 
@@ -102,7 +103,7 @@ export default function DeskPage() {
             disabled={refreshing}
             className="rounded-lg border border-[#1e293b] bg-[#101929] px-3 py-1.5 text-xs font-medium text-slate-300 hover:bg-[#182335] hover:text-white transition flex items-center gap-1.5"
           >
-            <span className={`${refreshing ? "animate-spin" : ""}`}>↻</span> {refreshing ? "Se actualizează..." : "Actualizează Feed"}
+            <span className={refreshing ? "animate-spin" : ""}>↻</span> {refreshing ? "Se actualizează..." : "Actualizează Feed"}
           </button>
 
           <button
@@ -126,20 +127,59 @@ export default function DeskPage() {
             ★ Upgrade (499 / 1499 RON)
           </button>
 
-          <div className="ml-2 pl-3 border-l border-slate-800 flex items-center gap-2">
-            <div className="h-7 w-7 rounded-full bg-cyan-900/80 flex items-center justify-center font-bold text-xs text-cyan-300 border border-cyan-700">
-              {user?.full_name ? user.full_name.charAt(0).toUpperCase() : "U"}
-            </div>
-            <div className="hidden lg:block text-left">
-              <span className="block text-[11px] font-bold text-slate-200 leading-none">{user?.full_name || "Utilizator Conectat"}</span>
-              <span className="text-[10px] text-slate-400">{user?.role || "Director Bidding"}</span>
-            </div>
+          {/* Dynamic Profile Dropdown */}
+          <div className="relative ml-2 pl-3 border-l border-slate-800">
+            <button
+              onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
+              className="flex items-center gap-2 rounded-lg p-1 hover:bg-[#131d2e] transition"
+            >
+              <div className="h-7 w-7 rounded-full bg-cyan-900/80 flex items-center justify-center font-bold text-xs text-cyan-300 border border-cyan-700">
+                {user?.full_name ? user.full_name.charAt(0).toUpperCase() : "U"}
+              </div>
+              <div className="hidden lg:block text-left">
+                <span className="block text-[11px] font-bold text-slate-200 leading-none">{user?.full_name || "Utilizator Conectat"}</span>
+                <span className="text-[10px] text-slate-400">{user?.role || "Director Bidding"}</span>
+              </div>
+            </button>
+
+            {profileDropdownOpen && (
+              <div className="absolute right-0 mt-2 w-64 rounded-xl border border-slate-800 bg-[#0b111e] p-3 shadow-2xl z-50 text-xs space-y-2">
+                <div className="border-b border-slate-800 pb-2">
+                  <p className="font-bold text-white">{user?.full_name}</p>
+                  <p className="text-[11px] text-slate-400 truncate">{user?.email}</p>
+                  <span className="inline-block mt-1 rounded bg-cyan-950 px-2 py-0.5 text-[10px] font-semibold text-cyan-400">
+                    {user?.role}
+                  </span>
+                </div>
+
+                <button
+                  onClick={() => {
+                    setProfileDropdownOpen(false);
+                    signInWithGoogle();
+                  }}
+                  className="w-full rounded-lg bg-slate-800 py-2 text-center text-slate-200 hover:bg-slate-700 transition font-medium"
+                >
+                  Conectare cu Google
+                </button>
+
+                <button
+                  onClick={() => {
+                    setProfileDropdownOpen(false);
+                    signOut();
+                  }}
+                  className="w-full rounded-lg bg-red-950/40 py-2 text-center text-red-400 hover:bg-red-900/40 transition font-medium"
+                >
+                  Deconectare
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </header>
 
-      {/* 2. MAIN LAYOUT */}
+      {/* 2. BODY CONTENT */}
       <div className="flex-1 flex overflow-hidden">
+        {/* SIDEBAR */}
         <aside className="w-72 border-r border-[#182335] bg-[#0b111e]/50 p-5 flex flex-col justify-between hidden md:flex">
           <div>
             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-3">Categorii & Camere VIP</span>
@@ -154,9 +194,7 @@ export default function DeskPage() {
                 <button
                   key={c.id}
                   onClick={() => setActiveCategory(c.id)}
-                  className={`w-full text-left rounded-lg px-3 py-2 font-medium transition ${
-                    activeCategory === c.id ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 font-bold" : "text-slate-400 hover:bg-[#101929]"
-                  }`}
+                  className={"w-full text-left rounded-lg px-3 py-2 font-medium transition " + (activeCategory === c.id ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 font-bold" : "text-slate-400 hover:bg-[#101929]")}
                 >
                   {c.label}
                 </button>
@@ -167,9 +205,7 @@ export default function DeskPage() {
             <div className="space-y-1 mb-5">
               <button
                 onClick={() => setSelectedProduct("")}
-                className={`w-full text-left rounded-lg px-3 py-1.5 text-xs transition ${
-                  !selectedProduct ? "text-cyan-400 font-bold" : "text-slate-400 hover:bg-[#101929]"
-                }`}
+                className={"w-full text-left rounded-lg px-3 py-1.5 text-xs transition " + (!selectedProduct ? "text-cyan-400 font-bold" : "text-slate-400 hover:bg-[#101929]")}
               >
                 Toate Liniile
               </button>
@@ -177,9 +213,7 @@ export default function DeskPage() {
                 <button
                   key={p.product_id}
                   onClick={() => setSelectedProduct(p.product_id)}
-                  className={`w-full text-left rounded-lg px-3 py-1.5 text-xs transition ${
-                    selectedProduct === p.product_id ? "text-cyan-400 font-bold" : "text-slate-400 hover:bg-[#101929]"
-                  }`}
+                  className={"w-full text-left rounded-lg px-3 py-1.5 text-xs transition " + (selectedProduct === p.product_id ? "text-cyan-400 font-bold" : "text-slate-400 hover:bg-[#101929]")}
                 >
                   {p.name}
                 </button>
@@ -204,11 +238,12 @@ export default function DeskPage() {
 
           <div className="rounded-xl border border-[#182335] bg-[#101929] p-3 text-xs text-slate-400">
             <span className="block text-[10px] uppercase font-bold text-slate-500">Volum Total Monitorizat</span>
-            <span className="text-xl font-extrabold text-white mt-0.5 block">{(totalPipeline / 1_000_000).toFixed(1)} Mil. RON</span>
+            <span className="text-xl font-extrabold text-white mt-0.5 block">{(totalPipeline / 1000000).toFixed(1)} Mil. RON</span>
             <span className="text-[10px] text-emerald-400 font-medium">● 8 Registre Active 24/7</span>
           </div>
         </aside>
 
+        {/* FEED */}
         <main className="flex-1 p-6 overflow-y-auto">
           <div className="flex flex-col md:flex-row gap-3 justify-between items-center mb-5">
             <input
@@ -245,7 +280,7 @@ export default function DeskPage() {
                   <div className="flex justify-between items-start mb-2">
                     <div className="flex items-center gap-2">
                       <span className="rounded bg-cyan-950 px-2 py-0.5 text-[10px] font-bold text-cyan-400 border border-cyan-800/40">
-                        {l.category.toUpperCase()}
+                        {l.category?.toUpperCase()}
                       </span>
                       <span className="text-xs text-slate-400">
                         {l.locality}, {l.county}
@@ -253,7 +288,7 @@ export default function DeskPage() {
                     </div>
                     <div className="text-right">
                       <span className="text-base font-extrabold text-white">
-                        {l.financial_value_ron ? `${(l.financial_value_ron / 1_000_000).toFixed(1)} Mil. RON` : "Buget Neestimat"}
+                        {l.financial_value_ron ? (l.financial_value_ron / 1000000).toFixed(1) + " Mil. RON" : "Buget Neestimat"}
                       </span>
                       <span className="block text-[10px] font-bold text-emerald-400">Scor Oportunitate: {l.opportunity_score} / 10</span>
                     </div>
@@ -293,7 +328,7 @@ export default function DeskPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="rounded-xl bg-[#101929] p-3 border border-[#182335]">
                   <span className="text-[10px] text-slate-400 block">Buget Estimat</span>
-                  <span className="text-base font-extrabold text-white">{(selectedLead.financial_value_ron / 1_000_000).toFixed(2)} Mil. RON</span>
+                  <span className="text-base font-extrabold text-white">{(selectedLead.financial_value_ron / 1000000).toFixed(2)} Mil. RON</span>
                 </div>
                 <div className="rounded-xl bg-[#101929] p-3 border border-[#182335]">
                   <span className="text-[10px] text-slate-400 block">Sursă Finanțare</span>

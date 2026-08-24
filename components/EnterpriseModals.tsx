@@ -2,9 +2,9 @@
 import React, { useState } from "react";
 import { generateProformaInvoice, uploadCaietFile, analyzeCaietSarcini, predictWinRate, generateLegalClarification, evaluateBusinessEligibility, askCopilotChat } from "../lib/api";
 
-// 1. BILLING & PROFORMA INVOICE GENERATOR MODAL (SOLVES MONTH 1 STRIPE KYC)
+// 1. BILLING & PROFORMA INVOICE GENERATOR MODAL
 export function PricingModal({ isOpen, onClose, tenantId }: { isOpen: boolean; onClose: () => void; tenantId: string }) {
-  const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<string | null>("plan_founder_vip");
   const [companyName, setCompanyName] = useState("SC Infra Construct Transilvania SRL");
   const [cui, setCui] = useState("RO12345678");
   const [email, setEmail] = useState("financiar@infraconstruct.ro");
@@ -27,8 +27,8 @@ export function PricingModal({ isOpen, onClose, tenantId }: { isOpen: boolean; o
         billing_address: address
       });
       setProformaData(data);
-    } catch {
-      alert("Eroare la generarea facturii proforme.");
+    } catch (e: any) {
+      alert("Eroare: " + (e?.message || "Nu s-a putut genera factura proformă."));
     } finally {
       setLoading(false);
     }
@@ -53,13 +53,12 @@ export function PricingModal({ isOpen, onClose, tenantId }: { isOpen: boolean; o
             <h2 className="text-2xl font-bold tracking-tight text-cyan-400">Activare Abonament & Factură Proformă</h2>
             <p className="text-xs text-slate-400">Generare instantanee Factură Proformă pentru plată prin Ordin de Plată (OP) sau Card.</p>
           </div>
-          <button onClick={onClose} className="rounded-lg p-2 text-slate-400 hover:bg-[#1e293b] hover:text-white">✕</button>
+          <button onClick={onClose} className="rounded-lg p-2 text-slate-400 hover:bg-[#1e293b]text-white">✕</button>
         </div>
 
         {!proformaData ? (
           <div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-              {/* Plan 1 */}
               <div
                 onClick={() => setSelectedPlan("plan_acces_complet")}
                 className={`cursor-pointer flex flex-col justify-between rounded-xl border p-5 transition ${
@@ -84,7 +83,6 @@ export function PricingModal({ isOpen, onClose, tenantId }: { isOpen: boolean; o
                 </button>
               </div>
 
-              {/* Plan 2 */}
               <div
                 onClick={() => setSelectedPlan("plan_founder_vip")}
                 className={`cursor-pointer flex flex-col justify-between rounded-xl border-2 p-5 relative transition ${
@@ -112,7 +110,6 @@ export function PricingModal({ isOpen, onClose, tenantId }: { isOpen: boolean; o
               </div>
             </div>
 
-            {/* Invoicing Data Form */}
             {selectedPlan && (
               <div className="rounded-xl border border-[#1e293b] bg-[#131d2e] p-4 text-xs space-y-3">
                 <span className="font-bold text-cyan-300 block uppercase text-[11px]">Date Facturare Companie (Pentru Factura Proformă):</span>
@@ -139,14 +136,12 @@ export function PricingModal({ isOpen, onClose, tenantId }: { isOpen: boolean; o
                   onClick={handleGenerateProforma}
                   disabled={loading}
                   className="mt-3 w-full rounded-xl bg-cyan-500 py-2.5 font-bold text-black text-xs hover:bg-cyan-400 transition"
-                >
-                  {loading ? "Se emite proforma..." : `Generează Factura Proformă (${selectedPlan === "plan_founder_vip" ? "1499" : "499"} RON)`}
+          ? "Se emite proforma..." : `Generează Factura Proformă (${selectedPlan === "plan_founder_vip" ? "1499" : "499"} RON)`}
                 </button>
               </div>
             )}
           </div>
         ) : (
-          /* Proforma Ready State */
           <div className="space-y-4 text-xs">
             <div className="rounded-xl border border-emerald-500/40 bg-emerald-950/20 p-4 text-center">
               <span className="text-emerald-400 font-bold block text-sm">✓ Factura Proformă {proformaData.invoice_number} a fost emisă cu succes!</span>
@@ -201,8 +196,8 @@ export function CaietScannerModal({ isOpen, onClose, defaultTitle }: { isOpen: b
         const data = await analyzeCaietSarcini(defaultTitle, text);
         setResult(data);
       }
-    } catch {
-      alert("Eroare la scanarea caietului de sarcini.");
+    } catch (e: any) {
+      alert("Eroare: " + (e?.message || "Nu s-a putut analiza caietul de sarcini."));
     } finally {
       setLoading(false);
     }
@@ -217,7 +212,6 @@ export function CaietScannerModal({ isOpen, onClose, defaultTitle }: { isOpen: b
         </div>
         <p className="text-xs text-slate-400 mb-3 font-mono">Proiect: {defaultTitle}</p>
 
-        {/* Drag & Drop File Upload */}
         <div className="rounded-xl border-2 border-dashed border-slate-700 bg-[#131d2e] p-4 text-center mb-3">
           <input
             type="file"
@@ -228,9 +222,9 @@ export function CaietScannerModal({ isOpen, onClose, defaultTitle }: { isOpen: b
           />
           <label htmlFor="caiet-upload" className="cursor-pointer block">
             <span className="text-cyan-400 font-bold block text-xs">
-              {file ? `Fișier încărcat: ${file.name}` : "📂 Trageți fișierul PDF sau DOCX aici (sau click pentru a alege)"}
+              {file ? `Fișier selectat: ${file.name}` : "📂 Trageți fișierul PDF sau DOCX aici (sau click pentru a alege)"}
             </span>
-            <span className="text-[10px] text-slate-500 mt-1 block">Suportă Caiete de Sarcini oficiale PDF, DOCX până la 50MB</span>
+            <span className="text-[10px] text-slate-500 mt-1 block">Suportă Caiete de Sarcini oficiale PDF, DOCX</span>
           </label>
         </div>
 
@@ -299,8 +293,8 @@ export function BusinessEligibilityModal({ isOpen, onClose }: { isOpen: boolean;
         county
       });
       setResult(data);
-    } catch {
-      alert("Eroare la scanarea eligibilității.");
+    } catch (e: any) {
+      alert("Eroare la scanare: " + (e?.message || "Verificați conexiunea cu serverul API."));
     } finally {
       setLoading(false);
     }
@@ -386,8 +380,8 @@ export function CopilotChatModal({ isOpen, onClose, tenantId, report72h }: { isO
     try {
       const data = await askCopilotChat(userQ, tenantId);
       setMessages(prev => [...prev, { sender: "ai", text: data.reply }]);
-    } catch {
-      setMessages(prev => [...prev, { sender: "ai", text: "Eroare la conexiunea cu Copilotul AI." }]);
+    } catch (e: any) {
+      setMessages(prev => [...prev, { sender: "ai", text: "Eroare la conexiunea cu Copilotul AI: " + (e?.message || "") }]);
     } finally {
       setLoading(false);
     }
@@ -433,7 +427,7 @@ export function CopilotChatModal({ isOpen, onClose, tenantId, report72h }: { isO
             placeholder="Întrebați despre cerințe de atribuire, licitații CNI, bugete sau contestații..."
             className="flex-1 rounded-xl border border-slate-700 bg-[#131d2e] px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500"
           />
-          <button onClick={handleSend} disabled={loading} className="rounded-xl bg-cyan-500 px-4 py-2 font-bold text-black text-xs hover:bg-cyan-400">
+          <button onClick={handleSend} disabled={loading} className="rounded-xl bg-cyan-50400">
             Trimite
           </button>
         </div>
@@ -503,7 +497,7 @@ export function WinOddsModal({ isOpen, onClose, defaultBudget }: { isOpen: boole
 
 // 6. CLARIFICATION MODAL
 export function ClarificationModal({ isOpen, onClose, opp }: { isOpen: boolean; onClose: () => void; opp: any }) {
-  const [points, setPoints] = useState("1. Solicităm eliminarea cerinței de autorizație directă de la producător.\\n2. Solicităm acceptarea standardelor tehnice europene echivalente conform Art. 160 Legea 98/2016.");
+  const [points, setPoints] = useState("1. Solicităm eliminarea cerinței de autorizație directă de la producător.\n2. Solicităm acceptarea standardelor tehnice europene echivalente conform Art. 160 Legea 98/2016.");
   const [letter, setLetter] = useState("");
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);

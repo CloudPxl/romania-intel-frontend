@@ -1,8 +1,16 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "https://api.ro-intel.xyz";
+function getApiBase(): string {
+  if (typeof window !== "undefined") {
+    if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
+      return "http://localhost:8000";
+    }
+    return "https://api.ro-intel.xyz";
+  }
+  return process.env.NEXT_PUBLIC_API_BASE || "https://api.ro-intel.xyz";
+}
 
 export async function syncBackendAuth(email: string, fullName?: string, avatarUrl?: string) {
   try {
-    const res = await fetch(`${API_BASE}/api/v1/auth/sync`, {
+    const res = await fetch(`${getApiBase()}/api/v1/auth/sync`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, full_name: fullName, avatar_url: avatarUrl })
@@ -33,28 +41,28 @@ export async function switchTenantWorkspace(tenantId: string) {
 }
 
 export async function fetchTenantFeed(tenantId: string, productId?: string, category?: string, forceRefresh = false) {
-  let url = `${API_BASE}/api/v1/tenants/${tenantId}/feed?force_refresh=${forceRefresh}`;
+  let url = `${getApiBase()}/api/v1/tenants/${tenantId}/feed?force_refresh=${forceRefresh}`;
   if (productId) url += `&product_id=${productId}`;
   if (category && category !== "all") url += `&category=${category}`;
   const res = await fetch(url);
-  if (!res.ok) throw new Error("Failed to fetch feed");
+  if (!res.ok) throw new Error("Eroare la preluarea fluxului pre-SEAP");
   return res.json();
 }
 
 export async function fetchTenantProducts(tenantId: string) {
-  const res = await fetch(`${API_BASE}/api/v1/tenants/${tenantId}/products`);
-  if (!res.ok) throw new Error("Failed to fetch products");
+  const res = await fetch(`${getApiBase()}/api/v1/tenants/${tenantId}/products`);
+  if (!res.ok) throw new Error("Eroare la preluarea liniilor de produse");
   return res.json();
 }
 
 export async function fetch72hMarketReport(tenantId: string) {
-  const res = await fetch(`${API_BASE}/api/v1/analytics/market-report-72h?tenant_id=${tenantId}`);
-  if (!res.ok) throw new Error("Failed to fetch 72h report");
+  const res = await fetch(`${getApiBase()}/api/v1/analytics/market-report-72h?tenant_id=${tenantId}`);
+  if (!res.ok) throw new Error("Eroare la raportul macro");
   return res.json();
 }
 
 export async function askCopilotChat(query: string, tenantId: string) {
-  const res = await fetch(`${API_BASE}/api/v1/copilot/chat`, {
+  const res = await fetch(`${getApiBase()}/api/v1/copilot/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ query, tenant_id: tenantId })
@@ -71,12 +79,12 @@ export async function generateProformaInvoice(payload: {
   billing_email: string;
   billing_address?: string;
 }) {
-  const res = await fetch(`${API_BASE}/api/v1/tenants/${payload.tenant_id}/billing/proforma`, {
+  const res = await fetch(`${getApiBase()}/api/v1/tenants/${payload.tenant_id}/billing/proforma`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)
   });
-  if (!res.ok) throw new Error("Proforma generation failed");
+  if (!res.ok) throw new Error("Eroare la generarea facturii proforme");
   return res.json();
 }
 
@@ -85,11 +93,11 @@ export async function uploadCaietFile(file: File, projectTitle: string) {
   formData.append("file", file);
   formData.append("project_title", projectTitle);
 
-  const res = await fetch(`${API_BASE}/api/v1/addons/upload-caiet`, {
+  const res = await fetch(`${getApiBase()}/api/v1/addons/upload-caiet`, {
     method: "POST",
     body: formData
   });
-  if (!res.ok) throw new Error("File analysis failed");
+  if (!res.ok) throw new Error("Eroare la analizarea fisierului");
   return res.json();
 }
 
@@ -101,27 +109,27 @@ export async function evaluateBusinessEligibility(payload: {
   employee_count: number;
   county: string;
 }) {
-  const res = await fetch(`${API_BASE}/api/v1/business-eligibility/evaluate`, {
+  const res = await fetch(`${getApiBase()}/api/v1/business-eligibility/evaluate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)
   });
-  if (!res.ok) throw new Error("Business evaluation failed");
+  if (!res.ok) throw new Error("Eroare la scanarea eligibilitatii");
   return res.json();
 }
 
 export async function analyzeCaietSarcini(projectTitle: string, specificationText: string) {
-  const res = await fetch(`${API_BASE}/api/v1/addons/analyze-caiet`, {
+  const res = await fetch(`${getApiBase()}/api/v1/addons/analyze-caiet`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ project_title: projectTitle, specification_text: specificationText })
   });
-  if (!res.ok) throw new Error("Analysis failed");
+  if (!res.ok) throw new Error("Eroare la analiza specificatiei");
   return res.json();
 }
 
 export async function predictWinRate(estimatedBudget: number, proposedPrice: number, hasLocalPartner = false) {
-  const res = await fetch(`${API_BASE}/api/v1/addons/predict-win-rate`, {
+  const res = await fetch(`${getApiBase()}/api/v1/addons/predict-win-rate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -130,7 +138,7 @@ export async function predictWinRate(estimatedBudget: number, proposedPrice: num
       has_local_partnership: hasLocalPartner
     })
   });
-  if (!res.ok) throw new Error("Prediction failed");
+  if (!res.ok) throw new Error("Eroare la calcularea sanselor");
   return res.json();
 }
 
@@ -142,11 +150,11 @@ export async function generateLegalClarification(payload: {
   cui_fiscal: string;
   clarification_points: string;
 }) {
-  const res = await fetch(`${API_BASE}/api/v1/addons/generate-clarification`, {
+  const res = await fetch(`${getApiBase()}/api/v1/addons/generate-clarification`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)
   });
-  if (!res.ok) throw new Error("Clarification generation failed");
+  if (!res.ok) throw new Error("Eroare la generarea adresei oficiale");
   return res.json();
 }
