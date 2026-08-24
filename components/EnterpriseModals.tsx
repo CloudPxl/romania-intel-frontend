@@ -2,7 +2,6 @@
 import React, { useState } from "react";
 import { generateProformaInvoice, uploadCaietFile, analyzeCaietSarcini, predictWinRate, generateLegalClarification, evaluateBusinessEligibility, askCopilotChat } from "../lib/api";
 
-// 1. BILLING & PROFORMA INVOICE GENERATOR MODAL
 export function PricingModal({ isOpen, onClose, tenantId }: { isOpen: boolean; onClose: () => void; tenantId: string }) {
   const [selectedPlan, setSelectedPlan] = useState<string | null>("plan_founder_vip");
   const [companyName, setCompanyName] = useState("SC Infra Construct Transilvania SRL");
@@ -53,7 +52,7 @@ export function PricingModal({ isOpen, onClose, tenantId }: { isOpen: boolean; o
             <h2 className="text-2xl font-bold tracking-tight text-cyan-400">Activare Abonament & Factură Proformă</h2>
             <p className="text-xs text-slate-400">Generare instantanee Factură Proformă pentru plată prin Ordin de Plată (OP) sau Card.</p>
           </div>
-          <button onClick={onClose} className="rounded-lg p-2 text-slate-400 hover:bg-[#1e293b]text-white">✕</button>
+          <button onClick={onClose} className="rounded-lg p-2 text-slate-400 hover:bg-[#1e293b] hover:text-white">✕</button>
         </div>
 
         {!proformaData ? (
@@ -136,7 +135,12 @@ export function PricingModal({ isOpen, onClose, tenantId }: { isOpen: boolean; o
                   onClick={handleGenerateProforma}
                   disabled={loading}
                   className="mt-3 w-full rounded-xl bg-cyan-500 py-2.5 font-bold text-black text-xs hover:bg-cyan-400 transition"
-          ? "Se emite proforma..." : `Generează Factura Proformă (${selectedPlan === "plan_founder_vip" ? "1499" : "499"} RON)`}
+                >
+                  {loading
+                    ? "Se emite proforma..."
+                    : selectedPlan === "plan_founder_vip"
+                    ? "Generează Factura Proformă (1499 RON)"
+                    : "Generează Factura Proformă (499 RON)"}
                 </button>
               </div>
             )}
@@ -177,7 +181,6 @@ export function PricingModal({ isOpen, onClose, tenantId }: { isOpen: boolean; o
   );
 }
 
-// 2. CAIET DE SARCINI SCANNER WITH DIRECT PDF/DOCX UPLOADS
 export function CaietScannerModal({ isOpen, onClose, defaultTitle }: { isOpen: boolean; onClose: () => void; defaultTitle: string }) {
   const [text, setText] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -268,7 +271,6 @@ export function CaietScannerModal({ isOpen, onClose, defaultTitle }: { isOpen: b
   );
 }
 
-// 3. BUSINESS SCANNER MODAL
 export function BusinessEligibilityModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const [companyName, setCompanyName] = useState("SC Infra Construct Transilvania SRL");
   const [cui, setCui] = useState("RO12345678");
@@ -360,7 +362,6 @@ export function BusinessEligibilityModal({ isOpen, onClose }: { isOpen: boolean;
   );
 }
 
-// 4. COPILOT AI CHAT MODAL
 export function CopilotChatModal({ isOpen, onClose, tenantId, report72h }: { isOpen: boolean; onClose: () => void; tenantId: string; report72h: any }) {
   const [messages, setMessages] = useState<{ sender: "user" | "ai"; text: string }[]>([
     { sender: "ai", text: "Bună ziua! Sunt Copilotul AI RO-INTEL. Cum vă pot ajuta cu strategiile de ofertare, cerințele tehnice sau dosarele din ultimele 72 de ore?" }
@@ -427,7 +428,7 @@ export function CopilotChatModal({ isOpen, onClose, tenantId, report72h }: { isO
             placeholder="Întrebați despre cerințe de atribuire, licitații CNI, bugete sau contestații..."
             className="flex-1 rounded-xl border border-slate-700 bg-[#131d2e] px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500"
           />
-          <button onClick={handleSend} disabled={loading} className="rounded-xl bg-cyan-50400">
+          <button onClick={handleSend} disabled={loading} className="rounded-xl bg-cyan-500 px-4 py-2 font-bold text-black text-xs hover:bg-cyan-400">
             Trimite
           </button>
         </div>
@@ -436,7 +437,6 @@ export function CopilotChatModal({ isOpen, onClose, tenantId, report72h }: { isO
   );
 }
 
-// 5. WIN ODDS MODAL
 export function WinOddsModal({ isOpen, onClose, defaultBudget }: { isOpen: boolean; onClose: () => void; defaultBudget: number }) {
   const [budget, setBudget] = useState(defaultBudget || 10000000);
   const [price, setPrice] = useState(Math.round((defaultBudget || 10000000) * 0.92));
@@ -495,7 +495,6 @@ export function WinOddsModal({ isOpen, onClose, defaultBudget }: { isOpen: boole
   );
 }
 
-// 6. CLARIFICATION MODAL
 export function ClarificationModal({ isOpen, onClose, opp }: { isOpen: boolean; onClose: () => void; opp: any }) {
   const [points, setPoints] = useState("1. Solicităm eliminarea cerinței de autorizație directă de la producător.\n2. Solicităm acceptarea standardelor tehnice europene echivalente conform Art. 160 Legea 98/2016.");
   const [letter, setLetter] = useState("");
