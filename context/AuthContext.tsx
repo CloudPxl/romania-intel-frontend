@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { syncBackendAuth } from "@/lib/api";
+import { syncBackendAuth, switchTenantWorkspace } from "@/lib/api";
 
 interface AuthContextType {
   user: any;
@@ -10,6 +10,7 @@ interface AuthContextType {
   signInWithGoogle: () => Promise<void>;
   signInWithEmail: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
+  switchWorkspace: (tenantId: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -69,8 +70,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   };
 
+  const switchWorkspace = async (tenantId: string) => {
+    if (!user?.id) return;
+    await switchTenantWorkspace(user.id, tenantId);
+    setUser((prev: any) => (prev ? { ...prev, tenant_id: tenantId } : null));
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, signInWithGoogle, signInWithEmail, signOut }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        signInWithGoogle,
+        signInWithEmail,
+        signOut,
+        switchWorkspace,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
