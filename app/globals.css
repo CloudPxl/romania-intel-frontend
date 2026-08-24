@@ -1,0 +1,115 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-sans: var(--font-geist);
+  --font-mono: var(--font-geist-mono);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-success: var(--success);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --radius-sm: calc(var(--radius) * .65);
+  --radius-md: calc(var(--radius) * .85);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.35);
+}
+
+:root {
+  color-scheme: light;
+  --background: oklch(.968 .006 245);
+  --foreground: oklch(.19 .02 250);
+  --card: oklch(.995 .002 245);
+  --card-foreground: oklch(.19 .02 250);
+  --popover: oklch(.995 .002 245);
+  --popover-foreground: oklch(.19 .02 250);
+  --primary: oklch(.54 .17 252);
+  --primary-foreground: oklch(.99 .002 245);
+  --secondary: oklch(.93 .012 245);
+  --secondary-foreground: oklch(.25 .025 250);
+  --muted: oklch(.935 .008 245);
+  --muted-foreground: oklch(.49 .025 250);
+  --accent: oklch(.92 .022 245);
+  --accent-foreground: oklch(.25 .025 250);
+  --destructive: oklch(.58 .21 28);
+  --success: oklch(.58 .14 158);
+  --border: oklch(.87 .014 245);
+  --input: oklch(.86 .014 245);
+  --ring: oklch(.54 .17 252);
+  --radius: .6rem;
+  --sidebar: oklch(.94 .01 245);
+  --sidebar-foreground: oklch(.19 .02 250);
+  --sidebar-primary: oklch(.54 .17 252);
+  --sidebar-primary-foreground: oklch(.99 .002 245);
+  --sidebar-accent: oklch(.90 .018 245);
+  --sidebar-accent-foreground: oklch(.2 .02 250);
+  --sidebar-border: oklch(.85 .014 245);
+  --sidebar-ring: oklch(.54 .17 252);
+}
+
+.dark, :root:not(.light) {
+  color-scheme: dark;
+  --background: oklch(.155 .018 252);
+  --foreground: oklch(.94 .012 245);
+  --card: oklch(.19 .019 252);
+  --card-foreground: oklch(.94 .012 245);
+  --popover: oklch(.205 .02 252);
+  --popover-foreground: oklch(.94 .012 245);
+  --primary: oklch(.66 .16 249);
+  --primary-foreground: oklch(.14 .018 252);
+  --secondary: oklch(.245 .02 252);
+  --secondary-foreground: oklch(.92 .012 245);
+  --muted: oklch(.225 .018 252);
+  --muted-foreground: oklch(.66 .02 245);
+  --accent: oklch(.255 .028 249);
+  --accent-foreground: oklch(.94 .012 245);
+  --destructive: oklch(.66 .2 27);
+  --success: oklch(.69 .15 158);
+  --border: oklch(.29 .02 252);
+  --input: oklch(.31 .022 252);
+  --ring: oklch(.66 .16 249);
+  --sidebar: oklch(.13 .017 252);
+  --sidebar-foreground: oklch(.9 .012 245);
+  --sidebar-primary: oklch(.66 .16 249);
+  --sidebar-primary-foreground: oklch(.13 .017 252);
+  --sidebar-accent: oklch(.21 .022 252);
+  --sidebar-accent-foreground: oklch(.94 .012 245);
+  --sidebar-border: oklch(.25 .02 252);
+  --sidebar-ring: oklch(.66 .16 249);
+}
+
+@layer base {
+  * { @apply border-border outline-ring/50; }
+  html { @apply bg-background; }
+  body { @apply min-h-screen bg-background text-foreground; }
+  button:not(:disabled), [role='button']:not(:disabled) { cursor: pointer; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
+}
