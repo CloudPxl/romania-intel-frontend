@@ -21,13 +21,7 @@ export async function syncBackendAuth(email: string, fullName?: string, avatarUr
   }
   return {
     status: "synced_offline",
-    user: {
-      email,
-      full_name: fullName || email.split("@")[0],
-      tenant_id: "t1_infra_transilvania",
-      role: "Director Bidding & Strategie",
-      avatar_url: avatarUrl
-    }
+    user: { email, full_name: fullName || email.split("@")[0], tenant_id: "t1_infra_transilvania", role: "Director Bidding & Strategie", avatar_url: avatarUrl }
   };
 }
 
@@ -69,7 +63,7 @@ export async function addLeadToPipeline(tenantId: string, leadData: any) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ lead_data: leadData })
   });
-  if (!res.ok) throw new Error("Eroare la salvarea în pipeline");
+  if (!res.ok) throw new Error("Eroare la salvarea in pipeline");
   return res.json();
 }
 
@@ -89,7 +83,34 @@ export async function triggerEmailAlert(leadData: any, recipientEmail: string) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ lead_data: leadData, recipient_email: recipientEmail })
   });
-  if (!res.ok) throw new Error("Eroare la expedierea alertei pe email");
+  if (!res.ok) throw new Error("Eroare la expedierea alertei");
+  return res.json();
+}
+
+export async function fetchCompetitorAnalysis(category: string, county: string, budgetRon: number) {
+  const res = await fetch(`${getApiBase()}/api/v1/addons/competitor-analysis`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ category, county, budget_ron: budgetRon })
+  });
+  if (!res.ok) throw new Error("Eroare la analiza concurentei");
+  return res.json();
+}
+
+export async function generateTechnicalProposal(payload: {
+  project_title: string;
+  authority_name: string;
+  county: string;
+  category: string;
+  company_name: string;
+  cui: string;
+}) {
+  const res = await fetch(`${getApiBase()}/api/v1/addons/generate-technical-proposal`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  if (!res.ok) throw new Error("Eroare la generarea propunerii tehnice");
   return res.json();
 }
 
@@ -135,7 +156,7 @@ export async function uploadCaietFile(file: File, projectTitle: string) {
     method: "POST",
     body: formData
   });
-  if (!res.ok) throw new Error("Eroare la analizarea fișierului");
+  if (!res.ok) throw new Error("Eroare la analizarea fisierului");
   return res.json();
 }
 
@@ -152,7 +173,7 @@ export async function evaluateBusinessEligibility(payload: {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)
   });
-  if (!res.ok) throw new Error("Eroare la scanarea eligibilității");
+  if (!res.ok) throw new Error("Eroare la scanarea eligibilitatii");
   return res.json();
 }
 
@@ -162,7 +183,7 @@ export async function analyzeCaietSarcini(projectTitle: string, specificationTex
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ project_title: projectTitle, specification_text: specificationText })
   });
-  if (!res.ok) throw new Error("Eroare la analiza specificației");
+  if (!res.ok) throw new Error("Eroare la analiza specificatiei");
   return res.json();
 }
 
@@ -176,7 +197,7 @@ export async function predictWinRate(estimatedBudget: number, proposedPrice: num
       has_local_partnership: hasLocalPartner
     })
   });
-  if (!res.ok) throw new Error("Eroare la calcularea șanselor");
+  if (!res.ok) throw new Error("Eroare la calcularea sanselor");
   return res.json();
 }
 

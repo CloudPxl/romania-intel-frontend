@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
-import { fetchTenantFeed, fetchTenantProducts, fetch72hMarketReport, addLeadToPipeline, triggerEmailAlert } from "../lib/api";
+import { fetchTenantFeed, fetch72hMarketReport, addLeadToPipeline, triggerEmailAlert } from "../lib/api";
 import {
   PricingModal,
   CaietScannerModal,
@@ -11,7 +11,9 @@ import {
   CopilotChatModal,
   PipelineTrackerModal,
   AccountSettingsModal,
-  WorkspaceDeskModal
+  WorkspaceDeskModal,
+  CompetitorRadarModal,
+  TechnicalProposalModal
 } from "../components/EnterpriseModals";
 
 export default function DeskPage() {
@@ -41,6 +43,8 @@ export default function DeskPage() {
   const [pipelineOpen, setPipelineOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [deskManagerOpen, setDeskManagerOpen] = useState(false);
+  const [competitorModalOpen, setCompetitorModalOpen] = useState(false);
+  const [proposalModalOpen, setProposalModalOpen] = useState(false);
 
   const loadWorkspace = async (force = false) => {
     if (force) setRefreshing(true);
@@ -88,7 +92,6 @@ export default function DeskPage() {
     }
   };
 
-  // Filter and Score according to Active Desk's target counties & keywords
   const filteredLeads = leads.filter((l) => {
     const matchCounty = selectedCounty === "all" || l?.county?.toLowerCase() === selectedCounty.toLowerCase();
     const matchSearch =
@@ -122,15 +125,13 @@ export default function DeskPage() {
 
   return (
     <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex flex-col font-sans">
-      {/* 1. TOP BAR WITH CLEAN LOGO (NO 2026, NO GREEN DOT) & WORKING WORKSPACE SELECTOR */}
+      {/* 1. TOP BAR */}
       <header className="h-16 border-b border-slate-200 bg-white px-6 flex items-center justify-between sticky top-0 z-30 shadow-sm">
         <div className="flex items-center gap-5">
-          {/* Clean Logo */}
           <span className="font-bold text-base tracking-wider text-slate-900 uppercase">
             RO-INTEL
           </span>
 
-          {/* Dynamic Desk / Workspace Selector */}
           <div className="relative">
             <button
               onClick={() => setWorkspaceDropdownOpen(!workspaceDropdownOpen)}
@@ -174,7 +175,6 @@ export default function DeskPage() {
           </div>
         </div>
 
-        {/* Action Controls */}
         <div className="flex items-center gap-2">
           <button
             onClick={() => setPipelineOpen(true)}
@@ -300,7 +300,7 @@ export default function DeskPage() {
               ))}
             </div>
 
-            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-2">Divizii & Linii {activeDesk?.name ? `(${activeDesk.name.split(" ")[0]})` : ""}</span>
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-2">Divizii Desk ({activeDesk?.name ? activeDesk.name.split(" ")[0] : ""})</span>
             <div className="space-y-1 mb-5">
               <button
                 onClick={() => setSelectedDivision("all")}
@@ -345,7 +345,7 @@ export default function DeskPage() {
 
         {/* MAIN FEED */}
         <main className="flex-1 p-6 overflow-y-auto">
-          {/* SEARCH & ISOLATED REFRESH BUTTON TOOLBAR */}
+          {/* SEARCH & REPOSITIONED REFRESH BUTTON TOOLBAR */}
           <div className="flex flex-col lg:flex-row gap-3 justify-between items-center mb-6 bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm">
             <div className="flex-1 w-full lg:w-auto flex items-center gap-2">
               <input
@@ -370,7 +370,6 @@ export default function DeskPage() {
             <div className="flex items-center gap-2.5 w-full lg:w-auto justify-end">
               <span className="text-xs text-slate-500 font-medium">{filteredLeads.length} semnale</span>
               
-              {/* ISOLATED REFRESH BUTTON */}
               <button
                 onClick={() => loadWorkspace(true)}
                 disabled={refreshing}
@@ -494,7 +493,7 @@ export default function DeskPage() {
 
               <div className="rounded-xl bg-sky-50 border border-sky-200 p-4">
                 <span className="font-bold text-sky-900 block mb-1">Pozitionare Tehnica & Factori de Evaluare</span>
-                <p className="teeading-relaxed">{selectedLead.sales_pitch_angle}</p>
+                <p className="text-slate-700 leading-relaxed">{selectedLead.sales_pitch_angle}</p>
               </div>
 
               <div className="pt-2 space-y-2">
@@ -514,6 +513,22 @@ export default function DeskPage() {
                     className="rounded-lg border border-slate-300 bg-white p-2.5 text-center text-xs font-semibold text-slate-700 hover:bg-slate-50 transition shadow-sm"
                   >
                     {emailSending ? "Se expediaza..." : emailSentSuccess ? "Alerta Trimisa" : "Trimite Alerta Email"}
+                  </button>
+                </div>
+
+                {/* PHASE 4 TOOLS: COMPETITOR RADAR & TECHNICAL PROPOSAL DRAFT */}
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <button
+                    onClick={() => setCompetitorModalOpen(true)}
+                    className="rounded-lg border border-sky-300 bg-sky-50 p-2 text-center text-[11px] font-bold text-sky-800 hover:bg-sky-100 transition shadow-sm"
+                  >
+                    Radar Concurenta
+                  </button>
+                  <button
+                    onClick={() => setProposalModalOpen(true)}
+                    className="rounded-lg border border-slate-800 bg-slate-900 p-2 text-center text-[11px] font-bold text-white hover:bg-slate-800 transition shadow-sm"
+                  >
+                    Propunere Tehnica
                   </button>
                 </div>
 
@@ -553,6 +568,8 @@ export default function DeskPage() {
       <PipelineTrackerModal isOpen={pipelineOpen} onClose={() => setPipelineOpen(false)} tenantId={activeDesk?.id || "desk_default"} />
       <AccountSettingsModal isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
       <WorkspaceDeskModal isOpen={deskManagerOpen} onClose={() => setDeskManagerOpen(false)} />
+      <CompetitorRadarModal isOpen={competitorModalOpen} onClose={() => setCompetitorModalOpen(false)} category={selectedLead?.category || "infrastructura"} county={selectedLead?.county || "Romania"} budget={selectedLead?.financial_value_ron || 10000000} />
+      <TechnicalProposalModal isOpen={proposalModalOpen} onClose={() => setProposalModalOpen(false)} opp={selectedLead || {}} />
     </div>
   );
 }
