@@ -1,21 +1,22 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
-import { fetchTenantFeed, fetchTenantProducts, fetch72hMarketReport } from "../lib/api";
+import { fetchTenantFeed, fetchTenantProducts, fetch72hMarketReport, addLeadToPipeline, triggerEmailAlert } from "../lib/api";
 import {
   PricingModal,
   CaietScannerModal,
   WinOddsModal,
   ClarificationModal,
   BusinessEligibilityModal,
-  CopilotChatModal
+  CopilotChatModal,
+  PipelineTrackerModal
 } from "../components/EnterpriseModals";
 
 export default function DeskPage() {
   const { user, signInWithGoogle, signOut } = useAuth();
   const [tenantId, setTenantId] = useState("t1_infra_transilvania");
   const [products, setProducts] = useState<any[]>([]);
-  const [selectedProduct, setSelectedProduct] = useState<string>("");
+  const [selectedProduct, setSelectedProduct] = useState<string>("all");
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const [leads, setLeads] = useState<any[]>([]);
   const [selectedLead, setSelectedLead] = useState<any | null>(null);
@@ -26,13 +27,17 @@ export default function DeskPage() {
   const [report72h, setReport72h] = useState<any>(null);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [workspaceDropdownOpen, setWorkspaceDropdownOpen] = useState(false);
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailSentSuccess, setEmailSentSuccess] = useState(false);
 
+  // Modals
   const [pricingOpen, setPricingOpen] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [winModalOpen, setWinModalOpen] = useState(false);
   const [clarificationOpen, setClarificationOpen] = useState(false);
   const [businessScannerOpen, setBusinessScannerOpen] = useState(false);
   const [copilotOpen, setCopilotOpen] = useState(false);
+  const [pipelineOpen, setPipelineOpen] = useState(false);
 
   const tenantNames: Record<string, string> = {
     "t1_infra_transilvania": "SC Infra Construct Transilvania SRL",
@@ -48,7 +53,7 @@ export default function DeskPage() {
       const prodData = await fetchTenantProducts(tenantId);
       setProducts(prodData?.products || []);
 
-      const feedData = await fetchTenantFeed(tenantId, selectedProduct || undefined, activeCategory, force);
+      const feedData = await fetchTenantFeed(tenantId, selectedProduct !== "all" ? selectedProduct : undefined, activeCategory, force);
       setLeads(feedData?.leads || []);
 
       const macroData = await fetch72hMarketReport(tenantId);
@@ -64,6 +69,30 @@ export default function DeskPage() {
   useEffect(() => {
     loadWorkspace(false);
   }, [tenantId, activeCategory, selectedProduct]);
+
+  const handleSaveToPipeline = async (lead: any) => {
+    try {
+      await addLeadToPipeline(tenantId, lead);
+      alert("✓ Dosarul a fost salvat cu succes în Pipeline-ul companiei!");
+    } catch {
+      alert("Eroare la salvarea în pipeline.");
+    }
+  };
+
+  const handleSendEmailAlert = async (lead: any) => {
+    setEmailSending(true);
+    setEmailSentSuccess(false);
+    try {
+      const recipient = user?.email || "director@infraconstruct.ro";
+      await triggerEmailAlert(lead, recipient);
+      setEmailSentSuccess(true);
+      setTimeout(() => setEmailSentSuccess(false), 4000);
+    } catch {
+      alert("Eroare la transmiterea emailului de alertă.");
+    } finally {
+      setEmailSending(false);
+    }
+  };
 
   const filteredLeads = leads.filter((l) => {
     const matchCounty = selectedCounty === "all" || l?.county?.toLowerCase() === selectedCounty.toLowerCase();
@@ -107,7 +136,7 @@ export default function DeskPage() {
                     key={id}
                     onClick={() => {
                       setTenantId(id);
-                      setSelectedProduct("");
+                      setSelectedProduct("all");
                       setWorkspaceDropdownOpen(false);
                     }}
                     className={`w-full text-left rounded-lg px-2.5 py-2 transition flex items-center justify-between ${
@@ -125,6 +154,13 @@ export default function DeskPage() {
 
         <div className="flex items-center gap-2.5">
           <button
+            onClick={() => setPipelineOpen(true)}
+            className="rounded-lg border border-emerald-800/80 bg-emerald-950/40 px-3 py-1.5 text-xs font-semibold text-emerald-300 hover:bg-emerald-900/50 transition flex items-center gap-1.5"
+          >
+            📋 Pipeline Bidding
+          </button>
+
+          <button
             onClick={() => loadWorkspace(true)}
             disabled={refreshing}
             className="rounded-lg border border-[#1e293b] bg-[#101929] px-3 py-1.5 text-xs font-medium text-slate-300 hover:bg-[#182335] hover:text-white transition flex items-center gap-1.5"
@@ -136,7 +172,7 @@ export default function DeskPage() {
             onClick={() => setBusinessScannerOpen(true)}
             className="rounded-lg border border-cyan-800/80 bg-cyan-950/40 px-3 py-1.5 text-xs font-semibold text-cyan-300 hover:bg-cyan-900/50 transition"
           >
-            ⚡ Scanner Eligibilitate Companie
+            ⚡ Scanner Eligibilitate
           </button>
 
           <button
@@ -230,9 +266,9 @@ export default function DeskPage() {
             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">Divizii de Produs</span>
             <div className="space-y-1 mb-5">
               <button
-                onClick={() => setSelectedProduct("")}
+                onClick={() => setSelectedProduct("all")}
                 className={`w-full text-left rounded-lg px-3 py-1.5 text-xs transition ${
-                  !selectedProduct ? "text-cyan-400 font-bold" : "text-slate-400 hover:bg-[#101929]"
+                  selectedProduct === "all" ? "text-cyan-400 font-bold" : "text-slate-400 hover:bg-[#101929]"
                 }`}
               >
                 Toate Liniile
@@ -270,7 +306,7 @@ export default function DeskPage() {
           <div className="rounded-xl border border-[#182335] bg-[#101929] p-3 text-xs text-slate-400">
             <span className="block text-[10px] uppercase font-bold text-slate-500">Volum Total Calificat</span>
             <span className="text-xl font-extrabold text-white mt-0.5 block">{(totalPipeline / 1000000).toFixed(1)} Mil. RON</span>
-            <span className="text-[10px] text-emerald-400 font-medium">● 25 Scrapers & AI Refinery Active</span>
+            <span className="text-[10px] text-emerald-400 font-medium">● 25 Scrapers & Email Alerts Active</span>
           </div>
         </aside>
 
@@ -323,7 +359,7 @@ export default function DeskPage() {
                       <span className="text-base font-extrabold text-white">
                         {l.financial_value_ron ? (l.financial_value_ron / 1000000).toFixed(1) + " Mil. RON" : "Buget Neestimat"}
                       </span>
-                      <span className="block text-[10px] font-bold text-emerald-400">Scor Oportunitate: {l.opportunity_score} / 10</span>
+                      <span className="block text-[10px] font-bold text-emerald-400">Scor: {l.opportunity_score} / 10</span>
                     </div>
                   </div>
 
@@ -336,8 +372,8 @@ export default function DeskPage() {
 
                   <div className="mt-3 flex flex-wrap items-center justify-between text-[11px] text-slate-400 border-t border-[#182335] pt-2">
                     <div className="flex items-center gap-4">
-                      <span>📅 Publicat: <b className="text-slate-200">{l.published_date || "2026-08-24"}</b></span>
-                      <span>⏳ Termen Reacție: <b className="text-amber-400">{l.action_deadline || "T4 2026"}</b></span>
+                      <span>📅 Publicat: <b className="text-slate-200">{l.published_date || "2026-08-25"}</b></span>
+                      <span>⏳ Termen: <b className="text-amber-400">{l.action_deadline || "T4 2026"}</b></span>
                     </div>
                     <span className="text-cyan-400 font-semibold hover:underline">Deschide Dosar Pre-SEAP →</span>
                   </div>
@@ -393,8 +429,26 @@ export default function DeskPage() {
               </div>
 
               <div className="pt-2 space-y-2">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Instrumente Tactice Ofertare</span>
-                <div className="grid grid-cols-3 gap-2">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Acțiuni Strategice & Notificări</span>
+                
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => handleSaveToPipeline(selectedLead)}
+                    className="rounded-lg bg-emerald-950/60 border border-emerald-500/50 p-2.5 text-center text-xs font-bold text-emerald-300 hover:bg-emerald-900/60 transition"
+                  >
+                    💾 Salvează în Pipeline
+                  </button>
+
+                  <button
+                    onClick={() => handleSendEmailAlert(selectedLead)}
+                    disabled={emailSending}
+                    className="rounded-lg bg-cyan-950/60 border border-cyan-500/50 p-2.5 text-center text-xs font-bold text-cyan-300 hover:bg-cyan-900/60 transition"
+                  >
+                    {emailSending ? "Se expediază..." : emailSentSuccess ? "✓ Alertă Trimisă!" : "✉️ Trimite Alertă Email"}
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 pt-1">
                   <button onClick={() => setScannerOpen(true)} className="rounded-lg bg-amber-500/10 border border-amber-500/30 p-2 text-center text-[11px] font-bold text-amber-400 hover:bg-amber-500/20">
                     Scanner Caiet
                   </button>
@@ -420,12 +474,14 @@ export default function DeskPage() {
         </div>
       )}
 
+      {/* MODALS */}
       <PricingModal isOpen={pricingOpen} onClose={() => setPricingOpen(false)} tenantId={tenantId} />
       <BusinessEligibilityModal isOpen={businessScannerOpen} onClose={() => setBusinessScannerOpen(false)} />
       <CopilotChatModal isOpen={copilotOpen} onClose={() => setCopilotOpen(false)} tenantId={tenantId} report72h={report72h} />
       <CaietScannerModal isOpen={scannerOpen} onClose={() => setScannerOpen(false)} defaultTitle={selectedLead?.project_title || ""} />
       <WinOddsModal isOpen={winModalOpen} onClose={() => setWinModalOpen(false)} defaultBudget={selectedLead?.financial_value_ron || 10000000} />
       <ClarificationModal isOpen={clarificationOpen} onClose={() => setClarificationOpen(false)} opp={selectedLead || {}} />
+      <PipelineTrackerModal isOpen={pipelineOpen} onClose={() => setPipelineOpen(false)} tenantId={tenantId} />
     </div>
   );
 }

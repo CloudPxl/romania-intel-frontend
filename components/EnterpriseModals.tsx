@@ -1,6 +1,15 @@
 "use client";
-import React, { useState } from "react";
-import { generateProformaInvoice, uploadCaietFile, analyzeCaietSarcini, predictWinRate, generateLegalClarification, evaluateBusinessEligibility, askCopilotChat } from "../lib/api";
+import React, { useState, useEffect } from "react";
+import {
+  generateProformaInvoice,
+  uploadCaietFile,
+  analyzeCaietSarcini,
+  predictWinRate,
+  generateLegalClarification,
+  evaluateBusinessEligibility,
+  askCopilotChat,
+  fetchTenantPipeline
+} from "../lib/api";
 
 export function PricingModal({ isOpen, onClose, tenantId }: { isOpen: boolean; onClose: () => void; tenantId: string }) {
   const [selectedPlan, setSelectedPlan] = useState<string | null>("plan_founder_vip");
@@ -60,9 +69,7 @@ export function PricingModal({ isOpen, onClose, tenantId }: { isOpen: boolean; o
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
               <div
                 onClick={() => setSelectedPlan("plan_acces_complet")}
-                className={`cursor-pointer flex flex-col justify-between rounded-xl border p-5 transition ${
-                  selectedPlan === "plan_acces_complet" ? "border-cyan-400 bg-cyan-950/20" : "border-slate-700 bg-[#131d2e] hover:border-slate-500"
-                }`}
+                className={"cursor-pointer flex flex-col justify-between rounded-xl border p-5 transition " + (selectedPlan === "plan_acces_complet" ? "border-cyan-400 bg-cyan-950/20" : "border-slate-700 bg-[#131d2e] hover:border-slate-500")}
               >
                 <div>
                   <div className="flex justify-between items-baseline mb-2">
@@ -71,7 +78,7 @@ export function PricingModal({ isOpen, onClose, tenantId }: { isOpen: boolean; o
                   </div>
                   <p className="text-2xl font-extrabold text-white mb-3">499 <span className="text-xs font-normal text-slate-400">RON / lună</span></p>
                   <ul className="space-y-1.5 text-xs text-slate-300">
-                    <li>✓ Acces la toate cele 8 registre active</li>
+                    <li>✓ Acces la toate cele 25 de registre active</li>
                     <li>✓ Sinteze Executive Grok AI</li>
                     <li>✓ Export CSV date calificate</li>
                     <li>✓ 1 Workspace & 2 Utilizatori</li>
@@ -84,9 +91,7 @@ export function PricingModal({ isOpen, onClose, tenantId }: { isOpen: boolean; o
 
               <div
                 onClick={() => setSelectedPlan("plan_founder_vip")}
-                className={`cursor-pointer flex flex-col justify-between rounded-xl border-2 p-5 relative transition ${
-                  selectedPlan === "plan_founder_vip" ? "border-cyan-400 bg-cyan-950/30" : "border-cyan-600/60 bg-[#131d2e] hover:border-cyan-400"
-                }`}
+                className={"cursor-pointer flex flex-col justify-between rounded-xl border-2 p-5 relative transition " + (selectedPlan === "plan_founder_vip" ? "border-cyan-400 bg-cyan-950/30" : "border-cyan-600/60 bg-[#131d2e] hover:border-cyan-400")}
               >
                 <span className="absolute -top-3 right-4 rounded-full bg-cyan-500 px-2.5 py-0.5 text-[9px] font-bold text-black uppercase">Recomandat</span>
                 <div>
@@ -100,6 +105,7 @@ export function PricingModal({ isOpen, onClose, tenantId }: { isOpen: boolean; o
                     <li>✓ Scanner Caiet de Sarcini (Upload PDF/DOCX)</li>
                     <li>✓ Simulator Șanse de Câștig & Marje</li>
                     <li>✓ Generator Adrese Legea 544</li>
+                    <li>✓ Alerte automate Email & Telegram</li>
                     <li>✓ Până la 10 Utilizatori</li>
                   </ul>
                 </div>
@@ -136,11 +142,7 @@ export function PricingModal({ isOpen, onClose, tenantId }: { isOpen: boolean; o
                   disabled={loading}
                   className="mt-3 w-full rounded-xl bg-cyan-500 py-2.5 font-bold text-black text-xs hover:bg-cyan-400 transition"
                 >
-                  {loading
-                    ? "Se emite proforma..."
-                    : selectedPlan === "plan_founder_vip"
-                    ? "Generează Factura Proformă (1499 RON)"
-                    : "Generează Factura Proformă (499 RON)"}
+                  {loading ? "Se emite proforma..." : (selectedPlan === "plan_founder_vip" ? "Generează Factura Proformă (1499 RON)" : "Generează Factura Proformă (499 RON)")}
                 </button>
               </div>
             )}
@@ -225,7 +227,7 @@ export function CaietScannerModal({ isOpen, onClose, defaultTitle }: { isOpen: b
           />
           <label htmlFor="caiet-upload" className="cursor-pointer block">
             <span className="text-cyan-400 font-bold block text-xs">
-              {file ? `Fișier selectat: ${file.name}` : "📂 Trageți fișierul PDF sau DOCX aici (sau click pentru a alege)"}
+              {file ? "Fișier selectat: " + file.name : "📂 Trageți fișierul PDF sau DOCX aici (sau click pentru a alege)"}
             </span>
             <span className="text-[10px] text-slate-500 mt-1 block">Suportă Caiete de Sarcini oficiale PDF, DOCX</span>
           </label>
@@ -257,7 +259,7 @@ export function CaietScannerModal({ isOpen, onClose, defaultTitle }: { isOpen: b
             <p className="text-slate-400">{result.recommended_action}</p>
             <div className="space-y-2 mt-2">
               <span className="font-bold text-slate-400 uppercase text-[10px]">Clauze Identificate:</span>
-              {result.detected_red_flags.map((flag: any, i: number) => (
+              {result.detected_red_flags && result.detected_red_flags.map((flag: any, i: number) => (
                 <div key={i} className="rounded bg-black/40 p-2.5 border-l-2 border-amber-500">
                   <p className="font-bold text-amber-300">{flag.pattern} — Risc {flag.severity}</p>
                   <p className="text-slate-300 mt-0.5">{flag.tactical_advisory}</p>
@@ -316,19 +318,39 @@ export function BusinessEligibilityModal({ isOpen, onClose }: { isOpen: boolean;
         <div className="grid grid-cols-2 gap-3 text-xs mb-4">
           <div>
             <label className="block text-slate-400 mb-1">Nume Companie</label>
-            <input type="text" value={companyName} onChange={e => setCompanyName(e.target.value)} className="w-full rounded-lg bg-[#131d2e] border border-slate-700 p-2 text-white" />
+            <input
+              type="text"
+              value={companyName}
+              onChange={(e) => setCompanyName(e.target.value)}
+              className="w-full rounded-lg bg-[#131d2e] border border-slate-700 p-2 text-white"
+            />
           </div>
           <div>
             <label className="block text-slate-400 mb-1">CUI / Cod Fiscal</label>
-            <input type="text" value={cui} onChange={e => setCui(e.target.value)} className="w-full rounded-lg bg-[#131d2e] border border-slate-700 p-2 text-white" />
+            <input
+              type="text"
+              value={cui}
+              onChange={(e) => setCui(e.target.value)}
+              className="w-full rounded-lg bg-[#131d2e] border border-slate-700 p-2 text-white"
+            />
           </div>
           <div>
             <label className="block text-slate-400 mb-1">Cod CAEN Principal</label>
-            <input type="text" value={caen} onChange={e => setCaen(e.target.value)} className="w-full rounded-lg bg-[#131d2e] border border-slate-700 p-2 text-white" />
+            <input
+              type="text"
+              value={caen}
+              onChange={(e) => setCaen(e.target.value)}
+              className="w-full rounded-lg bg-[#131d2e] border border-slate-700 p-2 text-white"
+            />
           </div>
           <div>
             <label className="block text-slate-400 mb-1">Cifră de Afaceri Anuală (RON)</label>
-            <input type="number" value={turnover} onChange={e => setTurnover(Number(e.target.value))} className="w-full rounded-lg bg-[#131d2e] border border-slate-700 p-2 text-white" />
+            <input
+              type="number"
+              value={turnover}
+              onChange={(e) => setTurnover(Number(e.target.value))}
+              className="w-full rounded-lg bg-[#131d2e] border border-slate-700 p-2 text-white"
+            />
           </div>
         </div>
 
@@ -345,7 +367,7 @@ export function BusinessEligibilityModal({ isOpen, onClose }: { isOpen: boolean;
             <p className="text-slate-300 leading-relaxed">{result.advisory_summary}</p>
             <div className="space-y-2 mt-2">
               <span className="font-bold text-slate-400 uppercase text-[10px]">Linii de Finanțare Eligibile:</span>
-              {result.matched_grants.map((g: any, i: number) => (
+              {result.matched_grants && result.matched_grants.map((g: any, i: number) => (
                 <div key={i} className="rounded bg-black/40 p-3 border-l-2 border-cyan-500">
                   <div className="flex justify-between">
                     <span className="font-bold text-cyan-300">{g.program_name}</span>
@@ -403,15 +425,15 @@ export function CopilotChatModal({ isOpen, onClose, tenantId, report72h }: { isO
           <div className="rounded-xl bg-[#131d2e] p-3 text-xs mb-3 border border-slate-800 space-y-1">
             <span className="font-bold text-slate-300 block">Sinteză Macro Ultimele 72h:</span>
             <ul className="list-disc pl-4 text-slate-400 space-y-0.5">
-              {report72h.executive_takeaways?.map((t: string, i: number) => <li key={i}>{t}</li>)}
+              {report72h.executive_takeaways && report72h.executive_takeaways.map((t: string, i: number) => <li key={i}>{t}</li>)}
             </ul>
           </div>
         )}
 
         <div className="flex-1 overflow-y-auto space-y-3 p-2 text-xs">
           {messages.map((m, i) => (
-            <div key={i} className={`flex ${m.sender === "user" ? "justify-end" : "justify-start"}`}>
-              <div className={`max-w-[85%] rounded-xl p-3 ${m.sender === "user" ? "bg-cyan-600 text-black font-semibold" : "bg-[#131d2e] border border-slate-800 text-slate-200"}`}>
+            <div key={i} className={"flex " + (m.sender === "user" ? "justify-end" : "justify-start")}>
+              <div className={"max-w-[85%] rounded-xl p-3 " + (m.sender === "user" ? "bg-cyan-600 text-black font-semibold" : "bg-[#131d2e] border border-slate-800 text-slate-200")}>
                 {m.text}
               </div>
             </div>
@@ -556,6 +578,75 @@ export function ClarificationModal({ isOpen, onClose, opp }: { isOpen: boolean; 
             <pre className="h-48 overflow-y-auto rounded-xl border border-slate-800 bg-[#060b13] p-3 text-xs text-slate-300 whitespace-pre-wrap font-sans">
               {letter}
             </pre>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function PipelineTrackerModal({ isOpen, onClose, tenantId }: { isOpen: boolean; onClose: () => void; tenantId: string }) {
+  const [pipelineData, setPipelineData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  const loadPipeline = async () => {
+    setLoading(true);
+    try {
+      const data = await fetchTenantPipeline(tenantId);
+      setPipelineData(data);
+    } catch (e) {
+      console.warn("Pipeline load note:", e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isOpen) loadPipeline();
+  }, [isOpen, tenantId]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-md">
+      <div className="relative w-full max-w-5xl rounded-2xl border border-cyan-800/60 bg-[#0b111e] p-6 shadow-2xl text-white max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-center mb-4 border-b border-[#1e293b] pb-3">
+          <div>
+            <h3 className="text-xl font-bold text-cyan-400">Pipeline Bidding & Management Dosare Pre-SEAP</h3>
+            <p className="text-xs text-slate-400">Monitorizare stadiu intern: evaluare tehnică, adrese clarificări și marje estimate.</p>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-white">✕</button>
+        </div>
+
+        {loading ? (
+          <div className="flex h-48 items-center justify-center text-xs text-slate-400">Se încarcă pipeline-ul companiei...</div>
+        ) : !pipelineData?.deals?.length ? (
+          <div className="flex h-48 flex-col items-center justify-center text-xs text-slate-500 space-y-2">
+            <span>Nu aveți dosare salvate în pipeline-ul curent.</span>
+            <span className="text-[11px] text-cyan-400">Deschideți orice dosar din feed-ul principal și apăsați "Salvează în Pipeline".</span>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {pipelineData.deals && pipelineData.deals.map((d: any) => (
+              <div key={d.deal_id} className="rounded-xl border border-[#1e293b] bg-[#131d2e] p-4 text-xs space-y-2">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <span className="rounded bg-cyan-950 px-2 py-0.5 text-[10px] font-bold text-cyan-400 border border-cyan-800/40 uppercase">
+                      {d.stage ? d.stage.replace("_", " ") : "Nou"}
+                    </span>
+                    <h4 className="font-bold text-slate-100 text-sm mt-1">{d.project_title}</h4>
+                    <p className="text-slate-400 text-xs">{d.entity_name}</p>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-sm font-extrabold text-white">{(d.financial_value_ron / 1000000).toFixed(2)} Mil. RON</span>
+                    <span className="block text-[10px] text-emerald-400 font-bold">Marjă Țintă: {d.target_margin_pct}%</span>
+                  </div>
+                </div>
+                <div className="rounded bg-black/40 p-2 text-slate-300 text-[11px]">
+                  <b>Notițe Bidding:</b> {d.notes}
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
