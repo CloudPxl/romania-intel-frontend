@@ -10,14 +10,13 @@ import {
   BusinessEligibilityModal,
   CopilotChatModal,
   PipelineTrackerModal,
-  AccountSettingsModal
+  AccountSettingsModal,
+  WorkspaceDeskModal
 } from "../components/EnterpriseModals";
 
 export default function DeskPage() {
-  const { user, preferences } = useAuth();
-  const [tenantId, setTenantId] = useState("t1_infra_transilvania");
-  const [products, setProducts] = useState<any[]>([]);
-  const [selectedProduct, setSelectedProduct] = useState<string>("all");
+  const { user, preferences, desks, activeDesk, switchDesk } = useAuth();
+  const [selectedDivision, setSelectedDivision] = useState<string>("all");
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const [leads, setLeads] = useState<any[]>([]);
   const [selectedLead, setSelectedLead] = useState<any | null>(null);
@@ -41,25 +40,17 @@ export default function DeskPage() {
   const [copilotOpen, setCopilotOpen] = useState(false);
   const [pipelineOpen, setPipelineOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-
-  const tenantNames: Record<string, string> = {
-    "t1_infra_transilvania": "SC Infra Construct Transilvania SRL",
-    "t2_medtech_bucuresti": "SC MedTech Pharma SRL",
-    "t3_vest_consulting_grants": "SC Vest Project Consulting"
-  };
+  const [deskManagerOpen, setDeskManagerOpen] = useState(false);
 
   const loadWorkspace = async (force = false) => {
     if (force) setRefreshing(true);
     else setLoading(true);
 
     try {
-      const prodData = await fetchTenantProducts(tenantId);
-      setProducts(prodData?.products || []);
-
-      const feedData = await fetchTenantFeed(tenantId, selectedProduct !== "all" ? selectedProduct : undefined, activeCategory, force);
+      const feedData = await fetchTenantFeed(activeDesk?.id || "desk_default", undefined, activeCategory, force);
       setLeads(feedData?.leads || []);
 
-      const macroData = await fetch72hMarketReport(tenantId);
+      const macroData = await fetch72hMarketReport(activeDesk?.id || "desk_default");
       setReport72h(macroData);
     } catch (err) {
       console.warn("[Desk] Load note:", err);
@@ -71,11 +62,11 @@ export default function DeskPage() {
 
   useEffect(() => {
     loadWorkspace(false);
-  }, [tenantId, activeCategory, selectedProduct]);
+  }, [activeDesk?.id, activeCategory]);
 
   const handleSaveToPipeline = async (lead: any) => {
     try {
-      await addLeadToPipeline(tenantId, lead);
+      await addLeadToPipeline(activeDesk?.id || "desk_default", lead);
       alert("Dosarul a fost salvat in Pipeline.");
     } catch {
       alert("Eroare la salvarea in pipeline.");
@@ -97,6 +88,7 @@ export default function DeskPage() {
     }
   };
 
+  // Filter and Score according to Active Desk's target counties & keywords
   const filteredLeads = leads.filter((l) => {
     const matchCounty = selectedCounty === "all" || l?.county?.toLowerCase() === selectedCounty.toLowerCase();
     const matchSearch =
@@ -105,7 +97,17 @@ export default function DeskPage() {
       l?.entity_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       l?.locality?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       l?.sub_category?.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchCounty && matchSearch;
+
+    let matchDivision = true;
+    if (selectedDivision !== "all" && activeDesk?.divisions) {
+      const activeDiv = activeDesk.divisions.find(d => d.id === selectedDivision);
+      if (activeDiv && activeDiv.keywords?.length > 0) {
+        const text = (l?.project_title + " " + l?.executive_summary + " " + l?.sub_category).toLowerCase();
+        matchDivision = activeDiv.keywords.some(k => text.includes(k.toLowerCase()));
+      }
+    }
+
+    return matchCounty && matchSearch && matchDivision;
   });
 
   filteredLeads.sort((a, b) => {
@@ -120,48 +122,59 @@ export default function DeskPage() {
 
   return (
     <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex flex-col font-sans">
-      {/* 1. TOP EXECUTIVE BAR */}
+      {/* 1. TOP BAR WITH CLEAN LOGO (NO 2026, NO GREEN DOT) & WORKING WORKSPACE SELECTOR */}
       <header className="h-16 border-b border-slate-200 bg-white px-6 flex items-center justify-between sticky top-0 z-30 shadow-sm">
         <div className="flex items-center gap-5">
-          <div className="flex items-center gap-2">
-            <span className="h-2.5 w-2.5 rounded-full bg-emerald-600"></span>
-            <span className="font-bold text-base tracking-wider text-slate-900 uppercase">
-              RO-INTEL <span className="text-sky-700 text-[11px] font-semibold px-2 py-0.5 rounded bg-sky-50 border border-sky-200">2026</span>
-            </span>
-          </div>
+          {/* Clean Logo */}
+          <span className="font-bold text-base tracking-wider text-slate-900 uppercase">
+            RO-INTEL
+          </span>
 
+          {/* Dynamic Desk / Workspace Selector */}
           <div className="relative">
             <button
               onClick={() => setWorkspaceDropdownOpen(!workspaceDropdownOpen)}
               className="flex items-center gap-2 rounded-lg border border-slate-300 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-800 hover:border-slate-400 hover:bg-white transition shadow-sm"
             >
               <span className="h-2 w-2 rounded-full bg-sky-600"></span>
-              <span>{tenantNames[tenantId] || "Selecteaza Companie"}</span>
+              <span className="truncate max-w-[200px]">{activeDesk?.name || "Selecteaza Desk"}</span>
               <span className="text-[10px] text-slate-500 font-normal">▼</span>
             </button>
 
             {workspaceDropdownOpen && (
               <div className="absolute left-0 mt-2 w-72 rounded-xl border border-slate-200 bg-white p-2 shadow-xl z-50 text-xs space-y-1">
-                <span className="text-[10px] uppercase font-bold text-slate-400 px-2 py-1 block">Companie Activa</span>
-                {Object.entries(tenantNames).map(([id, name]) => (
+                <span className="text-[10px] uppercase font-bold text-slate-400 px-2 py-1 block">Companii & Desk-uri</span>
+                {desks.map((d) => (
                   <button
-                    key={id}
+                    key={d.id}
                     onClick={() => {
-                      setTenantId(id);
-                      setSelectedProduct("all");
+                      switchDesk(d.id);
+                      setSelectedDivision("all");
                       setWorkspaceDropdownOpen(false);
                     }}
-                    className={"w-full text-left rounded-lg px-2.5 py-2 transition flex items-center justify-between " + (tenantId === id ? "bg-sky-50 text-sky-800 font-bold border border-sky-200" : "text-slate-700 hover:bg-slate-100")}
+                    className={"w-full text-left rounded-lg px-2.5 py-2 transition flex items-center justify-between " + (activeDesk?.id === d.id ? "bg-sky-50 text-sky-800 font-bold border border-sky-200" : "text-slate-700 hover:bg-slate-100")}
                   >
-                    <span className="truncate">{name}</span>
-                    {tenantId === id && <span className="text-sky-700 text-xs font-bold">Activ</span>}
+                    <span className="truncate">{d.name}</span>
+                    {activeDesk?.id === d.id && <span className="text-sky-700 text-xs font-bold">Activ</span>}
                   </button>
                 ))}
+                <div className="border-t border-slate-100 pt-1 mt-1">
+                  <button
+                    onClick={() => {
+                      setWorkspaceDropdownOpen(false);
+                      setDeskManagerOpen(true);
+                    }}
+                    className="w-full text-left rounded-lg px-2.5 py-1.5 font-bold text-sky-700 hover:bg-sky-50 transition"
+                  >
+                    + Administrare & Adaugare Companii
+                  </button>
+                </div>
               </div>
             )}
           </div>
         </div>
 
+        {/* Action Controls */}
         <div className="flex items-center gap-2">
           <button
             onClick={() => setPipelineOpen(true)}
@@ -225,6 +238,16 @@ export default function DeskPage() {
                   Setari Cont & Alerte
                 </button>
 
+                <button
+                  onClick={() => {
+                    setProfileDropdownOpen(false);
+                    setDeskManagerOpen(true);
+                  }}
+                  className="w-full rounded-lg bg-slate-100 py-2 text-center text-slate-700 hover:bg-slate-200 transition font-medium"
+                >
+                  Companii & Desk-uri
+                </button>
+
                 {!user ? (
                   <button
                     onClick={() => {
@@ -252,7 +275,7 @@ export default function DeskPage() {
         </div>
       </header>
 
-      {/* 2. MAIN BODY */}
+      {/* 2. BODY CONTENT */}
       <div className="flex-1 flex overflow-hidden">
         {/* SIDEBAR */}
         <aside className="w-72 border-r border-slate-200 bg-white p-5 flex flex-col justify-between hidden md:flex">
@@ -277,21 +300,21 @@ export default function DeskPage() {
               ))}
             </div>
 
-            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-2">Divizii Produs</span>
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-2">Divizii & Linii {activeDesk?.name ? `(${activeDesk.name.split(" ")[0]})` : ""}</span>
             <div className="space-y-1 mb-5">
               <button
-                onClick={() => setSelectedProduct("all")}
-                className={"w-full text-left rounded-lg px-3 py-1.5 text-xs transition " + (selectedProduct === "all" ? "text-sky-700 font-bold" : "text-slate-600 hover:bg-slate-50")}
+                onClick={() => setSelectedDivision("all")}
+                className={"w-full text-left rounded-lg px-3 py-1.5 text-xs transition " + (selectedDivision === "all" ? "text-sky-700 font-bold" : "text-slate-600 hover:bg-slate-50")}
               >
-                Toate Liniile
+                Toate Liniile Desk
               </button>
-              {products.map((p) => (
+              {activeDesk?.divisions?.map((d) => (
                 <button
-                  key={p.product_id}
-                  onClick={() => setSelectedProduct(p.product_id)}
-                  className={"w-full text-left rounded-lg px-3 py-1.5 text-xs transition " + (selectedProduct === p.product_id ? "text-sky-700 font-bold" : "text-slate-600 hover:bg-slate-50")}
+                  key={d.id}
+                  onClick={() => setSelectedDivision(d.id)}
+                  className={"w-full text-left rounded-lg px-3 py-1.5 text-xs transition " + (selectedDivision === d.id ? "text-sky-700 font-bold" : "text-slate-600 hover:bg-slate-50")}
                 >
-                  {p.name}
+                  {d.name}
                 </button>
               ))}
             </div>
@@ -322,7 +345,7 @@ export default function DeskPage() {
 
         {/* MAIN FEED */}
         <main className="flex-1 p-6 overflow-y-auto">
-          {/* SEARCH & REPOSITIONED REFRESH BUTTON TOOLBAR */}
+          {/* SEARCH & ISOLATED REFRESH BUTTON TOOLBAR */}
           <div className="flex flex-col lg:flex-row gap-3 justify-between items-center mb-6 bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm">
             <div className="flex-1 w-full lg:w-auto flex items-center gap-2">
               <input
@@ -357,7 +380,7 @@ export default function DeskPage() {
               </button>
 
               <a
-                href={"https://api.ro-intel.xyz/api/v1/tenants/" + tenantId + "/export/csv"}
+                href={"https://api.ro-intel.xyz/api/v1/tenants/" + (activeDesk?.id || "desk_default") + "/export/csv"}
                 download
                 className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition shadow-sm"
               >
@@ -471,7 +494,7 @@ export default function DeskPage() {
 
               <div className="rounded-xl bg-sky-50 border border-sky-200 p-4">
                 <span className="font-bold text-sky-900 block mb-1">Pozitionare Tehnica & Factori de Evaluare</span>
-                <p className="text-slate-700 leading-relaxed">{selectedLead.sales_pitch_angle}</p>
+                <p className="teeading-relaxed">{selectedLead.sales_pitch_angle}</p>
               </div>
 
               <div className="pt-2 space-y-2">
@@ -521,14 +544,15 @@ export default function DeskPage() {
       )}
 
       {/* 4. MODALS */}
-      <PricingModal isOpen={pricingOpen} onClose={() => setPricingOpen(false)} tenantId={tenantId} />
+      <PricingModal isOpen={pricingOpen} onClose={() => setPricingOpen(false)} tenantId={activeDesk?.id || "desk_default"} />
       <BusinessEligibilityModal isOpen={businessScannerOpen} onClose={() => setBusinessScannerOpen(false)} />
-      <CopilotChatModal isOpen={copilotOpen} onClose={() => setCopilotOpen(false)} tenantId={tenantId} report72h={report72h} />
+      <CopilotChatModal isOpen={copilotOpen} onClose={() => setCopilotOpen(false)} tenantId={activeDesk?.id || "desk_default"} report72h={report72h} />
       <CaietScannerModal isOpen={scannerOpen} onClose={() => setScannerOpen(false)} defaultTitle={selectedLead?.project_title || ""} />
       <WinOddsModal isOpen={winModalOpen} onClose={() => setWinModalOpen(false)} defaultBudget={selectedLead?.financial_value_ron || 10000000} />
       <ClarificationModal isOpen={clarificationOpen} onClose={() => setClarificationOpen(false)} opp={selectedLead || {}} />
-      <PipelineTrackerModal isOpen={pipelineOpen} onClose={() => setPipelineOpen(false)} tenantId={tenantId} />
+      <PipelineTrackerModal isOpen={pipelineOpen} onClose={() => setPipelineOpen(false)} tenantId={activeDesk?.id || "desk_default"} />
       <AccountSettingsModal isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <WorkspaceDeskModal isOpen={deskManagerOpen} onClose={() => setDeskManagerOpen(false)} />
     </div>
   );
 }

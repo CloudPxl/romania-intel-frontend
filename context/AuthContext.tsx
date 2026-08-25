@@ -3,6 +3,23 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { syncBackendAuth, switchTenantWorkspace } from "@/lib/api";
 
+export interface BusinessDivision {
+  id: string;
+  name: string;
+  keywords: string[];
+}
+
+export interface BusinessDesk {
+  id: string;
+  name: string;
+  cui: string;
+  primary_domain: string;
+  target_counties: string[];
+  min_budget_ron: number;
+  keywords: string[];
+  divisions: BusinessDivision[];
+}
+
 export interface UserProfile {
   email: string;
   full_name: string;
@@ -16,7 +33,6 @@ export interface UserPreferences {
   notification_email?: string;
   auto_alert_score: number;
   default_sort: "score_desc" | "budget_desc" | "date_desc" | "deadline_asc";
-  view_mode: "cards" | "compact";
 }
 
 interface AuthContextType {
@@ -24,18 +40,50 @@ interface AuthContextType {
   loading: boolean;
   preferences: UserPreferences;
   updatePreferences: (newPrefs: Partial<UserPreferences>) => void;
-  activeTenant: string;
-  setActiveTenant: (tenantId: string) => void;
+  desks: BusinessDesk[];
+  activeDesk: BusinessDesk;
+  createDesk: (desk: Omit<BusinessDesk, "id">) => void;
+  updateDesk: (id: string, desk: Partial<BusinessDesk>) => void;
+  deleteDesk: (id: string) => void;
+  switchDesk: (id: string) => void;
   signInWithGoogle: () => Promise<void>;
   signInWithEmail: (email: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
 }
 
+const DEFAULT_DESKS: BusinessDesk[] = [
+  {
+    id: "desk_main_infra",
+    name: "SC Infra Construct Transilvania SRL",
+    cui: "RO12345678",
+    primary_domain: "infrastructura",
+    target_counties: ["Cluj", "Iasi", "Bihor", "Timis", "Bucuresti", "Brasov", "Constanta"],
+    min_budget_ron: 5000000,
+    keywords: ["drum", "pod", "pasaj", "asfalt", "its", "scats", "semaforizare", "metrou"],
+    divisions: [
+      { id: "div_heavy", name: "Infrastructura Grea si Drumuri", keywords: ["drum", "pod", "asfalt", "metrou"] },
+      { id: "div_its", name: "Smart City si Sisteme ITS", keywords: ["its", "scats", "semaforizare", "anpr"] }
+    ]
+  },
+  {
+    id: "desk_medtech",
+    name: "SC MedTech Pharma SRL",
+    cui: "RO98765432",
+    primary_domain: "sanatate",
+    target_counties: ["Bucuresti", "Iasi", "Cluj", "Timis", "Brasov"],
+    min_budget_ron: 3000000,
+    keywords: ["rmn", "ct", "accelerator", "radioterapie", "spital", "oncologie", "pacs"],
+    divisions: [
+      { id: "div_imagistica", name: "Imagistica Medicala si RMN", keywords: ["rmn", "ct", "radioterapie"] },
+      { id: "div_digital_health", name: "Digitalizare Spitale PACS", keywords: ["pacs", "soft medical"] }
+    ]
+  }
+];
+
 const DEFAULT_PREFERENCES: UserPreferences = {
   notification_email: "",
   auto_alert_score: 9.0,
-  default_sort: "score_desc",
-  view_mode: "cards"
+  default_sort: "score_desc"
 };
 
 const AuthContext = createContext<AuthContextType>({
@@ -43,8 +91,12 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   preferences: DEFAULT_PREFERENCES,
   updatePreferences: () => {},
-  activeTenant: "t1_infra_transilvania",
-  setActiveTenant: () => {},
+  desks: DEFAULT_DESKS,
+  activeDesk: DEFAULT_DESKS[0],
+  createDesk: () => {},
+  updateDesk: () => {},
+  deleteDesk: () => {},
+  switchDesk: () => {},
   signInWithGoogle: async () => {},
   signInWithEmail: async () => ({ error: null }),
   signOut: async () => {}
@@ -53,17 +105,70 @@ const AuthContext = createContext<AuthContextType>({
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTenant, setActiveTenantState] = useState("t1_infra_transilvania");
+  const [desks, setDesks] = useState<BusinessDesk[]>(DEFAULT_DESKS);
+  const [activeDeskId, setActiveDeskId] = useState<string>(DEFAULT_DESKS[0].id);
   const [preferences, setPreferences] = useState<UserPreferences>(DEFAULT_PREFERENCES);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
+      const savedDesks = localStorage.getItem("ro_intel_user_desks");
+      const savedActiveId = localStorage.getItem("ro_intel_active_desk_id");
       const savedPrefs = localStorage.getItem("ro_intel_user_prefs");
+
+      if (savedDesks) {
+        try {
+          const parsed = JSON.parse(savedDesks);
+          if (parsed && parsed.length > 0) setDesks(parsed);
+        } catch {}
+      }
+      if (savedActiveId) setActiveDeskId(savedActiveId);
       if (savedPrefs) {
         try { setPreferences(JSON.parse(savedPrefs)); } catch {}
       }
     }
   }, []);
+
+  const saveDesksToStorage = (updatedDesks: BusinessDesk[]) => {
+    setDesks(updatedDesks);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("ro_intel_user_desks", JSON.stringify(updatedDesks));
+    }
+  };
+
+  const createDesk = (deskData: Omit<BusinessDesk, "id">) => {
+    const newDesk: BusinessDesk = {
+      ...deskData,
+      id: "desk_" + Date.now()
+    };
+    const updated = [...desks, newDesk];
+    saveDesksToStorage(updated);
+    switchDesk(newDesk.id);
+  };
+
+  const updateDesk = (id: string, deskData: Partial<BusinessDesk>) => {
+    const updated = desks.map(d => (d.id === id ? { ...d, ...deskData } : d));
+    saveDesksToStorage(updated);
+  };
+
+  const deleteDesk = (id: string) => {
+    if (desks.length <= 1) {
+      alert("Trebuie sa pastrati cel putin un Desk activ.");
+      return;
+    }
+    const updated = desks.filter(d => d.id !== id);
+    saveDesksToStorage(updated);
+    if (activeDeskId === id) {
+      switchDesk(updated[0].id);
+    }
+  };
+
+  const switchDesk = (id: string) => {
+    setActiveDeskId(id);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("ro_intel_active_desk_id", id);
+    }
+    switchTenantWorkspace(id);
+  };
 
   const updatePreferences = (newPrefs: Partial<UserPreferences>) => {
     setPreferences(prev => {
@@ -73,11 +178,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       return updated;
     });
-  };
-
-  const setActiveTenant = (tenantId: string) => {
-    setActiveTenantState(tenantId);
-    switchTenantWorkspace(tenantId);
   };
 
   useEffect(() => {
@@ -93,7 +193,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           );
           if (synced?.user) {
             setUser({ ...synced.user, is_subscribed: true });
-            setActiveTenantState(synced.user.tenant_id || "t1_infra_transilvania");
           }
         } else {
           setUser(null);
@@ -118,7 +217,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         );
         if (synced?.user) {
           setUser({ ...synced.user, is_subscribed: true });
-          setActiveTenantState(synced.user.tenant_id || "t1_infra_transilvania");
         }
       } else {
         setUser(null);
@@ -134,7 +232,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${typeof window !== "undefined" ? window.location.origin : ""}`
+        redirectTo: typeof window !== "undefined" ? window.location.origin : ""
       }
     });
   };
@@ -143,7 +241,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: `${typeof window !== "undefined" ? window.location.origin : ""}`
+        emailRedirectTo: typeof window !== "undefined" ? window.location.origin : ""
       }
     });
     return { error: error ? error.message : null };
@@ -154,8 +252,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   };
 
+  const activeDesk = desks.find(d => d.id === activeDeskId) || desks[0] || DEFAULT_DESKS[0];
+
   return (
-    <AuthContext.Provider value={{ user, loading, preferences, updatePreferences, activeTenant, setActiveTenant, signInWithGoogle, signInWithEmail, signOut }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        preferences,
+        updatePreferences,
+        desks,
+        activeDesk,
+        createDesk,
+        updateDesk,
+        deleteDesk,
+        switchDesk,
+        signInWithGoogle,
+        signInWithEmail,
+        signOut
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

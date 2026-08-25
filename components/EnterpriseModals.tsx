@@ -10,9 +10,9 @@ import {
   askCopilotChat,
   fetchTenantPipeline
 } from "../lib/api";
-import { useAuth } from "../context/AuthContext";
+import { useAuth, BusinessDesk } from "../context/AuthContext";
 
-// 1. PRICING & PROFORMA MODAL
+// 1. BILLING & PROFORMA MODAL
 export function PricingModal({ isOpen, onClose, tenantId }: { isOpen: boolean; onClose: () => void; tenantId: string }) {
   const [selectedPlan, setSelectedPlan] = useState<string | null>("plan_founder_vip");
   const [companyName, setCompanyName] = useState("SC Infra Construct Transilvania SRL");
@@ -132,7 +132,7 @@ export function PricingModal({ isOpen, onClose, tenantId }: { isOpen: boolean; o
                     <label className="block text-slate-600 mb-1">Email Facturare</label>
                     <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full rounded-lg bg-white border border-slate-300 p-2 text-slate-900" />
                   </div>
-          <div>
+                  <div>
                     <label className="block text-slate-600 mb-1">Adresa Sediu Social</label>
                     <input type="text" value={address} onChange={e => setAddress(e.target.value)} className="w-full rounded-lg bg-white border border-slate-300 p-2 text-slate-900" />
                   </div>
@@ -229,7 +229,7 @@ export function CaietScannerModal({ isOpen, onClose, defaultTitle }: { isOpen: b
           />
           <label htmlFor="caiet-upload" className="cursor-pointer block">
             <span className="text-sky-700 font-bold block text-xs">
-              {file ? "Fisier selectat: " + file.name : "Incarcati fisierul PDF sau DOCX aici (sau click pentru a alege)"}
+              {file ? "Fisier stat: " + file.name : "Incarcati fisierul PDF sau DOCX aici (sau click pentru a alege)"}
             </span>
             <span className="text-[10px] text-slate-500 mt-1 block">Suporta Caiete de Sarcini oficiale PDF, DOCX</span>
           </label>
@@ -277,14 +277,23 @@ export function CaietScannerModal({ isOpen, onClose, defaultTitle }: { isOpen: b
 
 // 3. BUSINESS ELIGIBILITY MODAL
 export function BusinessEligibilityModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  const [companyName, setCompanyName] = useState("SC Infra Construct Transilvania SRL");
-  const [cui, setCui] = useState("RO12345678");
+  const { activeDesk } = useAuth();
+  const [companyName, setCompanyName] = useState(activeDesk?.name || "SC Infra Construct Transilvania SRL");
+  const [cui, setCui] = useState(activeDesk?.cui || "RO12345678");
   const [caen, setCaen] = useState("4211");
   const [turnover, setTurnover] = useState(18500000);
   const [employees, setEmployees] = useState(48);
-  const [county, setCounty] = useState("Cluj");
+  const [county, setCounty] = useState(activeDesk?.target_counties?.[0] || "Cluj");
   const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (activeDesk) {
+      setCompanyName(activeDesk.name);
+      setCui(activeDesk.cui);
+      if (activeDesk.target_counties?.length > 0) setCounty(activeDesk.target_counties[0]);
+    }
+  }, [activeDesk]);
 
   if (!isOpen) return null;
 
@@ -487,8 +496,7 @@ export function WinOddsModal({ isOpen, onClose, defaultBudget }: { isOpen: boole
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
-      <div className="relative w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl text-slate-900">
-        <div className="flex justify-between items-center mb-4 border-b border-slate-100 pb-3">
+      <div className="relative w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl text-slate-900">   <div className="flex justify-between items-center mb-4 border-b border-slate-100 pb-3">
           <h3 className="text-lg font-bold text-slate-900">Simulator Sanse de Castig & Marja Optima</h3>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-700">✕</button>
         </div>
@@ -524,6 +532,7 @@ export function WinOddsModal({ isOpen, onClose, defaultBudget }: { isOpen: boole
 
 // 6. CLARIFICATION MODAL
 export function ClarificationModal({ isOpen, onClose, opp }: { isOpen: boolean; onClose: () => void; opp: any }) {
+  const { activeDesk } = useAuth();
   const [points, setPoints] = useState("1. Solicitam eliminarea cerintei de autorizatie directa de la producator.\n2. Solicitam acceptarea standardelor tehnice europene echivalente conform Art. 160 Legea 98/2016.");
   const [letter, setLetter] = useState("");
   const [loading, setLoading] = useState(false);
@@ -538,8 +547,8 @@ export function ClarificationModal({ isOpen, onClose, opp }: { isOpen: boolean; 
         authority_name: opp.entity_name,
         project_title: opp.project_title,
         source_id: opp.source_id,
-        company_name: "SC Infra Construct Transilvania SRL",
-        cui_fiscal: "RO12345678",
+        company_name: activeDesk?.name || "SC Infra Construct Transilvania SRL",
+        cui_fiscal: activeDesk?.cui || "RO12345678",
         clarification_points: points
       });
       setLetter(data.generated_letter);
@@ -705,7 +714,7 @@ export function AccountSettingsModal({ isOpen, onClose }: { isOpen: boolean; onC
           {!user ? (
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-3">
               <span className="font-bold text-slate-900 block text-sm">Autentificare Operator Economic</span>
-              <p className="text-slate-600">Conectati-va pentru a salva dosare in pipeline si a primi alerte automate prin Resend:</p>
+              <p className="text-slate-600">Conectati-va pentru a salva dosare in pipeline si a primi alerte automate:</p>
               
               <button
                 onClick={signInWithGoogle}
@@ -758,7 +767,7 @@ export function AccountSettingsModal({ isOpen, onClose }: { isOpen: boolean; onC
           )}
 
           <div className="space-y-3 pt-2">
-            <span className="font-bold text-slate-700 block uppercase text-[11px]">Canal Trimitere Alerte Email (Resend)</span>
+            <span className="font-bold text-slate-700 block uppercase text-[11px]">Canal Trimitere Alerte Email</span>
             <div>
               <label className="block text-slate-600 mb-1">Email Destinatar Notificari</label>
               <input
@@ -787,6 +796,221 @@ export function AccountSettingsModal({ isOpen, onClose }: { isOpen: boolean; onC
             Salveaza Preferintele
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// 9. DYNAMIC WORKSPACE & BUSINESS DESK MANAGER MODAL
+export function WorkspaceDeskModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  const { desks, activeDesk, createDesk, deleteDesk, switchDesk } = useAuth();
+  const [isCreating, setIsCreating] = useState(false);
+  const [name, setName] = useState("");
+  const [cui, setCui] = useState("");
+  const [domain, setDomain] = useState("infrastructura");
+  const [counties, setCounties] = useState("Iasi, Cluj, Bucuresti");
+  const [minBudget, setMinBudget] = useState(5000000);
+  const [keywords, setKeywords] = useState("drum, pod, asfalt, metrou");
+  const [divisionName, setDivisionName] = useState("Divizia Principala");
+
+  if (!isOpen) return null;
+
+  const handleCreate = () => {
+    if (!name.trim() || !cui.trim()) {
+      alert("Completati numele companiei si codul fiscal (CUI).");
+      return;
+    }
+    const countyList = counties.split(",").map(c => c.trim()).filter(Boolean);
+    const keywordList = keywords.split(",").map(k => k.trim().toLowerCase()).filter(Boolean);
+
+    createDesk({
+      name,
+      cui,
+      primary_domain: domain,
+      target_counties: countyList.length > 0 ? countyList : ["Toate"],
+      min_budget_ron: Number(minBudget) || 1000000,
+      keywords: keywordList,
+      divisions: [
+        {
+          id: "div_" + Date.now(),
+          name: divisionName || "Divizia Principala",
+          keywords: keywordList
+        }
+      ]
+    });
+
+    setIsCreating(false);
+    setName("");
+    setCui("");
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
+      <div className="relative w-full max-w-2xl rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl text-slate-900 max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-center mb-4 border-b border-slate-100 pb-3">
+          <div>
+            <h3 className="text-lg font-bold text-slate-900">Administrare Companii & Desk-uri</h3>
+            <p className="text-xs text-slate-500">Configurati companiile din portofoliu, domeniile de activitate si cuvintele-cheie monitorizate.</p>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-700">✕</button>
+        </div>
+
+        {!isCreating ? (
+          <div className="space-y-4 text-xs">
+            <div className="flex justify-between items-center">
+              <span className="font-bold text-slate-700 uppercase text-[11px]">Companii & Desk-uri Active ({desks.length})</span>
+              <button
+                onClick={() => setIsCreating(true)}
+                className="rounded-lg bg-slate-900 px-3 py-1.5 font-semibold text-white hover:bg-slate-800 transition"
+              >
+                + Adauga Companie Noua
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              {desks.map(d => (
+                <div
+                  key={d.id}
+                  className={"rounded-xl border p-4 transition flex justify-between items-center " + (d.id === activeDesk?.id ? "border-sky-500 bg-sky-50/40" : "border-slate-200 bg-slate-50")}
+                >
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-bold text-slate-900 text-sm">{d.name}</h4>
+                      {d.id === activeDesk?.id && (
+                        <span className="rounded bg-sky-100 px-2 py-0.5 font-bold text-sky-800 text-[10px]">Activ</span>
+                      )}
+                    </div>
+                    <p className="text-slate-500 text-xs mt-0.5">CUI: {d.cui} &bull; Domeniu: <span className="capitalize">{d.primary_domain}</span></p>
+                    <p className="text-slate-600 text-[11px] mt-1">Judete: {d.target_counties?.join(", ")}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {d.id !== activeDesk?.id && (
+                      <button
+                        onClick={() => switchDesk(d.id)}
+                        className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 font-semibold text-slate-700 hover:bg-slate-100"
+                      >
+                        Comuta
+                      </button>
+                    )}
+                    {desks.length > 1 && (
+                      <button
+                        onClick={() => deleteDesk(d.id)}
+                        className="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 font-semibold text-rose-700 hover:bg-rose-100"
+                      >
+                        Sterge
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-3 text-xs">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+              <span className="font-bold text-slate-900 uppercase text-[11px]">Configurare Desk Nou</span>
+              <button onClick={() => setIsCreating(false)} className="text-slate-500 hover:underline">Inapoi</button>
+            </div>
+
+            <div>
+              <label className="block text-slate-600 mb-1">Denumire Companie</label>
+              <input
+                type="text"
+                placeholder="ex: SC Terra Construct SRL"
+                value={name}
+                onChange={e => setName(e.target.value)}
+                className="w-full rounded-lg bg-slate-50 border border-slate-300 p-2 text-slate-900 focus:bg-white"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-slate-600 mb-1">Cod Fiscal (CUI)</label>
+                <input
+                  type="text"
+                  placeholder="ex: RO34567890"
+                  value={cui}
+                  onChange={e => setCui(e.target.value)}
+                  className="w-full rounded-lg bg-slate-50 border border-slate-300 p-2 text-slate-900 focus:bg-white"
+                />
+              </div>
+              <div>
+                <label className="block text-slate-600 mb-1">Domeniu Strategic Principal</label>
+                <select
+                  value={domain}
+                  onChange={e => setDomain(e.target.value)}
+                  className="w-full rounded-lg bg-slate-50 border border-slate-300 p-2 text-slate-900 focus:bg-white"
+                >
+                  <option value="infrastructura">Infrastructura & Transporturi</option>
+                  <option value="sanatate">Sanatate & Echipamente Medicale</option>
+                  <option value="energie">Energie & Utilitati Verzi</option>
+                  <option value="aparare">Aparare & Securitate Speciala</option>
+                  <option value="digitalizare">Digitalizare, IT & Smart City</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-slate-600 mb-1">Judete Vizate (separate prin virgula)</label>
+              <input
+                type="text"
+                placeholder="ex: Cluj, Iasi, Timis, Bucuresti"
+                value={counties}
+                onChange={e => setCounties(e.target.value)}
+                className="w-full rounded-lg bg-slate-50 border border-slate-300 p-2 text-slate-900 focus:bg-white"
+              />
+            </div>
+
+            <div>
+              <label className="block text-slate-600 mb-1">Cuvinte-cheie Monitorizate (separate prin virgula)</label>
+              <input
+                type="text"
+                placeholder="ex: pod, asfalt, consolidare, statie tratare"
+                value={keywords}
+                onChange={e => setKeywords(e.target.value)}
+                className="w-full rounded-lg bg-slate-50 border border-slate-300 p-2 text-slate-900 focus:bg-white"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-slate-600 mb-1">Nume Divizie Principala</label>
+                <input
+                  type="text"
+                  placeholder="ex: Divizia Lucrari Civile"
+                  value={divisionName}
+                  onChange={e => setDivisionName(e.target.value)}
+                  className="w-full rounded-lg bg-slate-50 border border-slate-300 p-2 text-slate-900 focus:bg-white"
+                />
+              </div>
+              <div>
+                <label className="block text-slate-600 mb-1">Buget Minim Proiect (RON)</label>
+                <input
+                  type="number"
+                  value={minBudget}
+                  onChange={e => setMinBudget(Number(e.target.value))}
+                  className="w-full rounded-lg bg-slate-50 border border-slate-300 p-2 text-slate-900 focus:bg-white"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={handleCreate}
+                className="flex-1 rounded-xl bg-slate-900 py-2.5 font-bold text-white hover:bg-slate-800 transition"
+              >
+                Salveaza si Activeaza Desk
+              </button>
+              <button
+                onClick={() => setIsCreating(false)}
+                className="rounded-xl border border-slate-300 bg-slate-100 px-4 py-2.5 font-semibold text-slate-700 hover:bg-slate-200"
+              >
+                Anuleaza
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
