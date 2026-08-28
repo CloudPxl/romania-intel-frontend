@@ -38,6 +38,18 @@
   --radius-md: calc(var(--radius) * .85);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) * 1.35);
+
+  --color-brand-50: #eef0fb;
+  --color-brand-100: #dde1f5;
+  --color-brand-200: #b9c0ea;
+  --color-brand-300: #8f98da;
+  --color-brand-400: #5c67bd;
+  --color-brand-500: #3a419f;
+  --color-brand-600: #242a88;
+  --color-brand-700: #1d226d;
+  --color-brand-800: #171b57;
+  --color-brand-900: #121542;
+  --color-brand: #242a88;
 }
 
 :root {

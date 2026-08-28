@@ -34,6 +34,12 @@ export async function switchTenantWorkspace(tenantId: string) {
   return { tenant_id: tenantId, status: "switched" };
 }
 
+export async function fetchNewsletterFeed() {
+  const res = await fetch(`${getApiBase()}/api/v1/newsletter/feed`);
+  if (!res.ok) throw new Error("Eroare la preluarea buletinului informativ");
+  return res.json();
+}
+
 export async function fetchTenantFeed(tenantId: string, productId?: string, category?: string, forceRefresh = false) {
   let url = `${getApiBase()}/api/v1/tenants/${tenantId}/feed?force_refresh=${forceRefresh}`;
   if (productId) url += `&product_id=${productId}`;
@@ -54,6 +60,12 @@ export async function fetchTenantPipeline(tenantId: string, stage?: string) {
   if (stage && stage !== "all") url += `?stage=${stage}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error("Eroare la preluarea pipeline-ului");
+  return res.json();
+}
+
+export async function fetchMarketTrends() {
+  const res = await fetch(`${getApiBase()}/api/v1/analysis/market-trends`);
+  if (!res.ok) throw new Error("Eroare la preluarea analizei de piata");
   return res.json();
 }
 
