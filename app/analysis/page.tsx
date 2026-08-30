@@ -178,7 +178,7 @@ export default function AnalysisPage() {
         </EmptyState>
       ) : (
         <>
-          <div className="rule-grid grid grid-cols-2 border border-divider lg:grid-cols-4">
+          <div className="rule-grid grid grid-cols-2 lg:grid-cols-4">
             <StatCell label="Dosare în selecție" value={formatNumber(data.total_leads)} />
             <StatCell label="Valoare totală" value={formatRon(data.total_market_value_ron)} />
             <StatCell
@@ -246,7 +246,7 @@ export default function AnalysisPage() {
                   ))}
                 </ol>
               ) : (
-                <div className="rounded-xl border border-dashed border-divider p-6">
+                <div className="neu-pressed rounded-3xl p-6">
                   <Eyebrow className="text-editorial">Necesită autentificare</Eyebrow>
                   <p className="font-body mt-2 text-sm leading-relaxed text-stock-600">
                     Cifrele agregate sunt publice. Pozițiile identificate nominal — autoritate, titlu de proiect,

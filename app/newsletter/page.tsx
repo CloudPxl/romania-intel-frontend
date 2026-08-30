@@ -192,7 +192,7 @@ function NewsletterContent() {
               onClick={() => setActiveCategory(c.id)}
               className={
                 "min-h-[40px] rounded-lg px-2.5 py-2 text-left font-body text-sm transition-colors " +
-                (activeCategory === c.id ? "bg-editorial-soft font-medium text-editorial" : "text-stock-600 hover:bg-surface")
+                (activeCategory === c.id ? "neu-pressed-sm bg-editorial-soft font-medium text-editorial" : "text-stock-600 hover:neu-flat-sm")
               }
             >
               {c.label}
@@ -211,7 +211,7 @@ function NewsletterContent() {
                 onClick={() => setSelectedDivision(d.id)}
                 className={
                   "min-h-[40px] rounded-lg px-2.5 py-2 text-left font-body text-sm transition-colors " +
-                  (selectedDivision === d.id ? "bg-editorial-soft font-medium text-editorial" : "text-stock-600 hover:bg-surface")
+                  (selectedDivision === d.id ? "neu-pressed-sm bg-editorial-soft font-medium text-editorial" : "text-stock-600 hover:neu-flat-sm")
                 }
               >
                 {"name" in d ? d.name : ""}
@@ -232,7 +232,7 @@ function NewsletterContent() {
         </Select>
       </Field>
 
-      <div className="rounded-xl border border-divider bg-surface p-4">
+      <div className="neu-flat rounded-2xl bg-paper p-4">
         <Eyebrow>Volum filtrat</Eyebrow>
         <p className="tabular font-display mt-1 text-2xl font-semibold leading-none">{formatRon(totalValue)}</p>
         <p className="font-mono mt-2 text-[11px] text-stock-500">
@@ -326,7 +326,7 @@ function NewsletterContent() {
                 : "Registrul nu conține încă dosare potrivite pentru acest profil. Datele se actualizează la fiecare ciclu de scanare."}
             </EmptyState>
           ) : (
-            <ul className="divide-y divide-divider overflow-hidden rounded-2xl border border-divider bg-surface">
+            <ul className="divide-y divide-divider neu-flat overflow-hidden rounded-3xl bg-paper">
               {visibleLeads.map((lead) => {
                 const locked = Boolean(lead.is_locked);
                 return (
@@ -334,7 +334,7 @@ function NewsletterContent() {
                     <button
                       onClick={() => !locked && setSelectedLead(lead)}
                       disabled={locked}
-                      className="flex w-full flex-col gap-3 p-4 text-left transition-colors hover:bg-surface-2 disabled:cursor-not-allowed sm:flex-row sm:gap-5 sm:p-5"
+                      className="flex w-full flex-col gap-3 p-4 text-left transition-all duration-300 hover:neu-pressed-sm disabled:cursor-not-allowed sm:flex-row sm:gap-5 sm:p-5"
                     >
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -418,9 +418,9 @@ function NewsletterContent() {
             role="dialog"
             aria-modal="true"
             aria-label="Dosar strategic"
-            className="absolute inset-y-0 right-0 flex w-full max-w-xl flex-col overflow-y-auto border-l border-divider bg-surface"
+            className="absolute inset-y-0 right-0 flex w-full max-w-xl flex-col overflow-y-auto bg-paper"
           >
-            <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-divider bg-surface/95 p-4 backdrop-blur sm:p-6">
+            <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-divider bg-paper/95 p-4 backdrop-blur sm:p-6">
               <div className="min-w-0">
                 <Eyebrow className="text-editorial">Dosar strategic · {selectedLead.source_id}</Eyebrow>
                 <h2 className="font-display mt-2 text-xl font-semibold leading-tight tracking-tight sm:text-2xl">
@@ -433,14 +433,14 @@ function NewsletterContent() {
               <button
                 onClick={() => setSelectedLead(null)}
                 aria-label="Închide dosarul"
-                className="-mr-1 -mt-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-stock-500 transition-colors hover:bg-surface-2 hover:text-ink"
+                className="-mr-1 -mt-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-stock-500 transition-all duration-300 hover:neu-pressed-sm hover:text-ink"
               >
                 <X size={20} strokeWidth={1.5} />
               </button>
             </div>
 
             <div className="flex-1 p-4 sm:p-6">
-              <div className="grid grid-cols-2 divide-x divide-divider overflow-hidden rounded-xl border border-divider">
+              <div className="grid grid-cols-2 divide-x divide-divider neu-pressed overflow-hidden rounded-2xl bg-paper">
                 <div className="p-4">
                   <Eyebrow>Buget estimat</Eyebrow>
                   <p
@@ -462,7 +462,7 @@ function NewsletterContent() {
                 </div>
               </div>
 
-              <table className="mt-5 w-full overflow-hidden rounded-xl border border-divider text-left font-mono text-xs">
+              <table className="mt-5 w-full neu-pressed overflow-hidden rounded-2xl bg-paper text-left font-mono text-xs">
                 <tbody>
                   {[
                     ["Data publicării", formatDate(selectedLead.published_date)],
@@ -484,7 +484,7 @@ function NewsletterContent() {
               </table>
 
               {selectedLead.sales_pitch_angle && (
-                <div className="mt-5 rounded-r-lg border-l-2 border-editorial bg-editorial-soft px-4 py-3">
+                <div className="neu-pressed mt-5 rounded-r-lg border-l-2 border-editorial bg-editorial-soft px-4 py-3">
                   <Eyebrow className="text-editorial">Poziționare tehnică</Eyebrow>
                   <p className="font-body mt-1.5 text-sm leading-relaxed">{selectedLead.sales_pitch_angle}</p>
                 </div>
@@ -588,7 +588,7 @@ function NewsletterContent() {
         <div
           role="status"
           aria-live="polite"
-          className="fixed inset-x-4 bottom-4 z-50 rounded-xl border border-divider bg-surface-2 px-4 py-3 font-body text-sm text-ink shadow-2xl sm:left-auto sm:right-6 sm:max-w-sm"
+          className="neu-flat fixed inset-x-4 bottom-4 z-50 rounded-2xl bg-paper px-4 py-3 font-body text-sm text-ink sm:left-auto sm:right-6 sm:max-w-sm"
         >
           {toast}
         </div>

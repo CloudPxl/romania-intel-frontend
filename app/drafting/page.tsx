@@ -73,8 +73,8 @@ function DocumentOutput({
   exporting: boolean;
 }) {
   return (
-    <div className="mt-6 overflow-hidden rounded-xl border border-divider">
-      <div className="flex flex-col gap-2 border-b border-divider bg-surface-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="mt-6 neu-pressed overflow-hidden rounded-2xl bg-paper">
+      <div className="flex flex-col gap-2 border-b border-divider px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <Eyebrow>Document generat</Eyebrow>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={onCopy}>
@@ -368,10 +368,10 @@ function ClarificationTool({
             onClick={() => setRequestType(opt.id)}
             aria-pressed={requestType === opt.id}
             className={
-              "rounded-xl border p-4 text-left transition-colors " +
+              "rounded-2xl bg-paper p-4 text-left transition-all duration-300 " +
               (requestType === opt.id
-                ? "border-editorial bg-editorial-soft"
-                : "border-divider bg-surface hover:bg-surface-2")
+                ? "neu-pressed border-l-[3px] border-editorial bg-editorial-soft"
+                : "neu-flat-sm hover:neu-flat")
             }
           >
             <h3 className="font-display text-base font-semibold leading-snug">{opt.title}</h3>

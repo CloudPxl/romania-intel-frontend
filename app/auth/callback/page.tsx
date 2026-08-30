@@ -65,7 +65,7 @@ export default function AuthCallbackPage() {
 
   return (
     <main className="mx-auto flex w-full max-w-screen-xl flex-1 items-center justify-center px-4 py-16">
-      <div className="w-full max-w-md rounded-2xl border border-divider bg-surface p-6 sm:p-8">
+      <div className="w-full max-w-md neu-flat rounded-3xl bg-paper p-6 sm:p-8">
         <Eyebrow className="text-editorial">Autentificare</Eyebrow>
         {error ? (
           <>

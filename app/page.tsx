@@ -85,7 +85,7 @@ export default function HomePage() {
       </div>
 
       {/* Live figures ticker */}
-      <div className="rule-grid mt-8 grid grid-cols-2 border border-divider lg:grid-cols-4">
+      <div className="rule-grid mt-8 grid grid-cols-2 lg:grid-cols-4">
         <StatCell label="Dosare în registru" value={formatNumber(stats?.total_leads ?? 0)} loading={loading} />
         <StatCell
           label="Valoare totală piață"
@@ -103,12 +103,11 @@ export default function HomePage() {
           value={topCounty?.county ?? "—"}
           loading={loading}
           hint={topCounty ? formatRon(topCounty.value_ron) : undefined}
-          // The trailing cell closes the row, so it drops its vertical rule.
         />
       </div>
 
       {/* Lead article */}
-      <section className="mt-8 grid grid-cols-1 gap-0 overflow-hidden rounded-2xl border border-divider bg-surface lg:grid-cols-12">
+      <section className="mt-8 grid grid-cols-1 gap-0 neu-flat overflow-hidden rounded-3xl bg-paper lg:grid-cols-12">
         <div className="border-b border-divider p-5 sm:p-8 lg:col-span-8 lg:border-b-0 lg:border-r">
           <Eyebrow className="text-editorial">
             {user ? `Desk activ · ${activeDesk?.name ?? ""}` : "Ediția publică"}
@@ -179,7 +178,7 @@ export default function HomePage() {
           <Link
             key={section.href}
             href={section.href}
-            className="group flex flex-col rounded-2xl border border-divider bg-surface p-5 transition-colors hover:border-editorial/40 hover:bg-surface-2 sm:p-6"
+            className="group flex flex-col neu-flat rounded-3xl bg-paper p-5 transition-all duration-300 hover:neu-lift hover:-translate-y-0.5 sm:p-6"
           >
             <Eyebrow className="text-editorial">{section.kicker}</Eyebrow>
             <h3 className="font-display mt-2 text-xl font-semibold leading-snug tracking-tight text-ink">{section.title}</h3>

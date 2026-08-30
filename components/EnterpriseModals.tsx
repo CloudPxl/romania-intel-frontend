@@ -44,7 +44,7 @@ function Modal({
         aria-modal="true"
         aria-label={title}
         className={
-          "relative flex max-h-[92svh] w-full flex-col rounded-t-2xl border border-divider bg-surface sm:rounded-2xl " +
+          "neu-flat relative flex max-h-[92svh] w-full flex-col rounded-t-[32px] bg-paper sm:rounded-[32px] " +
           (size === "lg" ? "sm:max-w-4xl" : "sm:max-w-xl")
         }
       >
@@ -56,7 +56,7 @@ function Modal({
           <button
             onClick={onClose}
             aria-label="Închide"
-            className="-mr-1 -mt-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-stock-500 transition-colors hover:bg-surface-2 hover:text-ink"
+            className="neu-flat-sm -mr-1 -mt-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-paper text-stock-500 transition-all duration-300 active:neu-pressed-sm"
           >
             <X size={20} strokeWidth={1.5} />
           </button>
@@ -187,8 +187,8 @@ export function PricingModal({
                   onClick={() => setSelectedPlan(p.id)}
                   aria-pressed={active}
                   className={
-                    "flex flex-col rounded-2xl border p-5 text-left transition-colors " +
-                    (active ? "border-editorial bg-editorial-soft" : "border-divider bg-surface hover:bg-surface-2")
+                    "flex flex-col rounded-3xl bg-paper p-5 text-left transition-all duration-300 " +
+                    (active ? "neu-pressed border-l-[3px] border-editorial bg-editorial-soft" : "neu-flat hover:neu-lift")
                   }
                 >
                   <div className="flex items-baseline justify-between gap-2">
@@ -213,7 +213,7 @@ export function PricingModal({
             })}
           </div>
 
-          <div className="rounded-2xl border border-divider bg-surface p-4 sm:p-5">
+          <div className="neu-flat rounded-3xl bg-paper p-4 sm:p-5">
             <Eyebrow className="mb-4">Date de facturare</Eyebrow>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Denumire companie">
@@ -243,7 +243,7 @@ export function PricingModal({
         </div>
       ) : (
         <div className="space-y-5">
-          <div className="rounded-r-lg border-l-2 border-editorial bg-editorial-soft px-4 py-3">
+          <div className="neu-pressed rounded-r-lg border-l-2 border-editorial bg-editorial-soft px-4 py-3">
             <Eyebrow className="text-editorial">Proformă emisă</Eyebrow>
             <p className="font-display mt-1 text-xl font-semibold">{proforma.invoice_number}</p>
             <p className="font-body mt-1 text-sm text-stock-600">
@@ -251,7 +251,7 @@ export function PricingModal({
             </p>
           </div>
 
-          <div className="scroll-x overflow-hidden rounded-xl border border-divider">
+          <div className="scroll-x neu-pressed overflow-hidden rounded-2xl bg-paper">
             <table className="w-full border-collapse text-left font-mono text-xs">
               <tbody>
                 {[
@@ -334,7 +334,7 @@ export function AccountSettingsModal({ isOpen, onClose }: { isOpen: boolean; onC
     >
       <div className="space-y-6">
         {!user ? (
-          <div className="rounded-2xl border border-divider bg-surface p-4 sm:p-5">
+          <div className="neu-flat rounded-3xl bg-paper p-4 sm:p-5">
             <Eyebrow className="text-editorial">Neautentificat</Eyebrow>
             <p className="font-body mt-2 text-sm leading-relaxed text-stock-600">
               Conectați-vă pentru a accesa registrul, a salva dosare în pipeline și a primi alerte.
@@ -375,7 +375,7 @@ export function AccountSettingsModal({ isOpen, onClose }: { isOpen: boolean; onC
             )}
           </div>
         ) : (
-          <div className="overflow-hidden rounded-2xl border border-divider bg-surface">
+          <div className="neu-flat overflow-hidden rounded-3xl bg-paper">
             <table className="w-full border-collapse text-left font-mono text-xs">
               <tbody>
                 {[
@@ -400,7 +400,7 @@ export function AccountSettingsModal({ isOpen, onClose }: { isOpen: boolean; onC
           </div>
         )}
 
-        <div className="rounded-2xl border border-divider bg-surface p-4 sm:p-5">
+        <div className="neu-flat rounded-3xl bg-paper p-4 sm:p-5">
           <Eyebrow className="mb-4">Alerte email</Eyebrow>
           <div className="space-y-4">
             <Field label="Email destinatar notificări">
@@ -498,7 +498,7 @@ export function WorkspaceDeskModal({ isOpen, onClose }: { isOpen: boolean; onClo
             <Button onClick={() => setIsCreating(true)}>+ Adaugă companie</Button>
           </div>
 
-          <div className="divide-y divide-divider overflow-hidden rounded-2xl border border-divider bg-surface">
+          <div className="divide-y divide-divider neu-flat overflow-hidden rounded-3xl bg-paper">
             {desks.map((d) => (
               <div
                 key={d.id}

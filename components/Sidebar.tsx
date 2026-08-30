@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { PricingModal, AccountSettingsModal, WorkspaceDeskModal } from "@/components/EnterpriseModals";
+import { cn } from "@/lib/utils";
 
 const NAV_LINKS = [
   { href: "/", label: "Prima pagină", section: "Ediția", icon: LayoutDashboard },
@@ -49,23 +50,26 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
     href === "/" ? pathname === "/" : pathname === href || pathname?.startsWith(href + "/");
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex h-16 shrink-0 items-center gap-2.5 px-5">
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-editorial font-display text-sm font-bold text-white">
+    <div className="flex h-full flex-col p-3">
+      <div className="flex h-14 shrink-0 items-center gap-2.5 px-2">
+        <span className="neu-flat-sm flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-editorial font-display text-sm font-extrabold text-white">
           R
         </span>
-        <span className="font-display text-[15px] font-semibold tracking-tight text-ink">RO-INTEL</span>
+        <span className="font-display text-[15px] font-bold tracking-tight text-ink">RO-INTEL</span>
       </div>
 
       {/* Desk switcher */}
-      <div className="relative px-3 pb-2">
+      <div className="relative pb-2 pt-1">
         <button
           onClick={() => setDeskMenuOpen((v) => !v)}
           aria-expanded={deskMenuOpen}
-          className="flex min-h-[44px] w-full items-center justify-between gap-2 rounded-lg border border-divider bg-surface px-3 py-2 text-left transition-colors hover:bg-surface-2"
+          className={cn(
+            "flex min-h-[48px] w-full items-center justify-between gap-2 rounded-2xl bg-paper px-3.5 py-2 text-left transition-all duration-300",
+            deskMenuOpen ? "neu-pressed" : "neu-flat-sm"
+          )}
         >
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-medium text-ink">
+            <span className="block truncate text-sm font-semibold text-ink">
               {activeDesk?.name || "Desk neconfigurat"}
             </span>
             <span className="label-eyebrow block truncate text-stock-500">Companie activă</span>
@@ -74,7 +78,7 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
         </button>
 
         {deskMenuOpen && (
-          <div className="absolute left-3 right-3 top-full z-30 mt-1.5 max-h-64 overflow-y-auto rounded-lg border border-divider bg-surface-2 p-1 shadow-2xl">
+          <div className="neu-flat absolute left-0 right-0 top-full z-30 mt-2 max-h-64 overflow-y-auto rounded-2xl bg-paper p-1.5">
             {desks.map((d) => (
               <button
                 key={d.id}
@@ -83,8 +87,8 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
                   setDeskMenuOpen(false);
                 }}
                 className={
-                  "flex min-h-[38px] w-full items-center justify-between gap-2 rounded-md px-2.5 py-2 text-left text-sm transition-colors " +
-                  (activeDesk?.id === d.id ? "bg-editorial-soft text-editorial" : "text-stock-600 hover:bg-surface")
+                  "flex min-h-[40px] w-full items-center justify-between gap-2 rounded-xl px-3 py-2 text-left text-sm transition-colors " +
+                  (activeDesk?.id === d.id ? "neu-pressed-sm font-semibold text-editorial" : "text-stock-600 hover:text-ink")
                 }
               >
                 <span className="truncate">{d.name}</span>
@@ -96,7 +100,7 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
                 setDeskMenuOpen(false);
                 setDeskManagerOpen(true);
               }}
-              className="mt-0.5 min-h-[38px] w-full rounded-md px-2.5 py-2 text-left text-sm font-medium text-editorial hover:bg-surface"
+              className="mt-0.5 min-h-[40px] w-full rounded-xl px-3 py-2 text-left text-sm font-semibold text-editorial hover:text-editorial-light"
             >
               + Administrare companii
             </button>
@@ -105,11 +109,11 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
       </div>
 
       {/* Nav */}
-      <nav aria-label="Navigare principală" className="flex-1 overflow-y-auto px-3 py-2">
+      <nav aria-label="Navigare principală" className="flex-1 overflow-y-auto py-2">
         {SECTIONS.map((section) => (
           <div key={section} className="mb-4">
-            <div className="label-eyebrow px-2.5 py-1.5 text-stock-500">{section}</div>
-            <div className="flex flex-col gap-0.5">
+            <div className="label-eyebrow px-3 py-1.5 text-stock-500">{section}</div>
+            <div className="flex flex-col gap-1.5">
               {NAV_LINKS.filter((l) => l.section === section).map((link) => {
                 const active = isActive(link.href);
                 const Icon = link.icon;
@@ -119,11 +123,11 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
                     href={link.href}
                     onClick={onNavigate}
                     className={
-                      "flex min-h-[42px] items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors " +
-                      (active ? "bg-editorial-soft font-medium text-editorial" : "text-stock-600 hover:bg-surface hover:text-ink")
+                      "flex min-h-[44px] items-center gap-2.5 rounded-2xl bg-paper px-3 py-2 text-sm transition-all duration-300 " +
+                      (active ? "neu-pressed font-semibold text-editorial" : "text-stock-600 hover:neu-flat-sm hover:text-ink")
                     }
                   >
-                    <Icon size={17} strokeWidth={1.75} className="shrink-0" />
+                    <Icon size={17} strokeWidth={2} className="shrink-0" />
                     <span className="truncate">{link.label}</span>
                   </Link>
                 );
@@ -134,16 +138,16 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
       </nav>
 
       {/* Account */}
-      <div className="shrink-0 border-t border-divider p-3">
+      <div className="shrink-0 pt-2">
         <button
           onClick={() => setSettingsOpen(true)}
-          className="flex min-h-[52px] w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-surface"
+          className="neu-flat-sm flex min-h-[56px] w-full items-center gap-3 rounded-2xl bg-paper px-3 py-2 text-left transition-all duration-300 hover:neu-flat"
         >
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-editorial font-mono text-sm font-semibold text-white">
+          <span className="neu-flat-sm flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-editorial font-mono text-sm font-semibold text-white">
             {user?.full_name ? user.full_name.charAt(0).toUpperCase() : "?"}
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-medium text-ink">{user?.full_name || "Vizitator"}</span>
+            <span className="block truncate text-sm font-semibold text-ink">{user?.full_name || "Vizitator"}</span>
             <span className="label-eyebrow block truncate normal-case text-stock-500">
               {user?.email || "Neautentificat"}
             </span>
@@ -151,24 +155,24 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
           <Settings size={16} className="shrink-0 text-stock-500" />
         </button>
 
-        <div className="mt-1 flex flex-col gap-0.5">
+        <div className="mt-2 flex flex-col gap-1.5">
           <button
             onClick={() => setPricingOpen(true)}
-            className="flex min-h-[38px] w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-stock-600 transition-colors hover:bg-surface hover:text-ink"
+            className="flex min-h-[40px] w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm text-stock-600 transition-colors hover:text-ink"
           >
             Abonament / Proformă
           </button>
           {user ? (
             <button
               onClick={signOut}
-              className="flex min-h-[38px] w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-negative transition-colors hover:bg-negative/10"
+              className="flex min-h-[40px] w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm text-negative transition-colors hover:neu-pressed-sm"
             >
               <LogOut size={15} /> Deconectare
             </button>
           ) : (
             <Link
               href="/login"
-              className="flex min-h-[38px] w-full items-center justify-center gap-2 rounded-lg bg-editorial px-2.5 py-2 text-sm font-medium text-white transition-colors hover:brightness-110"
+              className="neu-flat-sm flex min-h-[44px] w-full items-center justify-center gap-2 rounded-2xl bg-editorial px-2.5 py-2 text-sm font-semibold text-white transition-all duration-300 hover:neu-lift"
             >
               Autentificare
             </Link>
@@ -208,45 +212,47 @@ export default function Sidebar() {
 
   return (
     <>
-      {/* Desktop persistent sidebar */}
-      <aside className="hidden w-[260px] shrink-0 border-r border-divider bg-surface lg:block">
-        <div className="sticky top-0 h-svh">
+      {/* Desktop persistent, floating sidebar panel */}
+      <aside className="hidden w-[280px] shrink-0 p-4 lg:block">
+        <div className="neu-flat sticky top-4 flex h-[calc(100svh-2rem)] flex-col rounded-[32px] bg-paper">
           <SidebarBody />
         </div>
       </aside>
 
-      {/* Mobile top bar + drawer */}
-      <header className="sticky top-0 z-40 flex h-14 shrink-0 items-center gap-3 border-b border-divider bg-surface px-4 lg:hidden">
-        <button
-          onClick={() => setMobileOpen(true)}
-          aria-label="Deschide meniul"
-          aria-expanded={mobileOpen}
-          className="-ml-1.5 flex h-10 w-10 items-center justify-center rounded-lg text-ink transition-colors hover:bg-surface-2"
-        >
-          <Menu size={20} strokeWidth={1.75} />
-        </button>
-        <Link href="/" className="flex items-center gap-2">
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-editorial font-display text-xs font-bold text-white">
-            R
-          </span>
-          <span className="font-display text-sm font-semibold tracking-tight text-ink">RO-INTEL</span>
-        </Link>
+      {/* Mobile floating header bar */}
+      <header className="sticky top-0 z-40 p-4 lg:hidden">
+        <div className="neu-flat flex h-14 shrink-0 items-center gap-3 rounded-2xl bg-paper px-4">
+          <button
+            onClick={() => setMobileOpen(true)}
+            aria-label="Deschide meniul"
+            aria-expanded={mobileOpen}
+            className="neu-flat-sm -ml-1 flex h-10 w-10 items-center justify-center rounded-xl bg-paper text-ink transition-all duration-300 active:neu-pressed-sm"
+          >
+            <Menu size={20} strokeWidth={2} />
+          </button>
+          <Link href="/" className="flex items-center gap-2">
+            <span className="neu-flat-sm flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-editorial font-display text-xs font-extrabold text-white">
+              R
+            </span>
+            <span className="font-display text-sm font-bold tracking-tight text-ink">RO-INTEL</span>
+          </Link>
+        </div>
       </header>
 
       {mobileOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
-          <div className="absolute inset-0 bg-black/60" onClick={() => setMobileOpen(false)} aria-hidden="true" />
-          <div className="absolute inset-y-0 left-0 flex w-[280px] max-w-[85vw] flex-col border-r border-divider bg-surface">
-            <div className="flex h-14 shrink-0 items-center justify-end border-b border-divider px-3">
+          <div className="absolute inset-0 bg-[#3D4852]/40" onClick={() => setMobileOpen(false)} aria-hidden="true" />
+          <div className="neu-flat absolute inset-y-3 left-3 flex w-[280px] max-w-[85vw] flex-col rounded-[32px] bg-paper">
+            <div className="flex h-14 shrink-0 items-center justify-end px-3">
               <button
                 onClick={() => setMobileOpen(false)}
                 aria-label="Închide meniul"
-                className="flex h-10 w-10 items-center justify-center rounded-lg text-ink transition-colors hover:bg-surface-2"
+                className="neu-pressed-sm flex h-10 w-10 items-center justify-center rounded-xl bg-paper text-ink transition-all duration-300"
               >
-                <X size={18} strokeWidth={1.75} />
+                <X size={18} strokeWidth={2} />
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto px-0 pb-3">
               <SidebarBody onNavigate={() => setMobileOpen(false)} />
             </div>
           </div>

@@ -220,7 +220,7 @@ function PipelineContent() {
         <>
           {metrics && (
             <>
-              <div className="rule-grid grid grid-cols-2 border border-divider lg:grid-cols-4">
+              <div className="rule-grid grid grid-cols-2 lg:grid-cols-4">
                 <StatCell
                   label="Dosare active"
                   value={formatNumber(metrics.active_deals)}
@@ -290,7 +290,7 @@ function PipelineContent() {
                     </tbody>
                   </table>
 
-                  <div className="mt-4 rounded-r-lg border-l-2 border-editorial bg-editorial-soft px-4 py-3">
+                  <div className="neu-pressed mt-4 rounded-r-lg border-l-2 border-editorial bg-editorial-soft px-4 py-3">
                     <Eyebrow className="text-editorial">Metodologie</Eyebrow>
                     <p className="font-body mt-1.5 text-xs leading-relaxed text-ink">
                       {metrics.methodology_note}
@@ -325,7 +325,7 @@ function PipelineContent() {
             {visibleDeals.length === 0 ? (
               <EmptyState title="Niciun dosar în această etapă" />
             ) : (
-              <div className="divide-y divide-divider overflow-hidden rounded-2xl border border-divider bg-surface">
+              <div className="divide-y divide-divider neu-flat overflow-hidden rounded-3xl bg-paper">
                 {visibleDeals.map((deal) => (
                   <DealCard
                     key={deal.deal_id}
@@ -345,7 +345,7 @@ function PipelineContent() {
         <div
           role="status"
           aria-live="polite"
-          className="fixed inset-x-4 bottom-4 z-50 rounded-xl border border-divider bg-surface-2 px-4 py-3 font-body text-sm text-ink shadow-2xl sm:left-auto sm:right-6 sm:max-w-sm"
+          className="neu-flat fixed inset-x-4 bottom-4 z-50 rounded-2xl bg-paper px-4 py-3 font-body text-sm text-ink sm:left-auto sm:right-6 sm:max-w-sm"
         >
           {toast}
         </div>

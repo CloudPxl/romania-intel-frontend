@@ -119,7 +119,7 @@ function CopilotTool() {
         )}
 
         {report?.strategic_recommendation && (
-          <div className="mt-5 rounded-r-lg border-l-2 border-editorial bg-editorial-soft px-4 py-3">
+          <div className="neu-pressed mt-5 rounded-r-lg border-l-2 border-editorial bg-editorial-soft px-4 py-3">
             <Eyebrow className="text-editorial">Recomandare strategică</Eyebrow>
             <p className="font-body mt-1.5 text-sm leading-relaxed">{report.strategic_recommendation}</p>
           </div>
@@ -134,12 +134,12 @@ function CopilotTool() {
               <div key={i} className={"flex " + (m.sender === "user" ? "justify-end" : "justify-start")}>
                 <div
                   className={
-                    "max-w-[88%] rounded-2xl border px-3.5 py-2.5 font-body text-sm leading-relaxed " +
+                    "max-w-[88%] rounded-2xl px-3.5 py-2.5 font-body text-sm leading-relaxed " +
                     (m.sender === "user"
-                      ? "border-editorial bg-editorial text-white"
+                      ? "neu-flat-sm bg-editorial text-white"
                       : m.degraded
-                        ? "border-warning/30 bg-warning/5"
-                        : "border-divider bg-surface")
+                        ? "neu-pressed border-l-[3px] border-warning bg-paper"
+                        : "neu-flat-sm bg-paper")
                   }
                 >
                   {m.sender === "ai" && (
@@ -261,7 +261,7 @@ function CompetitorTool({ initial }: { initial: { category: string; county: stri
         <div className="mt-8 space-y-8">
           <section>
             <SectionTitle note={`${data.sector} · ${data.county}`}>Piața observată</SectionTitle>
-            <div className="rule-grid grid grid-cols-2 border border-divider sm:grid-cols-4">
+            <div className="rule-grid grid grid-cols-2 sm:grid-cols-4">
               <div className="p-4">
                 <Eyebrow>Proceduri comparabile</Eyebrow>
                 <p className="tabular font-display mt-1.5 text-2xl font-semibold leading-none">
@@ -308,7 +308,7 @@ function CompetitorTool({ initial }: { initial: { category: string; county: stri
           {pricing && (
             <section>
               <SectionTitle note="raportate la estimare">Repere de preț</SectionTitle>
-              <div className="rule-grid grid grid-cols-2 border border-divider sm:grid-cols-4">
+              <div className="rule-grid grid grid-cols-2 sm:grid-cols-4">
                 {referencePoints.map(([label, value], i) => (
                   <div
                     key={label}
@@ -324,11 +324,11 @@ function CompetitorTool({ initial }: { initial: { category: string; county: stri
               <p className="font-mono mt-3 text-[11px] leading-relaxed text-stock-500">
                 {pricing.reference_points_note}
               </p>
-              <p className="font-body mt-4 rounded-xl border border-divider bg-surface px-4 py-3 text-sm leading-relaxed text-stock-600">
+              <p className="neu-pressed font-body mt-4 rounded-2xl bg-paper px-4 py-3 text-sm leading-relaxed text-stock-600">
                 {pricing.guidance}
               </p>
               {pricing.sector_technical_note && (
-                <p className="font-body mt-3 rounded-xl border border-divider bg-surface px-4 py-3 text-sm leading-relaxed text-stock-600">
+                <p className="neu-pressed font-body mt-3 rounded-2xl bg-paper px-4 py-3 text-sm leading-relaxed text-stock-600">
                   {pricing.sector_technical_note}
                 </p>
               )}
@@ -395,7 +395,7 @@ function CaietTool({ initial }: { initial: { project_title: string } }) {
           <Eyebrow className="mb-1.5 text-stock-600">Document caiet de sarcini</Eyebrow>
           <label
             htmlFor="caiet-upload"
-            className="flex min-h-[6rem] cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-divider bg-surface p-5 text-center transition-colors hover:bg-surface-2"
+            className="flex min-h-[6rem] cursor-pointer flex-col items-center justify-center neu-pressed rounded-3xl bg-paper p-5 text-center transition-all duration-300 hover:neu-pressed-deep"
           >
             <input
               id="caiet-upload"
@@ -449,7 +449,7 @@ function CaietTool({ initial }: { initial: { project_title: string } }) {
 
       {result && !loading && (
         <div className="mt-8 space-y-6">
-          <div className="rounded-2xl border border-divider bg-surface p-5">
+          <div className="neu-flat rounded-3xl bg-paper p-5">
             <div className="flex flex-wrap items-baseline justify-between gap-3">
               <div>
                 <Eyebrow className="text-editorial">Nivel de risc restrictiv</Eyebrow>
@@ -474,7 +474,7 @@ function CaietTool({ initial }: { initial: { project_title: string } }) {
           {realFlags.length > 0 ? (
             <section>
               <SectionTitle note={`${realFlags.length} identificate`}>Clauze semnalate</SectionTitle>
-              <div className="divide-y divide-divider overflow-hidden rounded-2xl border border-divider bg-surface">
+              <div className="divide-y divide-divider neu-flat overflow-hidden rounded-3xl bg-paper">
                 {realFlags.map((flag, i) => (
                   <div key={i} className="p-4">
                     <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -500,7 +500,7 @@ function CaietTool({ initial }: { initial: { project_title: string } }) {
           {result.qualification_criteria && (
             <section>
               <SectionTitle>Cerințe de calificare extrase</SectionTitle>
-              <div className="divide-y divide-divider overflow-hidden rounded-2xl border border-divider bg-surface">
+              <div className="divide-y divide-divider neu-flat overflow-hidden rounded-3xl bg-paper">
                 {(
                   [
                     ["Cerințe cifră de afaceri", result.qualification_criteria.turnover_requirements],
@@ -603,7 +603,7 @@ function WinOddsTool({ initial }: { initial: { budget: string } }) {
 
       {result && !loading && (
         <div className="mt-8 space-y-6">
-          <div className="rounded-2xl border border-divider bg-surface p-6">
+          <div className="neu-flat rounded-3xl bg-paper p-6">
             <Eyebrow className="text-editorial">Evaluare poziționare</Eyebrow>
             <p className="font-display mt-2 text-4xl font-semibold leading-none">{result.assessment}</p>
             <div className="font-mono mt-4 flex flex-wrap gap-x-5 gap-y-1 border-t border-divider pt-4 text-[11px] uppercase tracking-widest text-stock-500">
