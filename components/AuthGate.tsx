@@ -35,9 +35,9 @@ export default function AuthGate({
   if (!user) {
     return (
       <div className="mx-auto w-full max-w-screen-xl px-4 py-12 sm:py-20">
-        <div className="mx-auto max-w-xl border border-ink bg-paper p-6 sm:p-10">
+        <div className="mx-auto max-w-xl rounded-2xl border border-divider bg-surface p-6 sm:p-10">
           <Eyebrow className="text-editorial">Acces restricționat</Eyebrow>
-          <h1 className="font-display mt-3 text-3xl font-black leading-tight sm:text-4xl">{title}</h1>
+          <h1 className="font-display mt-3 text-2xl font-semibold leading-tight sm:text-3xl">{title}</h1>
           <p className="font-body mt-3 text-sm leading-relaxed text-stock-600">{description}</p>
 
           {authError && (

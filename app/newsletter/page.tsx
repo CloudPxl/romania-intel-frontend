@@ -184,15 +184,15 @@ function NewsletterContent() {
   const filterPanel = (
     <div className="space-y-6">
       <div>
-        <Eyebrow className="mb-2 border-b border-ink pb-1.5">Domenii</Eyebrow>
-        <div className="flex flex-col">
+        <Eyebrow className="mb-2">Domenii</Eyebrow>
+        <div className="flex flex-col gap-0.5">
           {[{ id: "all", label: "Toate domeniile" }, ...CATEGORIES].map((c) => (
             <button
               key={c.id}
               onClick={() => setActiveCategory(c.id)}
               className={
-                "min-h-[40px] border-b border-divider px-2 py-2 text-left font-body text-sm transition-colors " +
-                (activeCategory === c.id ? "bg-ink text-paper" : "text-stock-600 hover:bg-stock-100")
+                "min-h-[40px] rounded-lg px-2.5 py-2 text-left font-body text-sm transition-colors " +
+                (activeCategory === c.id ? "bg-editorial-soft font-medium text-editorial" : "text-stock-600 hover:bg-surface")
               }
             >
               {c.label}
@@ -203,15 +203,15 @@ function NewsletterContent() {
 
       {(activeDesk?.divisions?.length ?? 0) > 0 && (
         <div>
-          <Eyebrow className="mb-2 border-b border-ink pb-1.5">Divizii desk</Eyebrow>
-          <div className="flex flex-col">
+          <Eyebrow className="mb-2">Divizii desk</Eyebrow>
+          <div className="flex flex-col gap-0.5">
             {[{ id: "all", name: "Toate liniile" }, ...(activeDesk?.divisions ?? [])].map((d) => (
               <button
                 key={d.id}
                 onClick={() => setSelectedDivision(d.id)}
                 className={
-                  "min-h-[40px] border-b border-divider px-2 py-2 text-left font-body text-sm transition-colors " +
-                  (selectedDivision === d.id ? "bg-ink text-paper" : "text-stock-600 hover:bg-stock-100")
+                  "min-h-[40px] rounded-lg px-2.5 py-2 text-left font-body text-sm transition-colors " +
+                  (selectedDivision === d.id ? "bg-editorial-soft font-medium text-editorial" : "text-stock-600 hover:bg-surface")
                 }
               >
                 {"name" in d ? d.name : ""}
@@ -232,9 +232,9 @@ function NewsletterContent() {
         </Select>
       </Field>
 
-      <div className="border border-ink p-4">
+      <div className="rounded-xl border border-divider bg-surface p-4">
         <Eyebrow>Volum filtrat</Eyebrow>
-        <p className="tabular font-display mt-1 text-3xl font-black leading-none">{formatRon(totalValue)}</p>
+        <p className="tabular font-display mt-1 text-2xl font-semibold leading-none">{formatRon(totalValue)}</p>
         <p className="font-mono mt-2 text-[11px] text-stock-500">
           {visibleLeads.length} din {leads.length} dosare
         </p>
@@ -244,11 +244,11 @@ function NewsletterContent() {
 
   return (
     <main className="mx-auto w-full max-w-screen-xl flex-1 px-4 py-6 sm:py-8">
-      <header className="border-b-4 border-ink pb-5">
+      <header className="border-b border-divider pb-6">
         <Eyebrow className="text-editorial">Registrul zilnic · {activeDesk?.name}</Eyebrow>
         <div className="mt-2 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h1 className="font-display text-4xl font-black leading-[0.95] tracking-tighter sm:text-6xl">
+            <h1 className="font-display text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">
               Oportunități pre-SEAP
             </h1>
             <p className="font-mono mt-2 text-[11px] uppercase tracking-[0.18em] text-stock-500">
@@ -286,7 +286,7 @@ function NewsletterContent() {
 
         {/* Feed */}
         <section className="lg:col-span-9">
-          <div className="mb-5 flex flex-col gap-3 border-y border-ink py-3 sm:flex-row sm:items-center">
+          <div className="mb-5 flex flex-col gap-3 border-y border-divider py-3 sm:flex-row sm:items-center">
             <Input
               type="search"
               value={searchQuery}
@@ -326,15 +326,15 @@ function NewsletterContent() {
                 : "Registrul nu conține încă dosare potrivite pentru acest profil. Datele se actualizează la fiecare ciclu de scanare."}
             </EmptyState>
           ) : (
-            <ul className="border-t border-ink">
+            <ul className="divide-y divide-divider overflow-hidden rounded-2xl border border-divider bg-surface">
               {visibleLeads.map((lead) => {
                 const locked = Boolean(lead.is_locked);
                 return (
-                  <li key={lead.source_id} className="border-b border-ink">
+                  <li key={lead.source_id}>
                     <button
                       onClick={() => !locked && setSelectedLead(lead)}
                       disabled={locked}
-                      className="flex w-full flex-col gap-3 p-4 text-left transition-colors hover:bg-stock-100 disabled:cursor-not-allowed sm:flex-row sm:gap-5 sm:p-5"
+                      className="flex w-full flex-col gap-3 p-4 text-left transition-colors hover:bg-surface-2 disabled:cursor-not-allowed sm:flex-row sm:gap-5 sm:p-5"
                     >
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -380,7 +380,7 @@ function NewsletterContent() {
 
                       <div className="flex shrink-0 items-center justify-between gap-4 border-t border-divider pt-3 sm:w-40 sm:flex-col sm:items-end sm:justify-start sm:border-l sm:border-t-0 sm:pl-5 sm:pt-0">
                         {lead.financial_value_ron ? (
-                          <span className="tabular font-display text-xl font-black leading-none sm:text-right sm:text-2xl">
+                          <span className="tabular font-display text-xl font-semibold leading-none sm:text-right sm:text-2xl">
                             {formatRon(lead.financial_value_ron)}
                           </span>
                         ) : (
@@ -413,17 +413,17 @@ function NewsletterContent() {
       {/* Dossier drawer */}
       {selectedLead && (
         <div className="fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-ink/50" onClick={() => setSelectedLead(null)} aria-hidden="true" />
+          <div className="absolute inset-0 bg-black/60" onClick={() => setSelectedLead(null)} aria-hidden="true" />
           <div
             role="dialog"
             aria-modal="true"
             aria-label="Dosar strategic"
-            className="absolute inset-y-0 right-0 flex w-full max-w-xl flex-col overflow-y-auto border-l-4 border-ink bg-paper"
+            className="absolute inset-y-0 right-0 flex w-full max-w-xl flex-col overflow-y-auto border-l border-divider bg-surface"
           >
-            <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b-4 border-ink bg-paper p-4 sm:p-6">
+            <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-divider bg-surface/95 p-4 backdrop-blur sm:p-6">
               <div className="min-w-0">
                 <Eyebrow className="text-editorial">Dosar strategic · {selectedLead.source_id}</Eyebrow>
-                <h2 className="font-display mt-2 text-2xl font-black leading-tight tracking-tight">
+                <h2 className="font-display mt-2 text-xl font-semibold leading-tight tracking-tight sm:text-2xl">
                   {selectedLead.project_title}
                 </h2>
                 <p className="font-body mt-1 text-sm text-stock-600">
@@ -433,21 +433,21 @@ function NewsletterContent() {
               <button
                 onClick={() => setSelectedLead(null)}
                 aria-label="Închide dosarul"
-                className="-mr-1 -mt-1 flex h-11 w-11 shrink-0 items-center justify-center border border-transparent transition-colors hover:border-ink"
+                className="-mr-1 -mt-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-stock-500 transition-colors hover:bg-surface-2 hover:text-ink"
               >
                 <X size={20} strokeWidth={1.5} />
               </button>
             </div>
 
             <div className="flex-1 p-4 sm:p-6">
-              <div className="grid grid-cols-2 border border-ink">
-                <div className="border-r border-ink p-4">
+              <div className="grid grid-cols-2 divide-x divide-divider overflow-hidden rounded-xl border border-divider">
+                <div className="p-4">
                   <Eyebrow>Buget estimat</Eyebrow>
                   <p
                     className={
                       "mt-1 leading-snug " +
                       (selectedLead.financial_value_ron
-                        ? "tabular font-display text-2xl font-black leading-none"
+                        ? "tabular font-display text-xl font-semibold leading-none"
                         : "font-body text-sm italic text-stock-400")
                     }
                   >
@@ -456,13 +456,13 @@ function NewsletterContent() {
                 </div>
                 <div className="p-4">
                   <Eyebrow>Sursă finanțare</Eyebrow>
-                  <p className="font-display mt-1 text-lg font-bold leading-tight">
+                  <p className="font-display mt-1 text-base font-semibold leading-tight">
                     {selectedLead.funding_source || "Nespecificat"}
                   </p>
                 </div>
               </div>
 
-              <table className="mt-5 w-full border-collapse border border-ink text-left font-mono text-xs">
+              <table className="mt-5 w-full overflow-hidden rounded-xl border border-divider text-left font-mono text-xs">
                 <tbody>
                   {[
                     ["Data publicării", formatDate(selectedLead.published_date)],
@@ -484,7 +484,7 @@ function NewsletterContent() {
               </table>
 
               {selectedLead.sales_pitch_angle && (
-                <div className="mt-5 border-l-4 border-editorial px-4 py-3">
+                <div className="mt-5 rounded-r-lg border-l-2 border-editorial bg-editorial-soft px-4 py-3">
                   <Eyebrow className="text-editorial">Poziționare tehnică</Eyebrow>
                   <p className="font-body mt-1.5 text-sm leading-relaxed">{selectedLead.sales_pitch_angle}</p>
                 </div>
@@ -492,15 +492,15 @@ function NewsletterContent() {
 
               {selectedLead.executive_summary && (
                 <div className="mt-5">
-                  <Eyebrow className="border-b border-ink pb-1.5">Sinteză</Eyebrow>
-                  <p className="font-body mt-2 text-sm leading-relaxed text-stock-700">
+                  <Eyebrow className="mb-1.5">Sinteză</Eyebrow>
+                  <p className="font-body mt-2 text-sm leading-relaxed text-stock-600">
                     {selectedLead.executive_summary}
                   </p>
                 </div>
               )}
 
               <div className="mt-6">
-                <Eyebrow className="mb-3 border-b border-ink pb-1.5">Acțiuni</Eyebrow>
+                <Eyebrow className="mb-3">Acțiuni</Eyebrow>
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   <Button onClick={() => handleSaveToPipeline(selectedLead)} disabled={busyAction === "pipeline"}>
                     {busyAction === "pipeline" ? "Se salvează…" : "Salvează în pipeline"}
@@ -574,7 +574,7 @@ function NewsletterContent() {
                   href={selectedLead.source_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="mt-6 flex min-h-[44px] w-full items-center justify-center border border-ink bg-ink px-4 font-sans text-xs font-semibold uppercase tracking-widest text-paper transition-colors hover:bg-paper hover:text-ink"
+                  className="mt-6 flex min-h-[44px] w-full items-center justify-center rounded-lg bg-editorial px-4 font-sans text-sm font-medium text-white transition-colors hover:brightness-110"
                 >
                   Documentul oficial sursă →
                 </a>
@@ -588,7 +588,7 @@ function NewsletterContent() {
         <div
           role="status"
           aria-live="polite"
-          className="fixed inset-x-4 bottom-4 z-50 border-2 border-ink bg-paper px-4 py-3 font-body text-sm shadow-[4px_4px_0_0_var(--color-ink)] sm:left-auto sm:right-6 sm:max-w-sm"
+          className="fixed inset-x-4 bottom-4 z-50 rounded-xl border border-divider bg-surface-2 px-4 py-3 font-body text-sm text-ink shadow-2xl sm:left-auto sm:right-6 sm:max-w-sm"
         >
           {toast}
         </div>

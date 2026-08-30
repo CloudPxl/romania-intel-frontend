@@ -74,9 +74,9 @@ export default function HomePage() {
       {stats?.degraded && <DegradedBanner detail={stats.detail} />}
 
       {/* Masthead */}
-      <div className="border-b-4 border-ink pb-6 text-center">
+      <div className="pb-2 text-center">
         <Eyebrow className="text-editorial">Intelligence achiziții publice · România</Eyebrow>
-        <h1 className="font-display mt-3 text-5xl font-black leading-[0.88] tracking-tighter sm:text-7xl lg:text-8xl">
+        <h1 className="font-display mt-3 text-4xl font-semibold leading-[1.05] tracking-tight sm:text-6xl lg:text-7xl">
           Registrul Oportunităților Publice
         </h1>
         <p className="font-mono mt-4 text-[11px] uppercase tracking-[0.2em] text-stock-500">
@@ -85,7 +85,7 @@ export default function HomePage() {
       </div>
 
       {/* Live figures ticker */}
-      <div className="rule-grid grid grid-cols-2 border-x border-b border-ink lg:grid-cols-4">
+      <div className="rule-grid mt-8 grid grid-cols-2 border border-divider lg:grid-cols-4">
         <StatCell label="Dosare în registru" value={formatNumber(stats?.total_leads ?? 0)} loading={loading} />
         <StatCell
           label="Valoare totală piață"
@@ -108,15 +108,15 @@ export default function HomePage() {
       </div>
 
       {/* Lead article */}
-      <section className="grid grid-cols-1 gap-0 border-x border-b border-ink lg:grid-cols-12">
-        <div className="border-b border-ink p-5 sm:p-8 lg:col-span-8 lg:border-b-0 lg:border-r">
+      <section className="mt-8 grid grid-cols-1 gap-0 overflow-hidden rounded-2xl border border-divider bg-surface lg:grid-cols-12">
+        <div className="border-b border-divider p-5 sm:p-8 lg:col-span-8 lg:border-b-0 lg:border-r">
           <Eyebrow className="text-editorial">
             {user ? `Desk activ · ${activeDesk?.name ?? ""}` : "Ediția publică"}
           </Eyebrow>
-          <h2 className="font-display mt-3 text-3xl font-black leading-[0.95] tracking-tight sm:text-5xl">
+          <h2 className="font-display mt-3 text-2xl font-semibold leading-tight tracking-tight sm:text-4xl">
             {firstName ? `Bun venit, ${firstName}.` : "Contractele publice se decid înainte de a fi publicate."}
           </h2>
-          <p className="font-body drop-cap mt-5 text-base leading-relaxed text-stock-700">
+          <p className="font-body mt-5 text-base leading-relaxed text-stock-600">
             RO-INTEL urmărește registrele publice, consultările de piață și anunțurile de intenție din România și le
             transformă în semnale calificate — cu mult înainte ca procedura să apară în SEAP. Fiecare poziție primește
             un scor pe baza dovezilor din sursă, nu a unei estimări: dacă o sursă nu răspunde sau nu are date, sistemul
@@ -143,7 +143,7 @@ export default function HomePage() {
               <p className="font-body mt-2 text-sm leading-relaxed text-stock-600">
                 {leadStory.entity_name} · {leadStory.county}
               </p>
-              <p className="tabular font-display mt-4 border-t border-ink pt-3 text-3xl font-black">
+              <p className="tabular font-display mt-4 border-t border-divider pt-3 text-3xl font-semibold">
                 {formatLeadValue(leadStory.financial_value_ron)}
               </p>
               {leadStory.opportunity_score != null && (
@@ -169,32 +169,29 @@ export default function HomePage() {
       <Ornament />
 
       {/* Section index */}
-      <div className="mb-4 flex items-baseline justify-between gap-3 border-b border-ink pb-2">
+      <div className="mb-4 flex items-baseline justify-between gap-3 border-b border-divider pb-2">
         <h2 className="font-display text-2xl font-bold tracking-tight">Secțiuni</h2>
         <span className="label-eyebrow text-stock-500">{SECTIONS.length} rubrici</span>
       </div>
 
-      {/* Standalone clippings rather than a collapsed grid: the hard offset
-          shadow needs each card to sit on its own ground to read as a
-          cut-out lifting off the page. */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {SECTIONS.map((section) => (
           <Link
             key={section.href}
             href={section.href}
-            className="hard-shadow-hover flex flex-col border border-ink bg-paper p-5 sm:p-6"
+            className="group flex flex-col rounded-2xl border border-divider bg-surface p-5 transition-colors hover:border-editorial/40 hover:bg-surface-2 sm:p-6"
           >
             <Eyebrow className="text-editorial">{section.kicker}</Eyebrow>
-            <h3 className="font-display mt-2 text-xl font-bold leading-snug tracking-tight">{section.title}</h3>
-            <p className="font-body mt-2 flex-1 text-sm leading-relaxed text-stock-600">{section.body}</p>
-            <span className="font-sans mt-4 text-[11px] font-semibold uppercase tracking-widest underline decoration-editorial decoration-2 underline-offset-4">
-              Deschide
+            <h3 className="font-display mt-2 text-xl font-semibold leading-snug tracking-tight text-ink">{section.title}</h3>
+            <p className="font-body mt-2 flex-1 text-sm leading-relaxed text-stock-500">{section.body}</p>
+            <span className="font-sans mt-4 inline-flex items-center gap-1 text-[13px] font-medium text-editorial">
+              Deschide <span aria-hidden="true" className="transition-transform group-hover:translate-x-0.5">→</span>
             </span>
           </Link>
         ))}
       </div>
 
-      <footer className="mt-10 border-t-4 border-ink pt-5">
+      <footer className="mt-10 border-t border-divider pt-5">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <span className="label-eyebrow text-stock-500">
             RO-INTEL · Registrul Oportunităților Publice

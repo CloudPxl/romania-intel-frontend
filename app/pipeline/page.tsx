@@ -12,6 +12,7 @@ import {
 } from "@/lib/api";
 import { formatDate, formatLeadValue, formatNumber, formatPercent, formatRon, stageLabel } from "@/lib/format";
 import {
+  Badge,
   Button,
   ButtonLink,
   EmptyState,
@@ -19,6 +20,7 @@ import {
   Loading,
   Notice,
   PageHeader,
+  Panel,
   SectionTitle,
   Select,
   StatCell,
@@ -41,22 +43,13 @@ function DealCard({
   const history = deal.stage_history ?? [];
 
   return (
-    <article className="border-b border-ink p-4 sm:p-5">
+    <article className="p-4 sm:p-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span
-              className={
-                "label-eyebrow border px-1.5 py-0.5 " +
-                (deal.stage === "won"
-                  ? "border-ink bg-ink text-paper"
-                  : deal.stage === "lost"
-                    ? "border-editorial text-editorial"
-                    : "border-ink")
-              }
-            >
+            <Badge tone={deal.stage === "won" ? "positive" : deal.stage === "lost" ? "negative" : "neutral"}>
               {stageLabel(deal.stage)}
-            </span>
+            </Badge>
             <span className="font-mono text-[11px] text-stock-400">{deal.deal_id}</span>
           </div>
 
@@ -97,7 +90,7 @@ function DealCard({
             <Eyebrow>{deal.proposed_price ? "Preț ofertat" : "Valoare estimată"}</Eyebrow>
             <p
               className={
-                "mt-1 " + (value ? "tabular font-display text-2xl font-black leading-none" : "font-body text-sm italic text-stock-400")
+                "mt-1 " + (value ? "tabular font-display text-2xl font-semibold leading-none" : "font-body text-sm italic text-stock-400")
               }
             >
               {formatLeadValue(value)}
@@ -227,7 +220,7 @@ function PipelineContent() {
         <>
           {metrics && (
             <>
-              <div className="rule-grid grid grid-cols-2 border border-ink lg:grid-cols-4">
+              <div className="rule-grid grid grid-cols-2 border border-divider lg:grid-cols-4">
                 <StatCell
                   label="Dosare active"
                   value={formatNumber(metrics.active_deals)}
@@ -247,7 +240,7 @@ function PipelineContent() {
               </div>
 
               <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-2">
-                <section>
+                <Panel as="section" className="p-4 sm:p-5">
                   <SectionTitle note="dosare · valoare">Distribuție pe etape</SectionTitle>
                   <table className="w-full border-collapse text-left">
                     <tbody>
@@ -274,9 +267,9 @@ function PipelineContent() {
                       })}
                     </tbody>
                   </table>
-                </section>
+                </Panel>
 
-                <section>
+                <Panel as="section" className="p-4 sm:p-5">
                   <SectionTitle>Conversie pe pâlnie</SectionTitle>
                   <table className="w-full border-collapse text-left">
                     <tbody>
@@ -289,7 +282,7 @@ function PipelineContent() {
                           <th scope="row" className="py-2.5 pr-3 font-body text-sm font-semibold">
                             {label}
                           </th>
-                          <td className="tabular font-display w-24 py-2.5 text-right text-lg font-black">
+                          <td className="tabular font-display w-24 py-2.5 text-right text-lg font-semibold">
                             {formatPercent(value as number | null)}
                           </td>
                         </tr>
@@ -297,20 +290,20 @@ function PipelineContent() {
                     </tbody>
                   </table>
 
-                  <div className="mt-4 border-l-4 border-ink px-4 py-3">
-                    <Eyebrow>Metodologie</Eyebrow>
-                    <p className="font-body mt-1.5 text-xs leading-relaxed text-stock-600">
+                  <div className="mt-4 rounded-r-lg border-l-2 border-editorial bg-editorial-soft px-4 py-3">
+                    <Eyebrow className="text-editorial">Metodologie</Eyebrow>
+                    <p className="font-body mt-1.5 text-xs leading-relaxed text-ink">
                       {metrics.methodology_note}
                     </p>
                   </div>
-                </section>
+                </Panel>
               </div>
             </>
           )}
 
           <div className="mt-10">
-            <div className="mb-4 flex flex-col gap-3 border-b border-ink pb-3 sm:flex-row sm:items-end sm:justify-between">
-              <h2 className="font-display text-2xl font-bold tracking-tight">
+            <div className="mb-4 flex flex-col gap-3 pb-3 sm:flex-row sm:items-end sm:justify-between">
+              <h2 className="font-display text-xl font-semibold tracking-tight">
                 Dosare <span className="text-stock-400">({visibleDeals.length})</span>
               </h2>
               <Select
@@ -332,7 +325,7 @@ function PipelineContent() {
             {visibleDeals.length === 0 ? (
               <EmptyState title="Niciun dosar în această etapă" />
             ) : (
-              <div className="border-t border-ink">
+              <div className="divide-y divide-divider overflow-hidden rounded-2xl border border-divider bg-surface">
                 {visibleDeals.map((deal) => (
                   <DealCard
                     key={deal.deal_id}
@@ -352,7 +345,7 @@ function PipelineContent() {
         <div
           role="status"
           aria-live="polite"
-          className="fixed inset-x-4 bottom-4 z-50 border-2 border-ink bg-paper px-4 py-3 font-body text-sm shadow-[4px_4px_0_0_var(--color-ink)] sm:left-auto sm:right-6 sm:max-w-sm"
+          className="fixed inset-x-4 bottom-4 z-50 rounded-xl border border-divider bg-surface-2 px-4 py-3 font-body text-sm text-ink shadow-2xl sm:left-auto sm:right-6 sm:max-w-sm"
         >
           {toast}
         </div>

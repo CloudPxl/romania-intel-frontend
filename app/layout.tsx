@@ -1,31 +1,13 @@
 import type { Metadata, Viewport } from "next";
-import { Playfair_Display, Lora, Inter, JetBrains_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import { AuthProvider } from "@/context/AuthContext";
-import NavBar from "@/components/NavBar";
+import Sidebar from "@/components/Sidebar";
+import Topbar from "@/components/Topbar";
 import "./globals.css";
-
-// Loaded through next/font rather than an @import so the faces are
-// self-hosted and preloaded — a webfont fetched at parse time would flash
-// a fallback serif across every headline on first paint.
-const playfair = Playfair_Display({
-  subsets: ["latin", "latin-ext"],
-  weight: ["400", "600", "700", "900"],
-  style: ["normal", "italic"],
-  variable: "--font-playfair",
-  display: "swap",
-});
-
-const lora = Lora({
-  subsets: ["latin", "latin-ext"],
-  weight: ["400", "600"],
-  style: ["normal", "italic"],
-  variable: "--font-lora",
-  display: "swap",
-});
 
 const inter = Inter({
   subsets: ["latin", "latin-ext"],
-  weight: ["400", "500", "600", "700"],
+  weight: ["400", "500", "600", "700", "800"],
   variable: "--font-inter",
   display: "swap",
 });
@@ -46,20 +28,20 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#f9f9f7",
+  themeColor: "#08080b",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html
-      lang="ro"
-      className={`${playfair.variable} ${lora.variable} ${inter.variable} ${jetbrains.variable}`}
-    >
+    <html lang="ro" className={`${inter.variable} ${jetbrains.variable}`}>
       <body>
         <AuthProvider>
-          <div className="flex min-h-svh flex-col">
-            <NavBar />
-            {children}
+          <div className="flex min-h-svh">
+            <Sidebar />
+            <div className="flex min-h-svh min-w-0 flex-1 flex-col">
+              <Topbar />
+              {children}
+            </div>
           </div>
         </AuthProvider>
       </body>

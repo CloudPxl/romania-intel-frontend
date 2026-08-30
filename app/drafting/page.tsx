@@ -73,8 +73,8 @@ function DocumentOutput({
   exporting: boolean;
 }) {
   return (
-    <div className="mt-6">
-      <div className="flex flex-col gap-2 border-y border-ink py-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="mt-6 overflow-hidden rounded-xl border border-divider">
+      <div className="flex flex-col gap-2 border-b border-divider bg-surface-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <Eyebrow>Document generat</Eyebrow>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={onCopy}>
@@ -85,7 +85,7 @@ function DocumentOutput({
           </Button>
         </div>
       </div>
-      <pre className="scroll-x font-body max-h-[32rem] overflow-y-auto border-x border-b border-ink p-4 text-sm leading-relaxed whitespace-pre-wrap sm:p-6">
+      <pre className="scroll-x font-body max-h-[32rem] overflow-y-auto bg-surface p-4 text-sm leading-relaxed whitespace-pre-wrap sm:p-6">
         {text}
       </pre>
     </div>
@@ -211,7 +211,7 @@ function TechnicalProposalTool({
         </Field>
       </div>
 
-      <div className="mt-6 border-t-2 border-ink pt-4">
+      <div className="mt-6 border-t border-divider pt-4">
         <Checkbox
           label="Extinde metodologia și analiza de risc cu AI"
           checked={useAi}
@@ -348,7 +348,7 @@ function ClarificationTool({
         Două instrumente distincte, cu termene și căi de atac diferite — alegeți-l pe cel potrivit situației.
       </p>
 
-      <div className="mt-5 grid grid-cols-1 border border-ink sm:grid-cols-2">
+      <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
         {(
           [
             {
@@ -362,19 +362,20 @@ function ClarificationTool({
               body: "În afara unei proceduri, pentru documente și informații de interes public deținute de autoritate.",
             },
           ]
-        ).map((opt, i) => (
+        ).map((opt) => (
           <button
             key={opt.id}
             onClick={() => setRequestType(opt.id)}
             aria-pressed={requestType === opt.id}
             className={
-              "p-4 text-left transition-colors " +
-              (i === 0 ? "border-b border-ink sm:border-b-0 sm:border-r " : "") +
-              (requestType === opt.id ? "bg-ink text-paper" : "hover:bg-stock-100")
+              "rounded-xl border p-4 text-left transition-colors " +
+              (requestType === opt.id
+                ? "border-editorial bg-editorial-soft"
+                : "border-divider bg-surface hover:bg-surface-2")
             }
           >
-            <h3 className="font-display text-base font-bold leading-snug">{opt.title}</h3>
-            <p className="font-body mt-1 text-xs leading-relaxed">{opt.body}</p>
+            <h3 className="font-display text-base font-semibold leading-snug">{opt.title}</h3>
+            <p className="font-body mt-1 text-xs leading-relaxed text-stock-500">{opt.body}</p>
           </button>
         ))}
       </div>
@@ -414,7 +415,7 @@ function ClarificationTool({
         </Field>
       </div>
 
-      <div className="mt-5 border-t-2 border-ink pt-4">
+      <div className="mt-5 border-t border-divider pt-4">
         <Checkbox
           label="Extinde argumentația juridică cu AI"
           checked={useAi}

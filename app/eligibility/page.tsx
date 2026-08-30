@@ -98,7 +98,7 @@ function EligibilityContent() {
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
         <section className="lg:col-span-5">
           <Panel className="p-4 sm:p-6">
-            <Eyebrow className="mb-5 border-b border-ink pb-2">Profil companie</Eyebrow>
+            <Eyebrow className="mb-5 border-b border-divider pb-2">Profil companie</Eyebrow>
             <div className="space-y-5">
               <Field label="Denumire companie">
                 <Input value={companyName} onChange={(e) => setCompanyName(e.target.value)} autoComplete="organization" />
@@ -132,7 +132,7 @@ function EligibilityContent() {
               </Field>
             </div>
 
-            <div className="mt-7 border-t-2 border-ink pt-5">
+            <div className="mt-7 border-t border-divider pt-5">
               <Eyebrow className="text-editorial">Motive de excludere · Legea 98/2016</Eyebrow>
               <p className="font-body mt-1.5 text-xs leading-relaxed text-stock-600">
                 Bifați orice situație aplicabilă. Oricare dintre acestea blochează participarea la procedură,
@@ -171,9 +171,9 @@ function EligibilityContent() {
           {loading ? (
             <Loading label="Se verifică criteriile de eligibilitate" />
           ) : !result ? (
-            <div className="flex h-full min-h-[16rem] flex-col items-center justify-center border border-ink px-6 py-14 text-center">
+            <div className="flex h-full min-h-[16rem] flex-col items-center justify-center rounded-2xl border border-dashed border-divider px-6 py-14 text-center">
               <Eyebrow className="text-stock-400">Rezultat</Eyebrow>
-              <p className="font-display mt-3 max-w-sm text-2xl font-bold leading-snug">
+              <p className="font-display mt-3 max-w-sm text-xl font-semibold leading-snug">
                 Completați profilul și lansați evaluarea
               </p>
               <p className="font-body mt-2 max-w-md text-sm leading-relaxed text-stock-600">
@@ -183,30 +183,30 @@ function EligibilityContent() {
             </div>
           ) : (
             <div className="space-y-6">
-              <div className="border-4 border-ink p-5">
+              <div className="rounded-2xl border border-divider bg-surface p-5">
                 <div className="flex flex-wrap items-baseline justify-between gap-3">
                   <div>
                     <Eyebrow className="text-editorial">Verdict</Eyebrow>
-                    <p className="font-display mt-1 text-3xl font-black leading-tight">
+                    <p className="font-display mt-1 text-2xl font-semibold leading-tight">
                       {result.qualification_status || "Evaluare finalizată"}
                     </p>
                   </div>
                   {result.overall_eligibility_score != null && (
-                    <p className="tabular font-display text-4xl font-black">
+                    <p className="tabular font-display text-4xl font-semibold">
                       {result.overall_eligibility_score}
                       <span className="font-mono text-sm font-normal tracking-widest text-stock-500"> / 10</span>
                     </p>
                   )}
                 </div>
                 {result.advisory_summary && (
-                  <p className="font-body mt-4 border-t border-ink pt-4 text-sm leading-relaxed text-stock-700">
+                  <p className="font-body mt-4 border-t border-divider pt-4 text-sm leading-relaxed text-stock-700">
                     {result.advisory_summary}
                   </p>
                 )}
               </div>
 
               {result.company_profile && (
-                <div className="scroll-x border border-ink">
+                <div className="scroll-x overflow-hidden rounded-xl border border-divider">
                   <table className="w-full border-collapse text-left font-mono text-xs">
                     <tbody>
                       {[
@@ -226,7 +226,7 @@ function EligibilityContent() {
                           <tr key={label as string} className="border-b border-divider last:border-b-0">
                             <th
                               scope="row"
-                              className="w-48 whitespace-nowrap border-r border-divider px-3 py-2.5 font-sans text-[10px] font-semibold uppercase tracking-widest text-stock-500"
+                              className="w-48 whitespace-nowrap border-r border-divider bg-surface px-3 py-2.5 font-sans text-[10px] font-semibold uppercase tracking-widest text-stock-500"
                             >
                               {label}
                             </th>
@@ -243,9 +243,9 @@ function EligibilityContent() {
                   <SectionTitle note={`${result.exclusion_grounds.length} identificate`}>
                     Motive de excludere
                   </SectionTitle>
-                  <ul className="border border-editorial">
+                  <ul className="divide-y divide-negative/20 overflow-hidden rounded-xl border border-negative/30 bg-negative/5">
                     {result.exclusion_grounds.map((g, i) => (
-                      <li key={i} className="font-body border-b border-divider p-4 text-sm leading-relaxed font-semibold text-editorial last:border-b-0">
+                      <li key={i} className="font-body p-4 text-sm leading-relaxed font-medium text-negative">
                         {g}
                       </li>
                     ))}
@@ -256,7 +256,7 @@ function EligibilityContent() {
               {Array.isArray(result.matched_grants) && result.matched_grants.length > 0 && (
                 <section>
                   <SectionTitle note={`${result.matched_grants.length} linii`}>Finanțări eligibile</SectionTitle>
-                  <div className="border-t border-ink">
+                  <div className="divide-y divide-divider overflow-hidden rounded-2xl border border-divider bg-surface">
                     {result.matched_grants.map((g) => {
                       // A shallow CAEN match means the programme was reached
                       // by inference, not by a listed code. Presenting it
@@ -264,10 +264,10 @@ function EligibilityContent() {
                       // a certainty the data does not support.
                       const uncertain = g.caen_match && g.caen_match.depth !== "exact";
                       return (
-                        <div key={g.program_id} className="border-b border-ink p-4">
+                        <div key={g.program_id} className="p-4">
                           <div className="flex flex-wrap items-baseline justify-between gap-2">
-                            <h3 className="font-display text-lg font-bold leading-snug">{g.program_name}</h3>
-                            <span className="font-display shrink-0 text-lg font-black">{g.eligible_grant_up_to}</span>
+                            <h3 className="font-display text-lg font-semibold leading-snug">{g.program_name}</h3>
+                            <span className="font-display shrink-0 text-lg font-semibold">{g.eligible_grant_up_to}</span>
                           </div>
 
                           <div className="font-mono mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] uppercase tracking-wider text-stock-500">
@@ -279,7 +279,7 @@ function EligibilityContent() {
                           </div>
 
                           {uncertain && (
-                            <p className="font-body mt-3 border-l-4 border-editorial px-3 py-2 text-xs leading-relaxed text-editorial">
+                            <p className="font-body mt-3 rounded-r-md border-l-2 border-editorial bg-editorial-soft px-3 py-2 text-xs leading-relaxed text-editorial">
                               Potrivire CAEN incertă ({Math.round((g.caen_match?.confidence ?? 0) * 100)}%):{" "}
                               {g.caen_match?.note}
                             </p>

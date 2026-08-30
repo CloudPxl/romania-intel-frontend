@@ -65,11 +65,11 @@ export default function AuthCallbackPage() {
 
   return (
     <main className="mx-auto flex w-full max-w-screen-xl flex-1 items-center justify-center px-4 py-16">
-      <div className="w-full max-w-md border-4 border-ink p-6 sm:p-8">
+      <div className="w-full max-w-md rounded-2xl border border-divider bg-surface p-6 sm:p-8">
         <Eyebrow className="text-editorial">Autentificare</Eyebrow>
         {error ? (
           <>
-            <h1 className="font-display mt-2 text-3xl font-black leading-tight">Nu am putut finaliza</h1>
+            <h1 className="font-display mt-2 text-2xl font-semibold leading-tight">Nu am putut finaliza</h1>
             <div className="mt-4">
               <Notice tone="alert">{error}</Notice>
             </div>
@@ -79,12 +79,12 @@ export default function AuthCallbackPage() {
           </>
         ) : (
           <>
-            <h1 className="font-display mt-2 text-3xl font-black leading-tight">Se finalizează sesiunea…</h1>
+            <h1 className="font-display mt-2 text-2xl font-semibold leading-tight">Se finalizează sesiunea…</h1>
             <p className="font-body mt-3 text-sm leading-relaxed text-stock-600">
               Vă redirecționăm în câteva momente.
             </p>
             <div className="mt-6 flex items-center gap-3">
-              <span className="h-2 w-2 animate-pulse bg-editorial" aria-hidden="true" />
+              <span className="h-2 w-2 animate-pulse rounded-full bg-editorial" aria-hidden="true" />
               <span className="label-eyebrow text-stock-500">Verificare token</span>
             </div>
           </>

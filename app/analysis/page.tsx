@@ -32,8 +32,8 @@ function BarRow({ label, count, value, maxValue }: { label: string; count: numbe
           {count} · {formatRon(value)}
         </span>
       </div>
-      <div className="mt-1.5 h-2 w-full bg-stock-200">
-        <div className="h-full bg-ink" style={{ width: `${pct}%` }} role="presentation" />
+      <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-stock-200">
+        <div className="h-full rounded-full bg-editorial" style={{ width: `${pct}%` }} role="presentation" />
       </div>
     </div>
   );
@@ -178,7 +178,7 @@ export default function AnalysisPage() {
         </EmptyState>
       ) : (
         <>
-          <div className="rule-grid grid grid-cols-2 border border-ink lg:grid-cols-4">
+          <div className="rule-grid grid grid-cols-2 border border-divider lg:grid-cols-4">
             <StatCell label="Dosare în selecție" value={formatNumber(data.total_leads)} />
             <StatCell label="Valoare totală" value={formatRon(data.total_market_value_ron)} />
             <StatCell
@@ -189,25 +189,25 @@ export default function AnalysisPage() {
           </div>
 
           <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-2">
-            <section>
+            <Panel as="section" className="p-4 sm:p-5">
               <SectionTitle note={`${data.by_category.length} domenii`}>Distribuție pe domeniu</SectionTitle>
               <div>
                 {data.by_category.map((c) => (
                   <BarRow key={c.category} label={c.category} count={c.count} value={c.value_ron} maxValue={maxCategory} />
                 ))}
               </div>
-            </section>
+            </Panel>
 
-            <section>
+            <Panel as="section" className="p-4 sm:p-5">
               <SectionTitle note="top 10">Județe după valoare</SectionTitle>
               <div>
                 {data.by_county.slice(0, 10).map((c) => (
                   <BarRow key={c.county} label={c.county} count={c.count} value={c.value_ron} maxValue={maxCounty} />
                 ))}
               </div>
-            </section>
+            </Panel>
 
-            <section>
+            <Panel as="section" className="p-4 sm:p-5">
               <SectionTitle note={`${data.by_funding_source.length} surse`}>Surse de finanțare</SectionTitle>
               <div>
                 {data.by_funding_source.map((f) => (
@@ -220,16 +220,16 @@ export default function AnalysisPage() {
                   />
                 ))}
               </div>
-            </section>
+            </Panel>
 
-            <section>
+            <Panel as="section" className="p-4 sm:p-5">
               <SectionTitle note={data.is_authenticated ? "top 10" : "restricționat"}>
                 Cele mai mari poziții
               </SectionTitle>
               {data.is_authenticated ? (
-                <ol className="border-t border-divider">
+                <ol className="divide-y divide-divider">
                   {data.top_opportunities.map((o, i) => (
-                    <li key={`${o.project_title}-${i}`} className="flex gap-4 border-b border-divider py-3">
+                    <li key={`${o.project_title}-${i}`} className="flex gap-4 py-3">
                       <span className="tabular font-mono w-6 shrink-0 pt-0.5 text-sm text-stock-400">
                         {String(i + 1).padStart(2, "0")}
                       </span>
@@ -239,14 +239,14 @@ export default function AnalysisPage() {
                           {o.entity_name} · {o.county}
                         </p>
                       </div>
-                      <span className="tabular font-display shrink-0 text-sm font-black">
+                      <span className="tabular font-display shrink-0 text-sm font-semibold">
                         {formatRon(o.financial_value_ron)}
                       </span>
                     </li>
                   ))}
                 </ol>
               ) : (
-                <div className="border border-ink p-6">
+                <div className="rounded-xl border border-dashed border-divider p-6">
                   <Eyebrow className="text-editorial">Necesită autentificare</Eyebrow>
                   <p className="font-body mt-2 text-sm leading-relaxed text-stock-600">
                     Cifrele agregate sunt publice. Pozițiile identificate nominal — autoritate, titlu de proiect,
@@ -257,15 +257,12 @@ export default function AnalysisPage() {
                   </ButtonLink>
                 </div>
               )}
-            </section>
+            </Panel>
           </div>
 
           {data.is_authenticated && (
-            <p className="mt-10 border-t-4 border-ink pt-5 text-center">
-              <Link
-                href="/newsletter"
-                className="font-sans text-[11px] font-semibold uppercase tracking-widest underline decoration-editorial decoration-2 underline-offset-4"
-              >
+            <p className="mt-10 border-t border-divider pt-5 text-center">
+              <Link href="/newsletter" className="font-sans text-sm font-medium text-editorial hover:brightness-110">
                 Vezi toate dosarele în registrul zilnic →
               </Link>
             </p>

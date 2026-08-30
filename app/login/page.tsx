@@ -36,22 +36,23 @@ export default function LoginPage() {
     <main className="flex min-h-svh flex-col">
       <div className="mx-auto grid w-full max-w-screen-xl flex-1 grid-cols-1 lg:grid-cols-12">
         {/* Editorial column */}
-        <section className="flex flex-col justify-center border-b border-ink px-4 py-10 sm:px-8 lg:col-span-7 lg:border-b-0 lg:border-r lg:py-16">
+        <section className="flex flex-col justify-center border-b border-divider px-4 py-10 sm:px-8 lg:col-span-7 lg:border-b-0 lg:border-r lg:py-16">
           <Eyebrow className="text-editorial">Intelligence achiziții publice · România</Eyebrow>
-          <Link href="/" className="font-display mt-3 block text-5xl font-black leading-[0.88] tracking-tighter sm:text-7xl">
-            RO<span className="text-editorial">·</span>INTEL
+          <Link href="/" className="font-display mt-3 flex items-center gap-2.5 text-2xl font-semibold tracking-tight">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-editorial text-base font-bold text-white">R</span>
+            RO-INTEL
           </Link>
           <p className="font-mono mt-4 text-[11px] uppercase tracking-[0.2em] text-stock-500">
             {dateline || " "}
           </p>
 
-          <p className="font-body drop-cap mt-8 max-w-xl text-base leading-relaxed text-stock-700">
+          <p className="font-body mt-8 max-w-xl text-base leading-relaxed text-stock-600">
             Contractele publice se decid înainte de a fi publicate. Registrul urmărește consultările de piață,
             anunțurile de intenție și registrele de investiții din România și le transformă în semnale calificate,
             cu mult înainte ca procedura să apară în SEAP.
           </p>
 
-          <ul className="mt-8 max-w-xl border-t border-ink">
+          <ul className="mt-8 max-w-xl border-t border-divider">
             {[
               ["Surse reale, verificate", "Fiecare scraper citește o sursă publică specifică; o sursă indisponibilă raportează zero, nu date inventate."],
               ["Scor bazat pe dovezi", "Potrivirea cere dovadă în text — domeniul, județul și bugetul doar întăresc un rezultat, nu îl creează."],
@@ -67,9 +68,9 @@ export default function LoginPage() {
 
         {/* Access column */}
         <section className="flex flex-col justify-center px-4 py-10 sm:px-8 lg:col-span-5 lg:py-16">
-          <div className="border-4 border-ink p-5 sm:p-7">
+          <div className="rounded-2xl border border-divider bg-surface p-5 sm:p-7">
             <Eyebrow className="text-editorial">Acces abonați</Eyebrow>
-            <h2 className="font-display mt-2 text-3xl font-black leading-tight tracking-tight">Autentificare</h2>
+            <h2 className="font-display mt-2 text-2xl font-semibold leading-tight tracking-tight">Autentificare</h2>
             <p className="font-body mt-2 text-sm leading-relaxed text-stock-600">
               Registrul și instrumentele de ofertare sunt disponibile doar conturilor autentificate.
             </p>

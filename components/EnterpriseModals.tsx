@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { ApiError, generateProformaInvoice, type ProformaResult } from "@/lib/api";
 import { useAuth, tenantIdForDomain, type BusinessDesk } from "@/context/AuthContext";
-import { Button, Eyebrow, Field, Input, Notice, Select } from "@/components/newsprint";
+import { Badge, Button, Eyebrow, Field, Input, Notice, Select } from "@/components/newsprint";
 
 /* ------------------------------------------------------------ modal shell */
 
@@ -38,25 +38,25 @@ function Modal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
-      <div className="absolute inset-0 bg-ink/50" onClick={onClose} aria-hidden="true" />
+      <div className="absolute inset-0 bg-black/60" onClick={onClose} aria-hidden="true" />
       <div
         role="dialog"
         aria-modal="true"
         aria-label={title}
         className={
-          "relative flex max-h-[92svh] w-full flex-col border-t-4 border-ink bg-paper sm:border-4 " +
+          "relative flex max-h-[92svh] w-full flex-col rounded-t-2xl border border-divider bg-surface sm:rounded-2xl " +
           (size === "lg" ? "sm:max-w-4xl" : "sm:max-w-xl")
         }
       >
-        <div className="flex shrink-0 items-start justify-between gap-4 border-b-4 border-ink p-4 sm:p-6">
+        <div className="flex shrink-0 items-start justify-between gap-4 border-b border-divider p-4 sm:p-6">
           <div className="min-w-0">
-            <h2 className="font-display text-2xl font-black leading-tight tracking-tight">{title}</h2>
+            <h2 className="font-display text-xl font-semibold leading-tight tracking-tight">{title}</h2>
             {subtitle && <p className="font-body mt-1 text-sm leading-relaxed text-stock-600">{subtitle}</p>}
           </div>
           <button
             onClick={onClose}
             aria-label="Închide"
-            className="-mr-1 -mt-1 flex h-11 w-11 shrink-0 items-center justify-center border border-transparent transition-colors hover:border-ink"
+            className="-mr-1 -mt-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-stock-500 transition-colors hover:bg-surface-2 hover:text-ink"
           >
             <X size={20} strokeWidth={1.5} />
           </button>
@@ -178,8 +178,8 @@ export function PricingModal({
     >
       {!proforma ? (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 border border-ink md:grid-cols-2">
-            {PLANS.map((p, i) => {
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {PLANS.map((p) => {
               const active = selectedPlan === p.id;
               return (
                 <button
@@ -187,26 +187,23 @@ export function PricingModal({
                   onClick={() => setSelectedPlan(p.id)}
                   aria-pressed={active}
                   className={
-                    "flex flex-col p-5 text-left transition-colors " +
-                    (i === 0 ? "border-b border-ink md:border-b-0 md:border-r " : "") +
-                    (active ? "bg-ink text-paper" : "hover:bg-stock-100")
+                    "flex flex-col rounded-2xl border p-5 text-left transition-colors " +
+                    (active ? "border-editorial bg-editorial-soft" : "border-divider bg-surface hover:bg-surface-2")
                   }
                 >
                   <div className="flex items-baseline justify-between gap-2">
-                    <span className="label-eyebrow" style={{ color: active ? "var(--color-stock-400)" : undefined }}>
-                      {p.tier}
-                    </span>
+                    <span className="label-eyebrow text-stock-500">{p.tier}</span>
                     {active && <span className="label-eyebrow text-editorial">Selectat</span>}
                   </div>
-                  <h3 className="font-display mt-2 text-2xl font-bold leading-tight">{p.name}</h3>
-                  <p className="tabular font-display mt-3 text-4xl font-black">
+                  <h3 className="font-display mt-2 text-xl font-semibold leading-tight">{p.name}</h3>
+                  <p className="tabular font-display mt-3 text-3xl font-semibold">
                     {p.price}
-                    <span className="font-mono ml-1 text-xs font-normal tracking-widest">RON / LUNĂ</span>
+                    <span className="font-mono ml-1 text-xs font-normal tracking-widest text-stock-500">RON / LUNĂ</span>
                   </p>
-                  <ul className="font-body mt-4 space-y-1.5 text-sm leading-relaxed">
+                  <ul className="font-body mt-4 space-y-1.5 text-sm leading-relaxed text-stock-600">
                     {p.features.map((f) => (
                       <li key={f} className="flex gap-2">
-                        <span aria-hidden="true">—</span>
+                        <span aria-hidden="true" className="text-editorial">—</span>
                         <span>{f}</span>
                       </li>
                     ))}
@@ -216,7 +213,7 @@ export function PricingModal({
             })}
           </div>
 
-          <div className="border border-ink p-4 sm:p-5">
+          <div className="rounded-2xl border border-divider bg-surface p-4 sm:p-5">
             <Eyebrow className="mb-4">Date de facturare</Eyebrow>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Denumire companie">
@@ -246,15 +243,15 @@ export function PricingModal({
         </div>
       ) : (
         <div className="space-y-5">
-          <div className="border-l-4 border-ink px-4 py-3">
+          <div className="rounded-r-lg border-l-2 border-editorial bg-editorial-soft px-4 py-3">
             <Eyebrow className="text-editorial">Proformă emisă</Eyebrow>
-            <p className="font-display mt-1 text-2xl font-bold">{proforma.invoice_number}</p>
+            <p className="font-display mt-1 text-xl font-semibold">{proforma.invoice_number}</p>
             <p className="font-body mt-1 text-sm text-stock-600">
               Total de plată: <b className="text-ink">{proforma.total_ron} RON</b> · {proforma.plan_name}
             </p>
           </div>
 
-          <div className="scroll-x border border-ink">
+          <div className="scroll-x overflow-hidden rounded-xl border border-divider">
             <table className="w-full border-collapse text-left font-mono text-xs">
               <tbody>
                 {[
@@ -267,7 +264,7 @@ export function PricingModal({
                   ],
                 ].map(([label, value]) => (
                   <tr key={label} className="border-b border-divider last:border-b-0">
-                    <th scope="row" className="w-40 whitespace-nowrap border-r border-divider px-3 py-2.5 font-sans text-[10px] font-semibold uppercase tracking-widest text-stock-500">
+                    <th scope="row" className="w-40 whitespace-nowrap border-r border-divider bg-surface px-3 py-2.5 font-sans text-[10px] font-semibold uppercase tracking-widest text-stock-500">
                       {label}
                     </th>
                     <td className="px-3 py-2.5 break-all">{value || "—"}</td>
@@ -337,7 +334,7 @@ export function AccountSettingsModal({ isOpen, onClose }: { isOpen: boolean; onC
     >
       <div className="space-y-6">
         {!user ? (
-          <div className="border border-ink p-4 sm:p-5">
+          <div className="rounded-2xl border border-divider bg-surface p-4 sm:p-5">
             <Eyebrow className="text-editorial">Neautentificat</Eyebrow>
             <p className="font-body mt-2 text-sm leading-relaxed text-stock-600">
               Conectați-vă pentru a accesa registrul, a salva dosare în pipeline și a primi alerte.
@@ -378,7 +375,7 @@ export function AccountSettingsModal({ isOpen, onClose }: { isOpen: boolean; onC
             )}
           </div>
         ) : (
-          <div className="border border-ink">
+          <div className="overflow-hidden rounded-2xl border border-divider bg-surface">
             <table className="w-full border-collapse text-left font-mono text-xs">
               <tbody>
                 {[
@@ -387,7 +384,7 @@ export function AccountSettingsModal({ isOpen, onClose }: { isOpen: boolean; onC
                   ["Profil intelligence", user.tenant_id],
                 ].map(([label, value]) => (
                   <tr key={label} className="border-b border-divider last:border-b-0">
-                    <th scope="row" className="w-44 whitespace-nowrap border-r border-divider px-3 py-2.5 font-sans text-[10px] font-semibold uppercase tracking-widest text-stock-500">
+                    <th scope="row" className="w-44 whitespace-nowrap border-r border-divider bg-stock-100 px-3 py-2.5 font-sans text-[10px] font-semibold uppercase tracking-widest text-stock-500">
                       {label}
                     </th>
                     <td className="break-all px-3 py-2.5">{value || "—"}</td>
@@ -395,7 +392,7 @@ export function AccountSettingsModal({ isOpen, onClose }: { isOpen: boolean; onC
                 ))}
               </tbody>
             </table>
-            <div className="border-t border-ink p-3">
+            <div className="border-t border-divider p-3">
               <Button variant="danger" onClick={signOut} fullWidth>
                 Deconectare
               </Button>
@@ -403,7 +400,7 @@ export function AccountSettingsModal({ isOpen, onClose }: { isOpen: boolean; onC
           </div>
         )}
 
-        <div className="border border-ink p-4 sm:p-5">
+        <div className="rounded-2xl border border-divider bg-surface p-4 sm:p-5">
           <Eyebrow className="mb-4">Alerte email</Eyebrow>
           <div className="space-y-4">
             <Field label="Email destinatar notificări">
@@ -501,22 +498,19 @@ export function WorkspaceDeskModal({ isOpen, onClose }: { isOpen: boolean; onClo
             <Button onClick={() => setIsCreating(true)}>+ Adaugă companie</Button>
           </div>
 
-          <div className="border border-ink">
-            {desks.map((d, i) => (
+          <div className="divide-y divide-divider overflow-hidden rounded-2xl border border-divider bg-surface">
+            {desks.map((d) => (
               <div
                 key={d.id}
                 className={
                   "flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between " +
-                  (i < desks.length - 1 ? "border-b border-divider " : "") +
-                  (d.id === activeDesk?.id ? "bg-stock-100" : "")
+                  (d.id === activeDesk?.id ? "bg-editorial-soft" : "")
                 }
               >
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="font-display text-lg font-bold leading-tight">{d.name}</h3>
-                    {d.id === activeDesk?.id && (
-                      <span className="label-eyebrow border border-editorial px-1.5 py-0.5 text-editorial">Activ</span>
-                    )}
+                    <h3 className="font-display text-lg font-semibold leading-tight">{d.name}</h3>
+                    {d.id === activeDesk?.id && <Badge tone="accent">Activ</Badge>}
                   </div>
                   <p className="font-mono mt-1 text-[11px] text-stock-500">
                     {d.cui} · {d.primary_domain} · {d.tenant_id}
@@ -547,13 +541,10 @@ export function WorkspaceDeskModal({ isOpen, onClose }: { isOpen: boolean; onClo
         </div>
       ) : (
         <div className="space-y-4">
-          <div className="flex items-center justify-between border-b border-ink pb-2">
+          <div className="flex items-center justify-between border-b border-divider pb-3">
             <Eyebrow>Companie nouă</Eyebrow>
-            <button
-              onClick={() => setIsCreating(false)}
-              className="font-sans text-[11px] font-semibold uppercase tracking-widest underline decoration-editorial decoration-2 underline-offset-4"
-            >
-              Înapoi
+            <button onClick={() => setIsCreating(false)} className="text-sm font-medium text-editorial hover:brightness-110">
+              ← Înapoi
             </button>
           </div>
 
