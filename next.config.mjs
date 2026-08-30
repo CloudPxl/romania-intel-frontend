@@ -1,11 +1,21 @@
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  typescript: {
-    ignoreBuildErrors: true,
+  // This app is a git submodule inside a larger monorepo, so Turbopack was
+  // walking up past the submodule boundary and picking up the parent's
+  // package-lock.json. Pin the root to this directory.
+  turbopack: {
+    root: dirname(fileURLToPath(import.meta.url)),
   },
+  // `typescript.ignoreBuildErrors: true` used to sit here, which meant
+  // `npm run build` reported success while type errors went straight to
+  // production — the build was not actually verifying anything. Type
+  // errors now fail the build, which is the point of having them.
   images: {
     unoptimized: true,
   },
-}
+};
 
-export default nextConfig
+export default nextConfig;

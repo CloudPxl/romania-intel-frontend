@@ -1,328 +1,448 @@
 "use client";
-import React, { useState } from "react";
-import { generateProformaInvoice } from "../lib/api";
-import { useAuth } from "../context/AuthContext";
+import React, { useEffect, useState } from "react";
+import { X } from "lucide-react";
+import { ApiError, generateProformaInvoice, type ProformaResult } from "@/lib/api";
+import { useAuth, tenantIdForDomain, type BusinessDesk } from "@/context/AuthContext";
+import { Button, Eyebrow, Field, Input, Notice, Select } from "@/components/newsprint";
 
-export function PricingModal({ isOpen, onClose, tenantId }: { isOpen: boolean; onClose: () => void; tenantId: string }) {
-  const [selectedPlan, setSelectedPlan] = useState<string | null>("plan_founder_vip");
-  const [companyName, setCompanyName] = useState("SC Infra Construct Transilvania SRL");
-  const [cui, setCui] = useState("RO12345678");
-  const [email, setEmail] = useState("financiar@infraconstruct.ro");
-  const [address, setAddress] = useState("Str. Memorandumului 21, Cluj-Napoca");
-  const [proformaData, setProformaData] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
+/* ------------------------------------------------------------ modal shell */
+
+function Modal({
+  isOpen,
+  onClose,
+  title,
+  subtitle,
+  size = "md",
+  children,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  subtitle?: string;
+  size?: "md" | "lg";
+  children: React.ReactNode;
+}) {
+  useEffect(() => {
+    if (!isOpen) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = previous;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
-  const handleGenerateProforma = async () => {
-    if (!selectedPlan) return;
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
+      <div className="absolute inset-0 bg-ink/50" onClick={onClose} aria-hidden="true" />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        className={
+          "relative flex max-h-[92svh] w-full flex-col border-t-4 border-ink bg-paper sm:border-4 " +
+          (size === "lg" ? "sm:max-w-4xl" : "sm:max-w-xl")
+        }
+      >
+        <div className="flex shrink-0 items-start justify-between gap-4 border-b-4 border-ink p-4 sm:p-6">
+          <div className="min-w-0">
+            <h2 className="font-display text-2xl font-black leading-tight tracking-tight">{title}</h2>
+            {subtitle && <p className="font-body mt-1 text-sm leading-relaxed text-stock-600">{subtitle}</p>}
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="Închide"
+            className="-mr-1 -mt-1 flex h-11 w-11 shrink-0 items-center justify-center border border-transparent transition-colors hover:border-ink"
+          >
+            <X size={20} strokeWidth={1.5} />
+          </button>
+        </div>
+        <div className="overflow-y-auto p-4 sm:p-6">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+/* ----------------------------------------------------------------- pricing */
+
+const PLANS = [
+  {
+    id: "plan_acces_complet",
+    name: "Acces Complet Desk",
+    tier: "Standard",
+    price: 499,
+    features: [
+      "Acces la toate registrele active de monitorizare",
+      "Sinteze executive generate automat",
+      "Export CSV al dosarelor calificate",
+      "1 companie · 2 utilizatori",
+    ],
+  },
+  {
+    id: "plan_founder_vip",
+    name: "VIP Multi-Divizie",
+    tier: "Enterprise",
+    price: 1499,
+    features: [
+      "Tot ce include pachetul Acces Complet",
+      "Scanner caiet de sarcini (PDF / DOCX)",
+      "Simulator șanse de câștig și marje",
+      "Generator adrese Legea 544 și clarificări",
+      "Radar concurență și propunere tehnică",
+      "Până la 10 utilizatori",
+    ],
+  },
+] as const;
+
+export function PricingModal({
+  isOpen,
+  onClose,
+  tenantId,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  tenantId: string;
+}) {
+  const { user, activeDesk } = useAuth();
+  const [selectedPlan, setSelectedPlan] = useState<string>("plan_founder_vip");
+  const [companyName, setCompanyName] = useState("");
+  const [cui, setCui] = useState("");
+  const [email, setEmail] = useState("");
+  const [address, setAddress] = useState("");
+  const [proforma, setProforma] = useState<ProformaResult | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Prefill from the active desk and the signed-in account rather than the
+  // hardcoded demo company that used to ship here — a real customer should
+  // never have to delete someone else's CUI before invoicing themselves.
+  useEffect(() => {
+    if (!isOpen) return;
+    setCompanyName(activeDesk?.name || "");
+    setCui(activeDesk?.cui || "");
+    setEmail(user?.email || "");
+    setError(null);
+  }, [isOpen, activeDesk, user]);
+
+  const plan = PLANS.find((p) => p.id === selectedPlan);
+
+  const handleGenerate = async () => {
+    if (!companyName.trim() || !cui.trim() || !email.trim()) {
+      setError("Completați denumirea companiei, CUI-ul și emailul de facturare.");
+      return;
+    }
     setLoading(true);
+    setError(null);
     try {
-      const data = await generateProformaInvoice({
-        tenant_id: tenantId,
-        plan_id: selectedPlan,
-        company_name: companyName,
-        cui_fiscal: cui,
-        billing_email: email,
-        billing_address: address
-      });
-      setProformaData(data);
-    } catch (e: any) {
-      alert("Eroare: " + (e?.message || "Nu s-a putut genera factura proforma."));
+      setProforma(
+        await generateProformaInvoice({
+          tenant_id: tenantId,
+          plan_id: selectedPlan,
+          company_name: companyName,
+          cui_fiscal: cui,
+          billing_email: email,
+          billing_address: address || "România",
+        })
+      );
+    } catch (e) {
+      setError(e instanceof ApiError ? e.detail : "Nu s-a putut genera factura proformă.");
     } finally {
       setLoading(false);
     }
   };
 
   const handlePrint = () => {
-    if (!proformaData?.proforma_html) return;
-    const printWin = window.open("", "_blank");
-    if (printWin) {
-      printWin.document.write(proformaData.proforma_html);
-      printWin.document.close();
-      printWin.focus();
-      printWin.print();
+    if (!proforma?.proforma_html) return;
+    const win = window.open("", "_blank");
+    if (!win) {
+      setError("Browserul a blocat fereastra de tipărire. Permiteți ferestrele pop-up și reîncercați.");
+      return;
     }
+    win.document.write(proforma.proforma_html);
+    win.document.close();
+    win.focus();
+    win.print();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
-      <div className="relative w-full max-w-4xl rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl text-slate-900 max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
-          <div>
-            <h2 className="text-xl font-bold text-slate-900">Activare Abonament & Factura Proforma</h2>
-            <p className="text-xs text-slate-500">Generare instantanee Factura Proforma pentru plata prin Ordin de Plata (OP) sau Card.</p>
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      size="lg"
+      title="Abonament & Factură proformă"
+      subtitle="Plata se face prin ordin de plată (OP) pe baza facturii proforme generate mai jos."
+    >
+      {!proforma ? (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 border border-ink md:grid-cols-2">
+            {PLANS.map((p, i) => {
+              const active = selectedPlan === p.id;
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => setSelectedPlan(p.id)}
+                  aria-pressed={active}
+                  className={
+                    "flex flex-col p-5 text-left transition-colors " +
+                    (i === 0 ? "border-b border-ink md:border-b-0 md:border-r " : "") +
+                    (active ? "bg-ink text-paper" : "hover:bg-stock-100")
+                  }
+                >
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="label-eyebrow" style={{ color: active ? "var(--color-stock-400)" : undefined }}>
+                      {p.tier}
+                    </span>
+                    {active && <span className="label-eyebrow text-editorial">Selectat</span>}
+                  </div>
+                  <h3 className="font-display mt-2 text-2xl font-bold leading-tight">{p.name}</h3>
+                  <p className="tabular font-display mt-3 text-4xl font-black">
+                    {p.price}
+                    <span className="font-mono ml-1 text-xs font-normal tracking-widest">RON / LUNĂ</span>
+                  </p>
+                  <ul className="font-body mt-4 space-y-1.5 text-sm leading-relaxed">
+                    {p.features.map((f) => (
+                      <li key={f} className="flex gap-2">
+                        <span aria-hidden="true">—</span>
+                        <span>{f}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </button>
+              );
+            })}
           </div>
-          <button onClick={onClose} className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700">✕</button>
-        </div>
 
-        {!proformaData ? (
-          <div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
-              <div
-                onClick={() => setSelectedPlan("plan_acces_complet")}
-                className={"cursor-pointer flex flex-col justify-between rounded-xl border p-5 transition " + (selectedPlan === "plan_acces_complet" ? "border-brand-500 bg-brand-50/50" : "border-slate-200 bg-white hover:border-slate-300")}
-              >
-                <div>
-                  <div className="flex justify-between items-baseline mb-2">
-                    <h3 className="text-base font-bold text-slate-900">Acces Complet Desk</h3>
-                    <span className="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-700">STANDARD</span>
-                  </div>
-                  <p className="text-2xl font-extrabold text-slate-900 mb-3">499 <span className="text-xs font-normal text-slate-500">RON / luna</span></p>
-                  <ul className="space-y-1.5 text-xs text-slate-600">
-                    <li>- Acces la toate cele 25 de registre active</li>
-                    <li>- Sinteze Executive AI</li>
-                    <li>- Export CSV date calificate</li>
-                    <li>- 1 Workspace & 2 Utilizatori</li>
-                  </ul>
-                </div>
-                <button className="mt-4 w-full rounded-lg bg-slate-100 py-2 text-xs font-bold text-slate-800 hover:bg-slate-200">
-                  {selectedPlan === "plan_acces_complet" ? "Plan Selectat" : "Selecteaza 499 RON"}
-                </button>
-              </div>
-
-              <div
-                onClick={() => setSelectedPlan("plan_founder_vip")}
-                className={"cursor-pointer flex flex-col justify-between rounded-xl border-2 p-5 relative transition " + (selectedPlan === "plan_founder_vip" ? "border-brand-600 bg-brand-50/50" : "border-slate-300 bg-white hover:border-slate-400")}
-              >
-                <div>
-                  <div className="flex justify-between items-baseline mb-2">
-                    <h3 className="text-base font-bold text-slate-900">VIP Multi-Divizie</h3>
-                    <span className="rounded bg-brand-100 px-2 py-0.5 text-[10px] font-semibold text-brand-800">ENTERPRISE</span>
-                  </div>
-                  <p className="text-2xl font-extrabold text-slate-900 mb-3">1499 <span className="text-xs font-normal text-slate-500">RON / luna</span></p>
-                  <ul className="space-y-1.5 text-xs text-slate-600">
-                    <li>- Tot ce include pachetul Acces Complet</li>
-                    <li>- Scanner Caiet de Sarcini (Upload PDF/DOCX)</li>
-                    <li>- Simulator Sanse de Castig & Marje</li>
-                    <li>- Generator Adrese Legea 544</li>
-                    <li>- Radar Concurenta & Schita Propunere Tehnica</li>
-                    <li>- Pana la 10 Utilizatori</li>
-                  </ul>
-                </div>
-                <button className="mt-4 w-full rounded-lg bg-slate-900 py-2 text-xs font-bold text-white hover:bg-slate-800">
-                  {selectedPlan === "plan_founder_vip" ? "Plan Selectat" : "Selecteaza 1499 RON"}
-                </button>
-              </div>
+          <div className="border border-ink p-4 sm:p-5">
+            <Eyebrow className="mb-4">Date de facturare</Eyebrow>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Field label="Denumire companie">
+                <Input value={companyName} onChange={(e) => setCompanyName(e.target.value)} autoComplete="organization" />
+              </Field>
+              <Field label="CUI / CIF">
+                <Input value={cui} onChange={(e) => setCui(e.target.value)} placeholder="RO12345678" />
+              </Field>
+              <Field label="Email facturare">
+                <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
+              </Field>
+              <Field label="Adresă sediu social">
+                <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Str. …, Localitate" />
+              </Field>
             </div>
 
-            {selectedPlan && (
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs space-y-3">
-                <span className="font-bold text-slate-700 block uppercase text-[11px]">Date Facturare Companie:</span>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-slate-600 mb-1">Denumire Companie</label>
-                    <input
-                      type="text"
-                      value={companyName}
-                      onChange={(e) => setCompanyName(e.target.value)}
-                      className="w-full rounded-lg bg-white border border-slate-300 p-2 text-slate-900"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-slate-600 mb-1">CUI / CIF</label>
-                    <input
-                      type="text"
-                      value={cui}
-                      onChange={(e) => setCui(e.target.value)}
-                      className="w-full rounded-lg bg-white border border-slate-300 p-2 text-slate-900"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-slate-600 mb-1">Email Facturare</label>
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="w-full rounded-lg bg-white border border-slate-300 p-2 text-slate-900"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-slate-600 mb-1">Adresa Sediu Social</label>
-                    <input
-                      type="text"
-                      value={address}
-                      onChange={(e) => setAddress(e.target.value)}
-                      className="w-full rounded-lg bg-white border border-slate-300 p-2 text-slate-900"
-                    />
-                  </div>
-                </div>
-
-                <button
-                  onClick={handleGenerateProforma}
-                  disabled={loading}
-                  className="mt-3 w-full rounded-xl bg-slate-900 py-2.5 font-bold text-white text-xs hover:bg-slate-800 transition"
-                >
-                  {loading ? "Se emite proforma..." : (selectedPlan === "plan_founder_vip" ? "Genereaza Factura Proforma (1499 RON)" : "Genereaza Factura Proforma (499 RON)")}
-                </button>
+            {error && (
+              <div className="mt-4">
+                <Notice tone="alert">{error}</Notice>
               </div>
             )}
-          </div>
-        ) : (
-          <div className="space-y-4 text-xs">
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-center">
-              <span className="text-emerald-800 font-bold block text-sm">Factura Proforma {proformaData.invoice_number} a fost emisa.</span>
-              <p className="text-slate-600 text-xs mt-1">Total de plata: <b>{proformaData.total_ron} RON</b> pentru {proformaData.plan_name}</p>
-            </div>
 
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-2">
-              <span className="font-bold text-slate-800 block">Date Transfer Bancar (Ordin de Plata - OP):</span>
-              <p className="text-slate-700">Banca: <b>{proformaData.bank_details.bank_name}</b></p>
-              <p className="text-slate-700">IBAN: <b className="font-mono text-slate-900">{proformaData.bank_details.iban_ron}</b></p>
-              <p className="text-slate-700">Beneficiar: <b>{proformaData.bank_details.beneficiary}</b></p>
-              <p className="text-slate-700">Detalii Plata: <b>{proformaData.bank_details.payment_details_prefix}{proformaData.invoice_number} ({proformaData.cui_fiscal})</b></p>
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={handlePrint}
-                className="flex-1 rounded-xl bg-slate-900 py-2.5 font-bold text-white hover:bg-slate-800 transition"
-              >
-                Descarca / Printeaza Factura Proforma (PDF)
-              </button>
-              <button
-                onClick={() => setProformaData(null)}
-                className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 font-semibold text-slate-700 hover:bg-slate-50"
-              >
-                Modifica Datele
-              </button>
-            </div>
+            <Button onClick={handleGenerate} disabled={loading} fullWidth className="mt-5">
+              {loading ? "Se emite proforma…" : `Emite proformă — ${plan?.price} RON`}
+            </Button>
           </div>
-        )}
-      </div>
-    </div>
+        </div>
+      ) : (
+        <div className="space-y-5">
+          <div className="border-l-4 border-ink px-4 py-3">
+            <Eyebrow className="text-editorial">Proformă emisă</Eyebrow>
+            <p className="font-display mt-1 text-2xl font-bold">{proforma.invoice_number}</p>
+            <p className="font-body mt-1 text-sm text-stock-600">
+              Total de plată: <b className="text-ink">{proforma.total_ron} RON</b> · {proforma.plan_name}
+            </p>
+          </div>
+
+          <div className="scroll-x border border-ink">
+            <table className="w-full border-collapse text-left font-mono text-xs">
+              <tbody>
+                {[
+                  ["Bancă", proforma.bank_details?.bank_name],
+                  ["IBAN", proforma.bank_details?.iban_ron],
+                  ["Beneficiar", proforma.bank_details?.beneficiary],
+                  [
+                    "Detalii plată",
+                    `${proforma.bank_details?.payment_details_prefix || ""}${proforma.invoice_number} (${proforma.cui_fiscal})`,
+                  ],
+                ].map(([label, value]) => (
+                  <tr key={label} className="border-b border-divider last:border-b-0">
+                    <th scope="row" className="w-40 whitespace-nowrap border-r border-divider px-3 py-2.5 font-sans text-[10px] font-semibold uppercase tracking-widest text-stock-500">
+                      {label}
+                    </th>
+                    <td className="px-3 py-2.5 break-all">{value || "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {error && <Notice tone="alert">{error}</Notice>}
+
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Button onClick={handlePrint} className="sm:flex-1">
+              Tipărește / salvează PDF
+            </Button>
+            <Button variant="outline" onClick={() => setProforma(null)} className="sm:flex-1">
+              Modifică datele
+            </Button>
+          </div>
+        </div>
+      )}
+    </Modal>
   );
 }
+
+/* ---------------------------------------------------------------- account */
 
 export function AccountSettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const { user, preferences, updatePreferences, signInWithGoogle, signInWithEmail, signOut } = useAuth();
   const [emailInput, setEmailInput] = useState("");
-  const [alertEmail, setAlertEmail] = useState(preferences?.notification_email || user?.email || "");
-  const [scoreThreshold, setScoreThreshold] = useState(preferences?.auto_alert_score || 9.0);
+  const [alertEmail, setAlertEmail] = useState("");
+  const [scoreThreshold, setScoreThreshold] = useState(9.0);
   const [magicLinkSent, setMagicLinkSent] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    if (!isOpen) return;
+    setAlertEmail(preferences?.notification_email || user?.email || "");
+    setScoreThreshold(preferences?.auto_alert_score ?? 9.0);
+    setSaved(false);
+    setError(null);
+  }, [isOpen, preferences, user]);
 
   const handleSave = () => {
-    updatePreferences({
-      notification_email: alertEmail,
-      auto_alert_score: Number(scoreThreshold)
-    });
-    alert("Setarile au fost salvate.");
-    onClose();
+    updatePreferences({ notification_email: alertEmail, auto_alert_score: Number(scoreThreshold) });
+    setSaved(true);
   };
 
   const handleSendMagicLink = async () => {
-    if (!emailInput) return;
+    if (!emailInput.trim()) return;
     setAuthLoading(true);
-    const { error } = await signInWithEmail(emailInput);
+    setError(null);
+    const { error: err } = await signInWithEmail(emailInput);
     setAuthLoading(false);
-    if (!error) setMagicLinkSent(true);
-    else alert("Eroare: " + error);
+    if (err) setError(err);
+    else setMagicLinkSent(true);
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
-      <div className="relative w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl text-slate-900 max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center mb-4 border-b border-slate-100 pb-3">
-          <div>
-            <h3 className="text-lg font-bold text-slate-900">Setari Cont & Alerte Email</h3>
-            <p className="text-xs text-slate-500">Personalizare flux notificari automate si autentificare.</p>
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Cont & alerte"
+      subtitle="Autentificare și configurarea notificărilor automate pentru dosarele cu scor ridicat."
+    >
+      <div className="space-y-6">
+        {!user ? (
+          <div className="border border-ink p-4 sm:p-5">
+            <Eyebrow className="text-editorial">Neautentificat</Eyebrow>
+            <p className="font-body mt-2 text-sm leading-relaxed text-stock-600">
+              Conectați-vă pentru a accesa registrul, a salva dosare în pipeline și a primi alerte.
+            </p>
+            <Button onClick={signInWithGoogle} fullWidth className="mt-4">
+              Continuă cu Google
+            </Button>
+
+            <div className="my-4 flex items-center gap-3">
+              <span className="h-px flex-1 bg-divider" />
+              <span className="label-eyebrow text-stock-400">sau magic link</span>
+              <span className="h-px flex-1 bg-divider" />
+            </div>
+
+            {magicLinkSent ? (
+              <Notice title="Link expediat">
+                Verificați căsuța <b>{emailInput}</b> și deschideți linkul de autentificare.
+              </Notice>
+            ) : (
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <Input
+                  type="email"
+                  placeholder="nume@companie.ro"
+                  value={emailInput}
+                  onChange={(e) => setEmailInput(e.target.value)}
+                  className="sm:flex-1"
+                  autoComplete="email"
+                />
+                <Button onClick={handleSendMagicLink} disabled={authLoading}>
+                  {authLoading ? "Se trimite…" : "Trimite link"}
+                </Button>
+              </div>
+            )}
+            {error && (
+              <div className="mt-3">
+                <Notice tone="alert">{error}</Notice>
+              </div>
+            )}
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-700">✕</button>
-        </div>
-
-        <div className="space-y-4 text-xs">
-          {!user ? (
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-3">
-              <span className="font-bold text-slate-900 block text-sm">Autentificare Operator Economic</span>
-              <p className="text-slate-600">Conectati-va pentru a salva dosare in pipeline si a primi alerte automate:</p>
-              
-              <button
-                onClick={signInWithGoogle}
-                className="w-full rounded-xl bg-slate-900 py-2.5 font-bold text-white hover:bg-slate-800 transition shadow-sm"
-              >
-                Conectare cu Google
-              </button>
-
-              <div className="flex items-center gap-2 text-slate-400 my-2">
-                <div className="flex-1 border-b border-slate-200"></div>
-                <span className="text-[10px] uppercase font-bold">Sau Email Magic Link</span>
-                <div className="flex-1 border-b border-slate-200"></div>
-              </div>
-
-              {!magicLinkSent ? (
-                <div className="flex gap-2">
-                  <input
-                    type="email"
-                    placeholder="introduceti email-ul companiei..."
-                    value={emailInput}
-                    onChange={(e) => setEmailInput(e.target.value)}
-                    className="flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900"
-                  />
-                  <button
-                    onClick={handleSendMagicLink}
-                    disabled={authLoading}
-                    className="rounded-xl bg-slate-800 px-4 py-2 font-bold text-white hover:bg-slate-700"
-                  >
-                    {authLoading ? "Se trimite..." : "Trimite Link"}
-                  </button>
-                </div>
-              ) : (
-                <p className="text-emerald-700 font-bold text-center">Link de autentificare expediat. Verificati casuta de email.</p>
-              )}
+        ) : (
+          <div className="border border-ink">
+            <table className="w-full border-collapse text-left font-mono text-xs">
+              <tbody>
+                {[
+                  ["Cont", user.email],
+                  ["Rol", user.role],
+                  ["Profil intelligence", user.tenant_id],
+                ].map(([label, value]) => (
+                  <tr key={label} className="border-b border-divider last:border-b-0">
+                    <th scope="row" className="w-44 whitespace-nowrap border-r border-divider px-3 py-2.5 font-sans text-[10px] font-semibold uppercase tracking-widest text-stock-500">
+                      {label}
+                    </th>
+                    <td className="break-all px-3 py-2.5">{value || "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="border-t border-ink p-3">
+              <Button variant="danger" onClick={signOut} fullWidth>
+                Deconectare
+              </Button>
             </div>
-          ) : (
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5 space-y-2">
-              <div className="flex justify-between items-center">
-                <span className="text-slate-600">Cont Conectat:</span>
-                <span className="font-bold text-emerald-700">{user.email}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-slate-600">Rol Platforma:</span>
-                <span className="font-semibold text-slate-800">{user.role}</span>
-              </div>
-              <button onClick={signOut} className="mt-2 w-full rounded-lg bg-rose-50 border border-rose-200 py-1.5 text-center text-rose-700 hover:bg-rose-100 transition font-medium">
-                Deconectare Cont
-              </button>
-            </div>
-          )}
+          </div>
+        )}
 
-          <div className="space-y-3 pt-2">
-            <span className="font-bold text-slate-700 block uppercase text-[11px]">Canal Trimitere Alerte Email</span>
-            <div>
-              <label className="block text-slate-600 mb-1">Email Destinatar Notificari</label>
-              <input
+        <div className="border border-ink p-4 sm:p-5">
+          <Eyebrow className="mb-4">Alerte email</Eyebrow>
+          <div className="space-y-4">
+            <Field label="Email destinatar notificări">
+              <Input
                 type="email"
                 value={alertEmail}
                 onChange={(e) => setAlertEmail(e.target.value)}
-                placeholder="ex: director@infraconstruct.ro"
-                className="w-full rounded-xl border border-slate-300 bg-slate-50 p-2.5 text-slate-900"
+                placeholder="director@companie.ro"
               />
-            </div>
-            <div>
-              <label className="block text-slate-600 mb-1">Prag Minim Scor Oportunitate pentru Alerta Automata</label>
-              <select
-                value={scoreThreshold}
-                onChange={(e) => setScoreThreshold(Number(e.target.value))}
-                className="w-full rounded-xl border border-slate-300 bg-slate-50 p-2.5 text-slate-900"
-              >
-                <option value={9.5}>Scor &ge; 9.5 (Doar Proiecte Strategice Critice)</option>
-                <option value={9.0}>Scor &ge; 9.0 (Toate Oportunitatile Calificate)</option>
-                <option value={8.5}>Scor &ge; 8.5 (Toate Semnalele Active)</option>
-              </select>
-            </div>
+            </Field>
+            <Field
+              label="Prag minim scor pentru alertă"
+              hint="Serverul aplică propriul prag per profil; această valoare filtrează suplimentar alertele către dvs."
+            >
+              <Select value={scoreThreshold} onChange={(e) => setScoreThreshold(Number(e.target.value))}>
+                <option value={9.5}>Scor ≥ 9.5 — doar proiecte strategice critice</option>
+                <option value={9.0}>Scor ≥ 9.0 — toate oportunitățile calificate</option>
+                <option value={8.5}>Scor ≥ 8.5 — toate semnalele active</option>
+              </Select>
+            </Field>
           </div>
-
-          <button onClick={handleSave} className="w-full rounded-xl bg-slate-900 py-2.5 font-bold text-white text-xs hover:bg-slate-800 transition mt-2">
-            Salveaza Preferintele
-          </button>
+          <Button onClick={handleSave} fullWidth className="mt-5">
+            {saved ? "Preferințe salvate" : "Salvează preferințele"}
+          </Button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }
+
+/* ------------------------------------------------------------------ desks */
+
+const DOMAINS = [
+  { id: "infrastructura", label: "Infrastructură & Transporturi" },
+  { id: "sanatate", label: "Sănătate & Echipamente Medicale" },
+  { id: "energie", label: "Energie & Utilități Verzi" },
+  { id: "aparare", label: "Apărare & Securitate" },
+  { id: "digitalizare", label: "Digitalizare, IT & Smart City" },
+];
 
 export function WorkspaceDeskModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const { desks, activeDesk, createDesk, deleteDesk, switchDesk } = useAuth();
@@ -330,210 +450,161 @@ export function WorkspaceDeskModal({ isOpen, onClose }: { isOpen: boolean; onClo
   const [name, setName] = useState("");
   const [cui, setCui] = useState("");
   const [domain, setDomain] = useState("infrastructura");
-  const [counties, setCounties] = useState("Iasi, Cluj, Bucuresti");
+  const [counties, setCounties] = useState("Cluj, Iași, București");
   const [minBudget, setMinBudget] = useState(5000000);
-  const [keywords, setKeywords] = useState("drum, pod, asfalt, metrou");
-  const [divisionName, setDivisionName] = useState("Divizia Principala");
-
-  if (!isOpen) return null;
+  const [keywords, setKeywords] = useState("drum, pod, asfalt, consolidare");
+  const [divisionName, setDivisionName] = useState("Divizia principală");
+  const [error, setError] = useState<string | null>(null);
 
   const handleCreate = () => {
     if (!name.trim() || !cui.trim()) {
-      alert("Completati numele companiei si codul fiscal (CUI).");
+      setError("Completați denumirea companiei și codul fiscal (CUI).");
       return;
     }
-    const countyList = counties.split(",").map(c => c.trim()).filter(Boolean);
-    const keywordList = keywords.split(",").map(k => k.trim().toLowerCase()).filter(Boolean);
+    const countyList = counties.split(",").map((c) => c.trim()).filter(Boolean);
+    const keywordList = keywords.split(",").map((k) => k.trim().toLowerCase()).filter(Boolean);
 
-    createDesk({
-      name,
-      cui,
+    const desk: Omit<BusinessDesk, "id"> = {
+      name: name.trim(),
+      cui: cui.trim(),
       primary_domain: domain,
-      target_counties: countyList.length > 0 ? countyList : ["Toate"],
-      min_budget_ron: Number(minBudget) || 1000000,
+      // Binds the desk to a real backend profile. Without this the feed
+      // request carries an id the matching engine does not recognise and
+      // returns nothing at all.
+      tenant_id: tenantIdForDomain(domain),
+      target_counties: countyList.length ? countyList : ["Toate"],
+      min_budget_ron: Number(minBudget) || 1_000_000,
       keywords: keywordList,
-      divisions: [
-        {
-          id: "div_" + Date.now(),
-          name: divisionName || "Divizia Principala",
-          keywords: keywordList
-        }
-      ]
-    });
+      divisions: [{ id: "div_" + Date.now(), name: divisionName || "Divizia principală", keywords: keywordList }],
+    };
 
+    createDesk(desk);
     setIsCreating(false);
     setName("");
     setCui("");
+    setError(null);
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
-      <div className="relative w-full max-w-2xl rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl text-slate-900 max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center mb-4 border-b border-slate-100 pb-3">
-          <div>
-            <h3 className="text-lg font-bold text-slate-900">Administrare Companii & Desk-uri</h3>
-            <p className="text-xs text-slate-500">Configurati companiile din portofoliu, domeniile de activitate si cuvintele-cheie monitorizate.</p>
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      size="lg"
+      title="Companii & desk-uri"
+      subtitle="Fiecare companie este legată de un profil de intelligence care determină ce oportunități sunt potrivite pentru ea."
+    >
+      {!isCreating ? (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <Eyebrow>{desks.length} companii configurate</Eyebrow>
+            <Button onClick={() => setIsCreating(true)}>+ Adaugă companie</Button>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-700">✕</button>
-        </div>
 
-        {!isCreating ? (
-          <div className="space-y-4 text-xs">
-            <div className="flex justify-between items-center">
-              <span className="font-bold text-slate-700 uppercase text-[11px]">Companii & Desk-uri Active ({desks.length})</span>
-              <button
-                onClick={() => setIsCreating(true)}
-                className="rounded-lg bg-slate-900 px-3 py-1.5 font-semibold text-white hover:bg-slate-800 transition"
+          <div className="border border-ink">
+            {desks.map((d, i) => (
+              <div
+                key={d.id}
+                className={
+                  "flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between " +
+                  (i < desks.length - 1 ? "border-b border-divider " : "") +
+                  (d.id === activeDesk?.id ? "bg-stock-100" : "")
+                }
               >
-                + Adauga Companie Noua
-              </button>
-            </div>
-
-            <div className="space-y-2">
-              {desks.map(d => (
-                <div
-                  key={d.id}
-                  className={"rounded-xl border p-4 transition flex justify-between items-center " + (d.id === activeDesk?.id ? "border-brand-500 bg-brand-50/40" : "border-slate-200 bg-slate-50")}
-                >
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h4 className="font-bold text-slate-900 text-sm">{d.name}</h4>
-                      {d.id === activeDesk?.id && (
-                        <span className="rounded bg-brand-100 px-2 py-0.5 font-bold text-brand-800 text-[10px]">Activ</span>
-                      )}
-                    </div>
-                    <p className="text-slate-500 text-xs mt-0.5">CUI: {d.cui} &bull; Domeniu: <span className="capitalize">{d.primary_domain}</span></p>
-                    <p className="text-slate-600 text-[11px] mt-1">Judete: {d.target_counties?.join(", ")}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {d.id !== activeDesk?.id && (
-                      <button
-                        onClick={() => switchDesk(d.id)}
-                        className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 font-semibold text-slate-700 hover:bg-slate-100"
-                      >
-                        Comuta
-                      </button>
-                    )}
-                    {desks.length > 1 && (
-                      <button
-                        onClick={() => deleteDesk(d.id)}
-                        className="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 font-semibold text-rose-700 hover:bg-rose-100"
-                      >
-                        Sterge
-                      </button>
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="font-display text-lg font-bold leading-tight">{d.name}</h3>
+                    {d.id === activeDesk?.id && (
+                      <span className="label-eyebrow border border-editorial px-1.5 py-0.5 text-editorial">Activ</span>
                     )}
                   </div>
+                  <p className="font-mono mt-1 text-[11px] text-stock-500">
+                    {d.cui} · {d.primary_domain} · {d.tenant_id}
+                  </p>
+                  <p className="font-body mt-1 text-xs text-stock-600">
+                    Județe: {d.target_counties?.join(", ") || "—"}
+                  </p>
                 </div>
-              ))}
-            </div>
+                <div className="flex shrink-0 gap-2">
+                  {d.id !== activeDesk?.id && (
+                    <Button variant="outline" onClick={() => switchDesk(d.id)}>
+                      Comută
+                    </Button>
+                  )}
+                  {desks.length > 1 && (
+                    <Button variant="danger" onClick={() => deleteDesk(d.id)}>
+                      Șterge
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
-        ) : (
-          <div className="space-y-3 text-xs">
-            <div className="flex justify-between items-center border-b border-slate-100 pb-2">
-              <span className="font-bold text-slate-900 uppercase text-[11px]">Configurare Desk Nou</span>
-              <button onClick={() => setIsCreating(false)} className="text-slate-500 hover:underline">Inapoi</button>
-            </div>
 
-            <div>
-              <label className="block text-slate-600 mb-1">Denumire Companie</label>
-              <input
-                type="text"
-                placeholder="ex: SC Terra Construct SRL"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full rounded-lg bg-slate-50 border border-slate-300 p-2 text-slate-900 focus:bg-white"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-slate-600 mb-1">Cod Fiscal (CUI)</label>
-                <input
-                  type="text"
-                  placeholder="ex: RO34567890"
-                  value={cui}
-                  onChange={(e) => setCui(e.target.value)}
-                  className="w-full rounded-lg bg-slate-50 border border-slate-300 p-2 text-slate-900 focus:bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-slate-600 mb-1">Domeniu Strategic Principal</label>
-                <select
-                  value={domain}
-                  onChange={(e) => setDomain(e.target.value)}
-                  className="w-full rounded-lg bg-slate-50 border border-slate-300 p-2 text-slate-900 focus:bg-white"
-                >
-                  <option value="infrastructura">Infrastructura & Transporturi</option>
-                  <option value="sanatate">Sanatate & Echipamente Medicale</option>
-                  <option value="energie">Energie & Utilitati Verzi</option>
-                  <option value="aparare">Aparare & Securitate Speciala</option>
-                  <option value="digitalizare">Digitalizare, IT & Smart City</option>
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-slate-600 mb-1">Judete Vizate (separate prin virgula)</label>
-              <input
-                type="text"
-                placeholder="ex: Cluj, Iasi, Timis, Bucuresti"
-                value={counties}
-                onChange={(e) => setCounties(e.target.value)}
-                className="w-full rounded-lg bg-slate-50 border border-slate-300 p-2 text-slate-900 focus:bg-white"
-              />
-            </div>
-
-            <div>
-              <label className="block text-slate-600 mb-1">Cuvinte-cheie Monitorizate (separate prin virgula)</label>
-              <input
-                type="text"
-                placeholder="ex: pod, asfalt, consolidare, statie tratare"
-                value={keywords}
-                onChange={(e) => setKeywords(e.target.value)}
-                className="w-full rounded-lg bg-slate-50 border border-slate-300 p-2 text-slate-900 focus:bg-white"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-slate-600 mb-1">Nume Divizie Principala</label>
-                <input
-                  type="text"
-                  placeholder="ex: Divizia Lucrari Civile"
-                  value={divisionName}
-                  onChange={(e) => setDivisionName(e.target.value)}
-                  className="w-full rounded-lg bg-slate-50 border border-slate-300 p-2 text-slate-900 focus:bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-slate-600 mb-1">Buget Minim Proiect (RON)</label>
-                <input
-                  type="number"
-                  value={minBudget}
-                  onChange={(e) => setMinBudget(Number(e.target.value))}
-                  className="w-full rounded-lg bg-slate-50 border border-slate-300 p-2 text-slate-900 focus:bg-white"
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-2 pt-2">
-              <button
-                onClick={handleCreate}
-                className="flex-1 rounded-xl bg-slate-900 py-2.5 font-bold text-white hover:bg-slate-800 transition"
-              >
-                Salveaza si Activeaza Desk
-              </button>
-              <button
-                onClick={() => setIsCreating(false)}
-                className="rounded-xl border border-slate-300 bg-slate-100 px-4 py-2.5 font-semibold text-slate-700 hover:bg-slate-200"
-              >
-                Anuleaza
-              </button>
-            </div>
+          <Notice title="Notă">
+            Desk-urile sunt salvate local în acest browser. Nu sunt sincronizate între dispozitive.
+          </Notice>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between border-b border-ink pb-2">
+            <Eyebrow>Companie nouă</Eyebrow>
+            <button
+              onClick={() => setIsCreating(false)}
+              className="font-sans text-[11px] font-semibold uppercase tracking-widest underline decoration-editorial decoration-2 underline-offset-4"
+            >
+              Înapoi
+            </button>
           </div>
-        )}
-      </div>
-    </div>
+
+          <Field label="Denumire companie">
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="SC Exemplu Construct SRL" />
+          </Field>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label="Cod fiscal (CUI)">
+              <Input value={cui} onChange={(e) => setCui(e.target.value)} placeholder="RO34567890" />
+            </Field>
+            <Field label="Domeniu strategic" hint="Determină profilul de intelligence folosit la potrivire.">
+              <Select value={domain} onChange={(e) => setDomain(e.target.value)}>
+                {DOMAINS.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </div>
+
+          <Field label="Județe vizate" hint="Separate prin virgulă.">
+            <Input value={counties} onChange={(e) => setCounties(e.target.value)} />
+          </Field>
+
+          <Field label="Cuvinte-cheie monitorizate" hint="Separate prin virgulă.">
+            <Input value={keywords} onChange={(e) => setKeywords(e.target.value)} />
+          </Field>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label="Nume divizie principală">
+              <Input value={divisionName} onChange={(e) => setDivisionName(e.target.value)} />
+            </Field>
+            <Field label="Buget minim proiect (RON)">
+              <Input type="number" value={minBudget} onChange={(e) => setMinBudget(Number(e.target.value))} min={0} />
+            </Field>
+          </div>
+
+          {error && <Notice tone="alert">{error}</Notice>}
+
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Button onClick={handleCreate} className="sm:flex-1">
+              Salvează și activează
+            </Button>
+            <Button variant="outline" onClick={() => setIsCreating(false)}>
+              Anulează
+            </Button>
+          </div>
+        </div>
+      )}
+    </Modal>
   );
 }

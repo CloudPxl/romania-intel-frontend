@@ -1,350 +1,658 @@
 "use client";
-import React, { Suspense, useEffect, useState } from "react";
+import React, { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import AuthGate from "@/components/AuthGate";
 import {
-  fetch72hMarketReport,
-  askCopilotChat,
-  fetchCompetitorAnalysis,
+  ApiError,
   analyzeCaietSarcini,
-  uploadCaietFile,
+  askCopilotChat,
+  fetch72hMarketReport,
+  fetchCompetitorAnalysis,
   predictWinRate,
+  uploadCaietFile,
+  type CaietAnalysis,
+  type CompetitorAnalysis,
+  type MacroReport,
+  type WinOdds,
 } from "@/lib/api";
+import { CATEGORIES, formatNumber, formatRon } from "@/lib/format";
+import {
+  Button,
+  Checkbox,
+  Eyebrow,
+  Field,
+  Input,
+  Loading,
+  Notice,
+  PageHeader,
+  Panel,
+  SectionTitle,
+  Select,
+  TabBar,
+  Textarea,
+} from "@/components/newsprint";
 
-const CATEGORIES = [
-  { id: "infrastructura", label: "Infrastructura & Transporturi" },
-  { id: "sanatate", label: "Sanatate & Echipamente Medicale" },
-  { id: "energie", label: "Energie & Utilitati Verzi" },
-  { id: "aparare", label: "Aparare & Securitate Speciala" },
-  { id: "digitalizare", label: "Digitalizare, IT & Smart City" }
-];
+const TOOLS = [
+  { id: "copilot", label: "Copilot & Radar 72h" },
+  { id: "competitor", label: "Profil de piață" },
+  { id: "caiet", label: "Scanner caiet sarcini" },
+  { id: "win", label: "Poziționare preț" },
+] as const;
 
-function CopilotAnalysisTool() {
-  const { activeDesk } = useAuth();
-  const tenantId = activeDesk?.id || "desk_default";
-  const [report72h, setReport72h] = useState<any>(null);
-  const [messages, setMessages] = useState<{ sender: "user" | "ai"; text: string }[]>([
-    { sender: "ai", text: "Buna ziua! Sunt Copilotul AI RO-INTEL. Cu ce oportunitate, cerinta de calificare sau strategie de licitatie doriti sa incepem?" }
+type ToolId = (typeof TOOLS)[number]["id"];
+
+/* ---------------------------------------------------------------- copilot */
+
+function CopilotTool() {
+  const { activeTenantId } = useAuth();
+  const [report, setReport] = useState<MacroReport | null>(null);
+  const [messages, setMessages] = useState<{ sender: "user" | "ai"; text: string; degraded?: boolean }[]>([
+    {
+      sender: "ai",
+      text: "Bună ziua. Pot analiza oportunitățile din registru, cerințele de calificare și strategia de ofertare. Cu ce începem?",
+    },
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetch72hMarketReport(tenantId).then(setReport72h).catch(err => console.warn("[Analytics] 72h report note:", err));
-  }, [tenantId]);
+    let mounted = true;
+    fetch72hMarketReport(activeTenantId)
+      .then((d) => mounted && setReport(d))
+      .catch((e) => mounted && setReportError(e instanceof ApiError ? e.detail : "Raportul macro nu este disponibil."));
+    return () => {
+      mounted = false;
+    };
+  }, [activeTenantId]);
+
+  // Keep the newest turn in view without yanking the whole page.
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+  }, [messages, loading]);
 
   const handleSend = async () => {
-    if (!input.trim() || loading) return;
-    const userQ = input;
+    const question = input.trim();
+    if (!question || loading) return;
     setInput("");
-    setMessages(prev => [...prev, { sender: "user", text: userQ }]);
+    setMessages((prev) => [...prev, { sender: "user", text: question }]);
     setLoading(true);
     try {
-      const data = await askCopilotChat(userQ, tenantId);
-      setMessages(prev => [...prev, { sender: "ai", text: data.reply }]);
-    } catch (e: any) {
-      setMessages(prev => [...prev, { sender: "ai", text: "Eroare la conexiunea cu Copilotul AI: " + (e?.message || "") }]);
+      const data = await askCopilotChat(question, activeTenantId);
+      setMessages((prev) => [...prev, { sender: "ai", text: data.reply, degraded: data.degraded }]);
+    } catch (e) {
+      setMessages((prev) => [
+        ...prev,
+        { sender: "ai", text: e instanceof ApiError ? e.detail : "Copilotul nu a putut răspunde.", degraded: true },
+      ]);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm flex flex-col h-[70vh]">
-      <div className="mb-3 border-b border-slate-100 pb-3">
-        <h2 className="text-base font-bold text-slate-900">Copilot AI Bidding & Radar 72h</h2>
-        <p className="text-xs text-slate-500">{report72h?.period || "Ultimele 72 ore"}</p>
-      </div>
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+      <aside className="lg:col-span-4">
+        <SectionTitle note={report?.period || "72h"}>Sinteză macro</SectionTitle>
+        {reportError ? (
+          <Notice tone="alert">{reportError}</Notice>
+        ) : !report ? (
+          <p className="font-mono text-xs uppercase tracking-widest text-stock-500">Se încarcă…</p>
+        ) : report.executive_takeaways?.length ? (
+          <ol className="border-t border-divider">
+            {report.executive_takeaways.map((t, i) => (
+              <li key={i} className="flex gap-3 border-b border-divider py-3">
+                <span className="tabular font-mono w-6 shrink-0 pt-0.5 text-xs text-stock-400">
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <p className="font-body flex-1 text-sm leading-relaxed">{t}</p>
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <p className="font-body text-sm text-stock-600">
+            Nu există suficiente semnale noi în ultimele 72 de ore pentru o sinteză.
+          </p>
+        )}
 
-      {report72h && (
-        <div className="rounded-xl bg-slate-50 p-3 text-xs mb-3 border border-slate-200 space-y-1">
-          <span className="font-bold text-slate-700 block">Sinteza Macro Ultimele 72h:</span>
-          <ul className="list-disc pl-4 text-slate-600 space-y-0.5">
-            {report72h.executive_takeaways && report72h.executive_takeaways.map((t: string, i: number) => <li key={i}>{t}</li>)}
-          </ul>
-        </div>
-      )}
-
-      <div className="flex-1 overflow-y-auto space-y-3 p-2 text-xs">
-        {messages.map((m, i) => (
-          <div key={i} className={"flex " + (m.sender === "user" ? "justify-end" : "justify-start")}>
-            <div className={"max-w-[85%] rounded-xl p-3 " + (m.sender === "user" ? "bg-slate-900 text-white font-medium" : "bg-slate-100 border border-slate-200 text-slate-800")}>
-              {m.text}
-            </div>
+        {report?.strategic_recommendation && (
+          <div className="mt-5 border-l-4 border-editorial px-4 py-3">
+            <Eyebrow className="text-editorial">Recomandare strategică</Eyebrow>
+            <p className="font-body mt-1.5 text-sm leading-relaxed">{report.strategic_recommendation}</p>
           </div>
-        ))}
-        {loading && <div className="text-slate-500 text-xs animate-pulse">Copilotul AI analizeaza dosarele pre-SEAP...</div>}
-      </div>
+        )}
+      </aside>
 
-      <div className="flex gap-2 mt-3 pt-2 border-t border-slate-100">
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleSend()}
-          placeholder="Intrebati despre cerinte de atribuire, licitatii CNI, bugete sau contestatii..."
-          className="flex-1 rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-brand-500"
-        />
-        <button onClick={handleSend} disabled={loading} className="rounded-xl bg-slate-900 px-4 py-2 font-bold text-white text-xs hover:bg-slate-800">
-          Trimite
-        </button>
+      <div className="lg:col-span-8">
+        <SectionTitle>Copilot ofertare</SectionTitle>
+        <Panel className="flex h-[60vh] min-h-[26rem] flex-col">
+          <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto p-4">
+            {messages.map((m, i) => (
+              <div key={i} className={"flex " + (m.sender === "user" ? "justify-end" : "justify-start")}>
+                <div
+                  className={
+                    "max-w-[88%] border px-3.5 py-2.5 font-body text-sm leading-relaxed " +
+                    (m.sender === "user"
+                      ? "border-ink bg-ink text-paper"
+                      : m.degraded
+                        ? "border-editorial"
+                        : "border-ink")
+                  }
+                >
+                  {m.sender === "ai" && (
+                    <span className="label-eyebrow mb-1 block text-stock-500">
+                      {m.degraded ? "Răspuns degradat" : "Copilot"}
+                    </span>
+                  )}
+                  <p className="whitespace-pre-wrap">{m.text}</p>
+                </div>
+              </div>
+            ))}
+            {loading && (
+              <div className="flex items-center gap-2" role="status" aria-live="polite">
+                <span className="h-2 w-2 animate-pulse bg-editorial" aria-hidden="true" />
+                <span className="label-eyebrow text-stock-500">Copilotul analizează registrul…</span>
+              </div>
+            )}
+          </div>
+
+          <div className="flex gap-2 border-t border-ink p-3">
+            <Input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSend();
+                }
+              }}
+              placeholder="Întrebați despre cerințe, bugete, contestații…"
+              aria-label="Întrebare pentru copilot"
+              className="flex-1"
+            />
+            <Button onClick={handleSend} disabled={loading || !input.trim()}>
+              Trimite
+            </Button>
+          </div>
+        </Panel>
       </div>
     </div>
   );
 }
 
-function CompetitorRadarTool({ initial }: { initial: { category: string; county: string; budget: string } }) {
+/* ------------------------------------------------------------- competitor */
+function CompetitorTool({ initial }: { initial: { category: string; county: string; budget: string } }) {
   const [category, setCategory] = useState(initial.category || "infrastructura");
   const [county, setCounty] = useState(initial.county || "");
-  const [budget, setBudget] = useState(initial.budget ? Number(initial.budget) : 10000000);
-  const [data, setData] = useState<any>(null);
+  const [budget, setBudget] = useState(initial.budget ? Number(initial.budget) : 10_000_000);
+  const [data, setData] = useState<CompetitorAnalysis | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleAnalyze = async () => {
+    if (!county.trim()) {
+      setError("Introduceți județul pentru care doriți analiza.");
+      return;
+    }
     setLoading(true);
+    setError(null);
     try {
-      const res = await fetchCompetitorAnalysis(category, county, budget);
-      setData(res);
-    } catch (err) {
-      console.warn(err);
-      alert("Eroare la analiza concurentei.");
+      setData(await fetchCompetitorAnalysis(category, county, budget));
+    } catch (e) {
+      setError(e instanceof ApiError ? e.detail : "Analiza pieței a eșuat.");
     } finally {
       setLoading(false);
     }
   };
 
+  const market = data?.observed_market;
+  const pricing = data?.pricing;
+  // Sorted so the ladder reads from the published estimate downwards
+  // rather than in whatever order the object happened to serialise.
+  const referencePoints = Object.entries(pricing?.reference_points_ron ?? {}).sort(
+    (a, b) => b[1] - a[1]
+  );
+
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div className="mb-4">
-        <h2 className="text-base font-bold text-slate-900">Radar Concurenta & Profil Piata Regionala</h2>
-        <p className="text-xs text-slate-500">Analiza istorica a preturilor de adjudecare si a riscului de contestatie.</p>
+    <Panel className="p-4 sm:p-6">
+      <h2 className="font-display text-2xl font-bold leading-tight tracking-tight">Profil de piață sectorial</h2>
+      <p className="font-body mt-1.5 text-sm leading-relaxed text-stock-600">
+        Calculat exclusiv din anunțurile colectate de acest sistem, pentru domeniul și județul selectate.
+      </p>
+
+      <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-3">
+        <Field label="Domeniu">
+          <Select value={category} onChange={(e) => setCategory(e.target.value)}>
+            {CATEGORIES.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.label}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field label="Județ">
+          <Input value={county} onChange={(e) => setCounty(e.target.value)} placeholder="ex. Cluj" />
+        </Field>
+        <Field label="Valoare estimată (RON)">
+          <Input type="number" min={0} value={budget} onChange={(e) => setBudget(Number(e.target.value))} />
+        </Field>
       </div>
 
-      <div className="grid grid-cols-3 gap-3 text-xs mb-4">
-        <div>
-          <label className="block text-slate-600 mb-1">Categorie</label>
-          <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full rounded-lg bg-slate-50 border border-slate-300 p-2 text-slate-900 focus:bg-white">
-            {CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="block text-slate-600 mb-1">Judet</label>
-          <input type="text" value={county} onChange={(e) => setCounty(e.target.value)} className="w-full rounded-lg bg-slate-50 border border-slate-300 p-2 text-slate-900 focus:bg-white" />
-        </div>
-        <div>
-          <label className="block text-slate-600 mb-1">Buget Estimat (RON)</label>
-          <input type="number" value={budget} onChange={(e) => setBudget(Number(e.target.value))} className="w-full rounded-lg bg-slate-50 border border-slate-300 p-2 text-slate-900 focus:bg-white" />
-        </div>
-      </div>
-
-      <button onClick={handleAnalyze} disabled={loading || !county} className="w-full rounded-xl bg-slate-900 py-2.5 font-bold text-white text-xs hover:bg-slate-800 transition disabled:opacity-50">
-        {loading ? "Se proceseaza curbele de discount..." : "Analizeaza Concurenta"}
-      </button>
-
-      {data && (
-        <div className="mt-4 space-y-4 text-xs">
-          <div className="grid grid-cols-3 gap-3">
-            <div className="rounded-xl bg-slate-50 p-3 border border-slate-200">
-              <span className="text-[10px] text-slate-500 block uppercase font-bold">Discount Istoric Mediu</span>
-              <span className="text-base font-extrabold text-slate-900">{data.benchmark?.historical_avg_discount}</span>
-            </div>
-            <div className="rounded-xl bg-slate-50 p-3 border border-slate-200">
-              <span className="text-[10px] text-slate-500 block uppercase font-bold">Risc Subcotare</span>
-              <span className="text-base font-bold text-amber-700">{data.benchmark?.undercutting_risk}</span>
-            </div>
-            <div className="rounded-xl bg-slate-50 p-3 border border-slate-200">
-              <span className="text-[10px] text-slate-500 block uppercase font-bold">Rata Contestatii CNSC</span>
-              <span className="text-base font-bold text-rose-700">{data.benchmark?.cnsc_dispute_frequency}</span>
-            </div>
-          </div>
-
-          <div className="rounded-xl bg-slate-50 border border-slate-200 p-4 space-y-2">
-            <span className="font-bold text-slate-800 block">Jucatori Frecventi Identificati in {data.sector}:</span>
-            <ul className="list-disc pl-4 text-slate-600 space-y-1">
-              {data.benchmark?.identified_key_competitors?.map((c: string, i: number) => <li key={i}>{c}</li>)}
-            </ul>
-          </div>
-
-          <div className="rounded-xl bg-brand-50 border border-brand-200 p-4 space-y-2">
-            <span className="font-bold text-brand-900 block">Recomandare Pozitionare Financiara:</span>
-            <div className="grid grid-cols-3 gap-2">
-              <div className="bg-white p-2 rounded border border-brand-100">
-                <span className="text-[10px] text-slate-400 block font-semibold">Oferta Sigura</span>
-                <span className="font-bold text-slate-800">{(data.pricing_recommendations?.safe_margin_bid_ron / 1000000).toFixed(2)} Mil. RON</span>
-              </div>
-              <div className="bg-white p-2 rounded border border-brand-200 shadow-sm">
-                <span className="text-[10px] text-brand-700 block font-bold">Optim Competitiv</span>
-                <span className="font-extrabold text-brand-900">{(data.pricing_recommendations?.optimal_competitive_bid_ron / 1000000).toFixed(2)} Mil. RON</span>
-              </div>
-              <div className="bg-white p-2 rounded border border-brand-100">
-                <span className="text-[10px] text-slate-400 block font-semibold">Limita Agresiva</span>
-                <span className="font-bold text-slate-800">{(data.pricing_recommendations?.aggressive_limit_bid_ron / 1000000).toFixed(2)} Mil. RON</span>
-              </div>
-            </div>
-            <p className="text-slate-600 text-[11px] mt-2">{data.benchmark?.tactical_guidance}</p>
-          </div>
+      {error && (
+        <div className="mt-5">
+          <Notice tone="alert">{error}</Notice>
         </div>
       )}
-    </div>
+
+      <Button onClick={handleAnalyze} disabled={loading} fullWidth className="mt-6">
+        {loading ? "Se analizează piața…" : "Analizează piața"}
+      </Button>
+
+      {loading && (
+        <div className="mt-6">
+          <Loading label="Se agregă procedurile comparabile" />
+        </div>
+      )}
+
+      {data && !loading && (
+        <div className="mt-8 space-y-8">
+          <section>
+            <SectionTitle note={`${data.sector} · ${data.county}`}>Piața observată</SectionTitle>
+            <div className="rule-grid grid grid-cols-2 border border-ink sm:grid-cols-4">
+              <div className="p-4">
+                <Eyebrow>Proceduri comparabile</Eyebrow>
+                <p className="tabular font-display mt-1.5 text-2xl font-black leading-none">
+                  {formatNumber(market?.comparable_procedures_ingested)}
+                </p>
+              </div>
+              <div className="p-4">
+                <Eyebrow>În județul cerut</Eyebrow>
+                <p className="tabular font-display mt-1.5 text-2xl font-black leading-none">
+                  {formatNumber(market?.in_requested_county)}
+                </p>
+              </div>
+              <div className="p-4">
+                <Eyebrow>Valoare mediană</Eyebrow>
+                <p className="tabular font-display mt-1.5 text-2xl font-black leading-none">
+                  {formatRon(market?.value_distribution_ron?.median)}
+                </p>
+              </div>
+              <div className="p-4">
+                <Eyebrow>Interval valoric</Eyebrow>
+                <p className="font-mono mt-1.5 text-xs leading-relaxed">
+                  {formatRon(market?.value_distribution_ron?.min)}
+                  <br />— {formatRon(market?.value_distribution_ron?.max)}
+                </p>
+              </div>
+            </div>
+          </section>
+
+          {market?.contracting_authorities_observed?.length ? (
+            <section>
+              <SectionTitle note={`${market.contracting_authorities_observed.length} entități`}>
+                Autorități contractante observate
+              </SectionTitle>
+              <ul className="border-t border-divider">
+                {market.contracting_authorities_observed.map((a) => (
+                  <li key={a} className="font-body border-b border-divider py-2.5 text-sm">
+                    {a}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+
+          {pricing && (
+            <section>
+              <SectionTitle note="raportate la estimare">Repere de preț</SectionTitle>
+              <div className="rule-grid grid grid-cols-2 border border-ink sm:grid-cols-4">
+                {referencePoints.map(([label, value], i) => (
+                  <div
+                    key={label}
+                    className="p-4"
+                  >
+                    <Eyebrow>{label.replace(/_/g, " ").replace("pct", "%")}</Eyebrow>
+                    <p className="tabular font-display mt-1.5 text-xl font-black leading-none">
+                      {formatRon(value)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+              <p className="font-mono mt-3 text-[11px] leading-relaxed text-stock-500">
+                {pricing.reference_points_note}
+              </p>
+              <p className="font-body mt-4 border-l-4 border-ink px-4 py-3 text-sm leading-relaxed text-stock-700">
+                {pricing.guidance}
+              </p>
+              {pricing.sector_technical_note && (
+                <p className="font-body mt-3 border-l-4 border-divider px-4 py-3 text-sm leading-relaxed text-stock-600">
+                  {pricing.sector_technical_note}
+                </p>
+              )}
+            </section>
+          )}
+
+          <Notice tone="warning" title="Limitele analizei">
+            {data.data_limitations}
+          </Notice>
+        </div>
+      )}
+    </Panel>
   );
 }
 
-function CaietScannerTool({ initial }: { initial: { project_title: string } }) {
+/* ------------------------------------------------------------------ caiet */
+
+function CaietTool({ initial }: { initial: { project_title: string } }) {
   const [projectTitle, setProjectTitle] = useState(initial.project_title || "");
   const [text, setText] = useState("");
   const [file, setFile] = useState<File | null>(null);
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<CaietAnalysis | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // A clean document comes back as one sentinel entry with severity "OK",
+  // not as an empty list — rendering it verbatim would report "Niciunul"
+  // as though it were a restrictive clause.
+  const realFlags = (result?.detected_red_flags ?? []).filter((f) => f.severity !== "OK");
 
   const handleAnalyze = async () => {
+    if (!projectTitle.trim()) {
+      setError("Introduceți titlul proiectului analizat.");
+      return;
+    }
+    if (!file && !text.trim()) {
+      setError("Încărcați un fișier sau lipiți textul caietului de sarcini.");
+      return;
+    }
     setLoading(true);
+    setError(null);
     try {
-      if (file) {
-        const data = await uploadCaietFile(file, projectTitle);
-        setResult(data);
-      } else if (text.trim()) {
-        const data = await analyzeCaietSarcini(projectTitle, text);
-        setResult(data);
-      }
-    } catch (e: any) {
-      alert("Eroare: " + (e?.message || "Nu s-a putut analiza caietul de sarcini."));
+      setResult(file ? await uploadCaietFile(file, projectTitle) : await analyzeCaietSarcini(projectTitle, text));
+    } catch (e) {
+      setError(e instanceof ApiError ? e.detail : "Analiza documentului a eșuat.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div className="mb-4">
-        <h2 className="text-base font-bold text-slate-900">Scanner Clauze Restrictive (Caiet de Sarcini)</h2>
-        <p className="text-xs text-slate-500">Detectarea automata a clauzelor restrictive conform jurisprudentei CNSC.</p>
+    <Panel className="p-4 sm:p-6">
+      <h2 className="font-display text-2xl font-bold leading-tight tracking-tight">Scanner clauze restrictive</h2>
+      <p className="font-body mt-1.5 text-sm leading-relaxed text-stock-600">
+        Detectează cerințele care restrâng nejustificat concurența, conform jurisprudenței CNSC.
+      </p>
+
+      <div className="mt-6 space-y-5">
+        <Field label="Titlu proiect">
+          <Input value={projectTitle} onChange={(e) => setProjectTitle(e.target.value)} />
+        </Field>
+
+        <div>
+          <Eyebrow className="mb-1.5 text-stock-600">Document caiet de sarcini</Eyebrow>
+          <label
+            htmlFor="caiet-upload"
+            className="flex min-h-[6rem] cursor-pointer flex-col items-center justify-center border-2 border-dashed border-ink p-5 text-center transition-colors hover:bg-stock-100"
+          >
+            <input
+              id="caiet-upload"
+              type="file"
+              accept=".pdf,.docx,.txt"
+              onChange={(e) => setFile(e.target.files?.[0] || null)}
+              className="sr-only"
+            />
+            <span className="font-body text-sm font-semibold">
+              {file ? file.name : "Alegeți un fișier PDF, DOCX sau TXT"}
+            </span>
+            <span className="font-mono mt-1 text-[11px] uppercase tracking-wider text-stock-500">
+              {file ? `${(file.size / 1024).toFixed(0)} KB · apăsați pentru a schimba` : "sau lipiți textul mai jos"}
+            </span>
+          </label>
+          {file && (
+            <button
+              onClick={() => setFile(null)}
+              className="font-sans mt-2 text-[11px] font-semibold uppercase tracking-widest text-editorial underline underline-offset-4"
+            >
+              Elimină fișierul
+            </button>
+          )}
+        </div>
+
+        <Field label="Text caiet de sarcini" hint="Ignorat dacă a fost încărcat un fișier.">
+          <Textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            disabled={Boolean(file)}
+            placeholder="Lipiți cerințele tehnice și de calificare…"
+          />
+        </Field>
       </div>
 
-      <label className="block text-slate-600 mb-1 text-xs">Titlu Proiect</label>
-      <input
-        type="text"
-        value={projectTitle}
-        onChange={(e) => setProjectTitle(e.target.value)}
-        placeholder="Titlul proiectului analizat..."
-        className="w-full rounded-lg bg-slate-50 border border-slate-300 p-2 text-xs text-slate-900 focus:bg-white mb-3"
-      />
-
-      <div className="rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 p-4 text-center mb-3">
-        <input type="file" accept=".pdf,.docx,.txt" onChange={(e) => setFile(e.target.files?.[0] || null)} className="hidden" id="caiet-upload" />
-        <label htmlFor="caiet-upload" className="cursor-pointer block">
-          <span className="text-brand-700 font-bold block text-xs">
-            {file ? "Fisier selectat: " + file.name : "Incarcati fisierul PDF sau DOCX aici (sau click pentru a alege)"}
-          </span>
-          <span className="text-[10px] text-slate-500 mt-1 block">Suporta Caiete de Sarcini oficiale PDF, DOCX</span>
-        </label>
-      </div>
-
-      <div className="text-center text-[10px] text-slate-400 mb-2 font-bold uppercase">Sau introduceti textul direct</div>
-
-      <textarea
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        placeholder="Introduceti textul din caietul de sarcini..."
-        className="w-full h-24 rounded-xl border border-slate-300 bg-slate-50 p-3 text-xs text-slate-900 focus:bg-white focus:border-brand-500 focus:outline-none"
-      />
-
-      <button
-        onClick={handleAnalyze}
-        disabled={loading || (!text && !file) || !projectTitle}
-        className="mt-3 w-full rounded-xl bg-slate-900 py-2.5 font-bold text-white text-xs hover:bg-slate-800 transition disabled:opacity-50"
-      >
-        {loading ? "Se analizeaza documentul conform jurisprudentei CNSC..." : "Scaneaza Clauze Restrictive"}
-      </button>
-
-      {result && (
-        <div className="mt-4 space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs">
-          <div className="flex justify-between items-center">
-            <span className="font-semibold text-slate-700">Nivel Risc Restrictiv:</span>
-            <span className="font-bold text-amber-800">{result.bias_risk_level} (Scor: {result.bias_score}/10)</span>
-          </div>
-          <p className="text-slate-600">{result.recommended_action}</p>
-          <div className="space-y-2 mt-2">
-            <span className="font-bold text-slate-500 uppercase text-[10px]">Clauze Identificate:</span>
-            {result.detected_red_flags && result.detected_red_flags.map((flag: any, i: number) => (
-              <div key={i} className="rounded bg-white p-2.5 border-l-2 border-amber-500 shadow-sm">
-                <p className="font-bold text-slate-900">{flag.pattern} — Risc {flag.severity}</p>
-                <p className="text-slate-600 mt-0.5">{flag.tactical_advisory}</p>
-              </div>
-            ))}
-          </div>
+      {error && (
+        <div className="mt-5">
+          <Notice tone="alert">{error}</Notice>
         </div>
       )}
-    </div>
+
+      <Button onClick={handleAnalyze} disabled={loading} fullWidth className="mt-6">
+        {loading ? "Se analizează documentul…" : "Scanează clauzele"}
+      </Button>
+
+      {loading && (
+        <div className="mt-6">
+          <Loading label="Se compară cu jurisprudența CNSC" />
+        </div>
+      )}
+
+      {result && !loading && (
+        <div className="mt-8 space-y-6">
+          <div className="border-4 border-ink p-5">
+            <div className="flex flex-wrap items-baseline justify-between gap-3">
+              <div>
+                <Eyebrow className="text-editorial">Nivel de risc restrictiv</Eyebrow>
+                <p className="font-display mt-1 text-3xl font-black leading-tight">
+                  {result.bias_risk_level || "—"}
+                </p>
+              </div>
+              {result.bias_score != null && (
+                <p className="tabular font-display text-4xl font-black">
+                  {result.bias_score}
+                  <span className="font-mono text-sm font-normal tracking-widest text-stock-500"> / 10</span>
+                </p>
+              )}
+            </div>
+            {result.recommended_action && (
+              <p className="font-body mt-4 border-t border-ink pt-4 text-sm leading-relaxed text-stock-700">
+                {result.recommended_action}
+              </p>
+            )}
+          </div>
+
+          {realFlags.length > 0 ? (
+            <section>
+              <SectionTitle note={`${realFlags.length} identificate`}>Clauze semnalate</SectionTitle>
+              <div className="border-t border-ink">
+                {realFlags.map((flag, i) => (
+                  <div key={i} className="border-b border-ink p-4">
+                    <div className="flex flex-wrap items-baseline justify-between gap-2">
+                      <h3 className="font-display text-lg font-bold capitalize leading-snug">{flag.pattern}</h3>
+                      <span className="label-eyebrow border border-editorial px-1.5 py-0.5 text-editorial">
+                        Risc {flag.severity}
+                      </span>
+                    </div>
+                    {flag.matched_terms?.length ? (
+                      <p className="font-mono mt-1.5 text-[11px] text-stock-500">
+                        Termeni: {flag.matched_terms.join(", ")}
+                      </p>
+                    ) : null}
+                    <p className="font-body mt-2 text-sm leading-relaxed text-stock-700">{flag.tactical_advisory}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ) : (
+            <Notice title="Fără semnalări">
+              Nu au fost detectate clauze restrictive dintre tiparele verificate.
+            </Notice>
+          )}
+
+          {result.qualification_criteria && (
+            <section>
+              <SectionTitle>Cerințe de calificare extrase</SectionTitle>
+              <div className="border border-ink">
+                {(
+                  [
+                    ["Cerințe cifră de afaceri", result.qualification_criteria.turnover_requirements],
+                    ["Certificări solicitate", result.qualification_criteria.required_certifications],
+                    ["Personal-cheie", result.qualification_criteria.key_personnel_roles],
+                    ["Echipamente obligatorii", result.qualification_criteria.mandatory_equipment],
+                  ] as [string, string[] | undefined][]
+                ).map(([label, values]) => (
+                  <div key={label} className="border-b border-divider p-4 last:border-b-0">
+                    <Eyebrow>{label}</Eyebrow>
+                    <ul className="mt-1.5">
+                      {(values?.length ? values : ["—"]).map((v, i) => (
+                        <li key={i} className="font-body text-sm leading-relaxed">
+                          {v}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+              {result.qualification_criteria.extraction_note && (
+                <p className="font-mono mt-3 text-[11px] leading-relaxed text-stock-500">
+                  {result.qualification_criteria.extraction_note}
+                </p>
+              )}
+            </section>
+          )}
+
+          {result.coverage_note && <Notice tone="warning" title="Acoperirea analizei">{result.coverage_note}</Notice>}
+        </div>
+      )}
+    </Panel>
   );
 }
 
+/* -------------------------------------------------------------- win odds */
+
 function WinOddsTool({ initial }: { initial: { budget: string } }) {
-  const defaultBudget = initial.budget ? Number(initial.budget) : 10000000;
+  const defaultBudget = initial.budget ? Number(initial.budget) : 10_000_000;
   const [budget, setBudget] = useState(defaultBudget);
   const [price, setPrice] = useState(Math.round(defaultBudget * 0.92));
   const [hasPartner, setHasPartner] = useState(true);
-  const [result, setResult] = useState<any>(null);
+  const [leadTime, setLeadTime] = useState(30);
+  const [result, setResult] = useState<WinOdds | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleCalculate = async () => {
+    if (budget <= 0 || price <= 0) {
+      setError("Bugetul și prețul ofertat trebuie să fie valori pozitive.");
+      return;
+    }
     setLoading(true);
+    setError(null);
     try {
-      const data = await predictWinRate(budget, price, hasPartner);
-      setResult(data);
-    } catch {
-      alert("Eroare la calcularea sanselor.");
+      setResult(await predictWinRate(budget, price, hasPartner, leadTime));
+    } catch (e) {
+      setError(e instanceof ApiError ? e.detail : "Calculul nu a putut fi finalizat.");
     } finally {
       setLoading(false);
     }
   };
 
+  const discountPct = budget > 0 ? ((budget - price) / budget) * 100 : 0;
+
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm max-w-xl">
-      <div className="mb-4">
-        <h2 className="text-base font-bold text-slate-900">Simulator Sanse de Castig & Marja Optima</h2>
+    <Panel className="p-4 sm:p-6">
+      <h2 className="font-display text-2xl font-bold leading-tight tracking-tight">Poziționare financiară</h2>
+      <p className="font-body mt-1.5 text-sm leading-relaxed text-stock-600">
+        Evaluare calitativă a discountului ofertat față de intervalele uzuale din achizițiile publice din România.
+        Sistemul nu colectează rezultate de atribuire, deci nu produce o probabilitate statistică de câștig.
+      </p>
+
+      <div className="mt-6 space-y-5">
+        <Field label="Buget estimat al autorității (RON)">
+          <Input type="number" min={0} value={budget} onChange={(e) => setBudget(Number(e.target.value))} />
+        </Field>
+        <Field label="Preț ofertat propus (RON)" hint={`Discount curent: ${discountPct.toFixed(1)}%`}>
+          <Input type="number" min={0} value={price} onChange={(e) => setPrice(Number(e.target.value))} />
+        </Field>
+        <Field label="Timp până la depunere (zile)">
+          <Input type="number" min={0} value={leadTime} onChange={(e) => setLeadTime(Number(e.target.value))} />
+        </Field>
+        <Checkbox
+          label="Consorțiu sau subcontractant local în județul autorității"
+          checked={hasPartner}
+          onChange={(e) => setHasPartner(e.target.checked)}
+        />
       </div>
-      <div className="space-y-3 text-xs">
-        <div>
-          <label className="block text-slate-600 mb-1">Buget Estimat Autoritate Contractanta (RON)</label>
-          <input type="number" value={budget} onChange={(e) => setBudget(Number(e.target.value))} className="w-full rounded-xl border border-slate-300 bg-slate-50 p-2.5 text-slate-900" />
+
+      {error && (
+        <div className="mt-5">
+          <Notice tone="alert">{error}</Notice>
         </div>
-        <div>
-          <label className="block text-slate-600 mb-1">Pret Ofertat Propus (RON)</label>
-          <input type="number" value={price} onChange={(e) => setPrice(Number(e.target.value))} className="w-full rounded-xl border border-slate-300 bg-slate-50 p-2.5 text-slate-900" />
-        </div>
-        <label className="flex items-center gap-2 text-slate-700">
-          <input type="checkbox" checked={hasPartner} onChange={(e) => setHasPartner(e.target.checked)} className="rounded" />
-          Consortiu / Subcontractant local in judetul autoritatii (+12% logistica)
-        </label>
-        <button onClick={handleCalculate} disabled={loading} className="w-full rounded-xl bg-slate-900 py-2.5 font-bold text-white text-xs hover:bg-slate-800 transition">
-          {loading ? "Se evalueaza..." : "Calculeaza Probabilitate Castig"}
-        </button>
-        {result && (
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-center mt-3">
-            <p className="uppercase text-slate-500 text-[10px] font-bold">Probabilitate Estimata de Atribuire</p>
-            <p className="text-3xl font-extrabold text-emerald-700 my-1">{result.win_probability_score}</p>
-            <p className="text-slate-700">Discount propus: <span className="font-bold text-slate-900">{result.discount_percentage}</span> ({result.rating})</p>
-            <p className="text-slate-600 mt-2 text-left bg-white p-2.5 rounded border border-slate-200 text-[11px]">{result.tactical_guidance}</p>
+      )}
+
+      <Button onClick={handleCalculate} disabled={loading} fullWidth className="mt-6">
+        {loading ? "Se evaluează…" : "Evaluează poziționarea"}
+      </Button>
+
+      {result && !loading && (
+        <div className="mt-8 space-y-6">
+          <div className="border-4 border-ink p-6">
+            <Eyebrow className="text-editorial">Evaluare poziționare</Eyebrow>
+            <p className="font-display mt-2 text-5xl font-black leading-none">{result.assessment}</p>
+            <div className="font-mono mt-4 flex flex-wrap gap-x-5 gap-y-1 border-t border-ink pt-4 text-[11px] uppercase tracking-widest text-stock-500">
+              <span>
+                Discount <span className="tabular text-ink">{result.discount_percentage}%</span>
+              </span>
+              <span>
+                Interval <span className="text-ink">{result.competitiveness_band.replace(/_/g, " ")}</span>
+              </span>
+              <span>
+                Ofertă <span className="tabular text-ink">{formatRon(result.proposed_price_ron)}</span>
+              </span>
+            </div>
           </div>
-        )}
-      </div>
-    </div>
+
+          {result.factors?.length > 0 && (
+            <section>
+              <SectionTitle note={`${result.factors.length} factori`}>Ce stă în spatele evaluării</SectionTitle>
+              <ol className="border-t border-divider">
+                {result.factors.map((f, i) => (
+                  <li key={i} className="flex gap-3 border-b border-divider py-3">
+                    <span className="tabular font-mono w-6 shrink-0 pt-0.5 text-xs text-stock-400">
+                      {String(i + 1).padStart(2, "0")}
+                    </span>
+                    <p className="font-body flex-1 text-sm leading-relaxed">{f}</p>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          )}
+
+          <Notice tone="warning" title="Metodologie">
+            {result.methodology_note}
+          </Notice>
+        </div>
+      )}
+    </Panel>
   );
 }
 
-const TOOLS = [
-  { id: "copilot", label: "Copilot AI & Radar 72h" },
-  { id: "competitor", label: "Radar Concurenta" },
-  { id: "caiet", label: "Scanner Caiet Sarcini" },
-  { id: "win", label: "Simulator Sanse Castig" },
-] as const;
-
-type ToolId = typeof TOOLS[number]["id"];
+/* ------------------------------------------------------------------ shell */
 
 function AnalyticsContent() {
   const searchParams = useSearchParams();
-  const requestedTool = searchParams.get("tool") as ToolId | null;
-  const [activeTool, setActiveTool] = useState<ToolId>(requestedTool && TOOLS.some(t => t.id === requestedTool) ? requestedTool : "copilot");
+  const requested = searchParams.get("tool") as ToolId | null;
+  const [activeTool, setActiveTool] = useState<ToolId>(
+    requested && TOOLS.some((t) => t.id === requested) ? requested : "copilot"
+  );
 
   const initial = {
     category: searchParams.get("category") || "",
@@ -354,33 +662,38 @@ function AnalyticsContent() {
   };
 
   return (
-    <main className="flex-1 p-6 overflow-y-auto">
-      <div className="max-w-3xl mx-auto">
-        <div className="mb-4 flex flex-wrap items-center gap-2">
-          {TOOLS.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setActiveTool(t.id)}
-              className={"rounded-lg px-3.5 py-1.5 text-xs font-semibold transition " + (activeTool === t.id ? "bg-slate-900 text-white" : "bg-white border border-slate-300 text-slate-700 hover:bg-slate-50")}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
+    <main className="mx-auto w-full max-w-screen-xl flex-1 px-4 py-6 sm:py-8">
+      <PageHeader
+        eyebrow="Strategie & analiză"
+        title="Instrumente de ofertare"
+        standfirst="Copilot conversațional peste registrul curent, profil de concurență, scanner de clauze restrictive și simulator de poziționare financiară."
+      />
 
-        {activeTool === "copilot" && <CopilotAnalysisTool />}
-        {activeTool === "competitor" && <CompetitorRadarTool initial={initial} />}
-        {activeTool === "caiet" && <CaietScannerTool initial={initial} />}
-        {activeTool === "win" && <WinOddsTool initial={initial} />}
-      </div>
+      <TabBar tabs={TOOLS} active={activeTool} onChange={setActiveTool} label="Instrument de analiză" />
+
+      {activeTool === "copilot" && <CopilotTool />}
+      {activeTool === "competitor" && <CompetitorTool initial={initial} />}
+      {activeTool === "caiet" && <CaietTool initial={initial} />}
+      {activeTool === "win" && <WinOddsTool initial={initial} />}
     </main>
   );
 }
 
 export default function AnalyticsPage() {
   return (
-    <Suspense fallback={<main className="flex-1 p-6 text-xs text-slate-500">Se incarca...</main>}>
-      <AnalyticsContent />
-    </Suspense>
+    <AuthGate
+      title="Instrumentele de strategie sunt pentru abonați"
+      description="Copilotul și analizele de ofertare citesc registrul dvs. și necesită un cont autentificat."
+    >
+      <Suspense
+        fallback={
+          <main className="mx-auto w-full max-w-screen-xl flex-1 px-4 py-10">
+            <Loading />
+          </main>
+        }
+      >
+        <AnalyticsContent />
+      </Suspense>
+    </AuthGate>
   );
 }

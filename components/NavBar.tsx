@@ -1,178 +1,244 @@
 "use client";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X, Home, Newspaper, CheckCircle2, FileText, LineChart, BarChart3, ListChecks } from "lucide-react";
-import { useAuth } from "../context/AuthContext";
-import { PricingModal, AccountSettingsModal, WorkspaceDeskModal } from "./EnterpriseModals";
+import { Menu, X } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { formatDateline } from "@/lib/format";
+import { PricingModal, AccountSettingsModal, WorkspaceDeskModal } from "@/components/EnterpriseModals";
 
 const NAV_LINKS = [
-  { href: "/", label: "Acasa", icon: Home },
-  { href: "/newsletter", label: "Newsletter", icon: Newspaper },
-  { href: "/eligibility", label: "Eligibilitate Finantari", icon: CheckCircle2 },
-  { href: "/drafting", label: "Generare Documente", icon: FileText },
-  { href: "/analytics", label: "Analiza & Strategie", icon: LineChart },
-  { href: "/analysis", label: "Analiza de Piata", icon: BarChart3 },
-  { href: "/pipeline", label: "Pipeline", icon: ListChecks },
+  { href: "/", label: "Prima pagină", section: "Ediția" },
+  { href: "/newsletter", label: "Registrul zilnic", section: "Ediția" },
+  { href: "/analysis", label: "Analiza de piață", section: "Ediția" },
+  { href: "/eligibility", label: "Eligibilitate finanțări", section: "Instrumente" },
+  { href: "/drafting", label: "Redactare documente", section: "Instrumente" },
+  { href: "/analytics", label: "Strategie & Copilot", section: "Instrumente" },
+  { href: "/pipeline", label: "Pipeline ofertare", section: "Instrumente" },
 ];
+
+const SECTIONS = ["Ediția", "Instrumente"] as const;
 
 export default function NavBar() {
   const pathname = usePathname();
-  const { user, desks, activeDesk, switchDesk } = useAuth();
+  const { user, desks, activeDesk, switchDesk, signOut } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [pricingOpen, setPricingOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [deskManagerOpen, setDeskManagerOpen] = useState(false);
+  const [dateline, setDateline] = useState("");
+
+  // Rendered client-side only: formatting the date during SSR bakes the
+  // server's day into the HTML and hydration then mismatches for any
+  // reader in a different timezone.
+  useEffect(() => setDateline(formatDateline()), []);
+
+  // A drawer that leaves the page scrollable behind it lets a phone user
+  // scroll the article while the menu is open, which reads as a bug.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [menuOpen]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setMenuOpen(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  useEffect(() => setMenuOpen(false), [pathname]);
 
   if (pathname === "/login") return null;
 
-  const isActive = (href: string) => href === "/" ? pathname === "/" : pathname === href || pathname?.startsWith(href + "/");
+  const isActive = (href: string) =>
+    href === "/" ? pathname === "/" : pathname === href || pathname?.startsWith(href + "/");
 
   return (
     <>
-      <header className="h-14 bg-white px-4 flex items-center justify-between sticky top-0 z-30 shadow-[0_2px_4px_rgba(0,0,0,0.16)]">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setMenuOpen(true)}
-            aria-label="Deschide meniul"
-            className="flex items-center justify-center h-9 w-9 rounded-lg text-[#242a88] hover:bg-[#eef0fb] transition"
-          >
-            <Menu size={22} />
-          </button>
-          <span className="font-bold text-[15px] tracking-wide text-[#111]">
-            RO-<span className="text-[#242a88]">INTEL</span>
-          </span>
+      <header className="sticky top-0 z-40 border-b-4 border-ink bg-paper">
+        <div className="mx-auto flex h-14 w-full max-w-screen-xl items-center justify-between gap-3 px-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <button
+              onClick={() => setMenuOpen(true)}
+              aria-label="Deschide meniul"
+              aria-expanded={menuOpen}
+              className="-ml-2 flex h-11 w-11 shrink-0 items-center justify-center border border-transparent text-ink transition-colors hover:border-ink"
+            >
+              <Menu size={22} strokeWidth={1.5} />
+            </button>
+            <Link href="/" className="font-display text-xl font-black tracking-tighter sm:text-2xl">
+              RO<span className="text-editorial">·</span>INTEL
+            </Link>
+            <span className="label-eyebrow hidden truncate border-l border-divider pl-3 text-stock-500 lg:block">
+              {dateline || " "}
+            </span>
+          </div>
+
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              onClick={() => setPricingOpen(true)}
+              className="hidden min-h-[36px] items-center border border-ink bg-ink px-3 font-sans text-[10px] font-semibold uppercase tracking-widest text-paper transition-colors hover:bg-paper hover:text-ink sm:inline-flex"
+            >
+              Abonament / Proformă
+            </button>
+            <button
+              onClick={() => setMenuOpen(true)}
+              aria-label="Cont și companii"
+              className="flex h-10 w-10 items-center justify-center border border-ink font-mono text-sm font-bold transition-colors hover:bg-ink hover:text-paper"
+            >
+              {user?.full_name ? user.full_name.charAt(0).toUpperCase() : "?"}
+            </button>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setPricingOpen(true)}
-            className="rounded-lg bg-[#242a88] px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-[#1d226d] transition"
-          >
-            Factura Proforma / OP
-          </button>
-          <button
-            onClick={() => setMenuOpen(true)}
-            className="flex items-center justify-center h-9 w-9 rounded-full bg-[#eef0fb] text-xs font-bold text-[#242a88] border border-[#dde1f5]"
-          >
-            {user?.full_name ? user.full_name.charAt(0).toUpperCase() : "U"}
-          </button>
+        <div className="border-t border-divider bg-paper">
+          <div className="mx-auto flex w-full max-w-screen-xl items-center justify-between gap-4 px-4 py-1.5">
+            <span className="label-eyebrow truncate text-stock-500">
+              {activeDesk?.name || "Desk neconfigurat"}
+            </span>
+            <span className="label-eyebrow hidden shrink-0 text-stock-400 sm:block">
+              Vol. 2 · Ediție națională
+            </span>
+          </div>
         </div>
       </header>
 
       {menuOpen && (
-        <div className="fixed inset-0 z-40">
-          <div className="absolute inset-0 bg-black/30" onClick={() => setMenuOpen(false)} />
-          <nav className="absolute inset-y-0 left-0 w-[300px] max-w-[85vw] bg-white shadow-xl flex flex-col overflow-y-auto">
-            <div className="h-14 px-4 flex items-center justify-between border-b border-[#eaeaea] shrink-0">
-              <span className="font-bold text-[15px] tracking-wide text-[#111]">
-                RO-<span className="text-[#242a88]">INTEL</span>
+        <div className="fixed inset-0 z-50">
+          <div
+            className="absolute inset-0 bg-ink/40"
+            onClick={() => setMenuOpen(false)}
+            aria-hidden="true"
+          />
+          <nav
+            aria-label="Navigare principală"
+            className="absolute inset-y-0 left-0 flex w-[320px] max-w-[88vw] flex-col overflow-y-auto border-r-4 border-ink bg-paper"
+          >
+            <div className="flex h-14 shrink-0 items-center justify-between border-b-4 border-ink px-4">
+              <span className="font-display text-xl font-black tracking-tighter">
+                RO<span className="text-editorial">·</span>INTEL
               </span>
               <button
                 onClick={() => setMenuOpen(false)}
-                aria-label="Inchide meniul"
-                className="flex items-center justify-center h-9 w-9 rounded-lg text-[#2b2b2b] hover:bg-[#f7f7f7] transition"
+                aria-label="Închide meniul"
+                className="-mr-2 flex h-11 w-11 items-center justify-center border border-transparent transition-colors hover:border-ink"
               >
-                <X size={20} />
+                <X size={20} strokeWidth={1.5} />
               </button>
             </div>
 
-            <div className="py-1">
-              {NAV_LINKS.map((link) => {
-                const active = isActive(link.href);
-                const Icon = link.icon;
-                return (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    onClick={() => setMenuOpen(false)}
-                    className={
-                      "flex items-center gap-3 px-4 py-3.5 border-b border-[#eaeaea] text-[14px] transition " +
-                      (active ? "text-[#242a88] font-semibold bg-[#eef0fb]" : "text-[#2b2b2b] font-medium hover:bg-[#f7f7f7]")
-                    }
-                  >
-                    <Icon size={18} className={active ? "text-[#242a88]" : "text-[#8f98da]"} />
-                    {link.label}
-                  </Link>
-                );
-              })}
-            </div>
+            {SECTIONS.map((section) => (
+              <div key={section}>
+                <div className="border-b border-divider bg-stock-100 px-4 py-2">
+                  <span className="label-eyebrow text-stock-500">{section}</span>
+                </div>
+                {NAV_LINKS.filter((l) => l.section === section).map((link) => {
+                  const active = isActive(link.href);
+                  return (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      className={
+                        "flex min-h-[48px] items-center justify-between gap-2 border-b border-divider px-4 py-3 font-body text-[15px] transition-colors " +
+                        (active ? "bg-ink text-paper" : "text-ink hover:bg-stock-100")
+                      }
+                    >
+                      {link.label}
+                      {active && <span className="h-1.5 w-1.5 shrink-0 bg-editorial" aria-hidden="true" />}
+                    </Link>
+                  );
+                })}
+              </div>
+            ))}
 
-            <div className="px-4 pt-4 pb-2">
-              <span className="text-[10px] uppercase font-bold text-[#8f98da] tracking-wide">Companii &amp; Desk-uri</span>
+            <div className="border-b border-divider bg-stock-100 px-4 py-2">
+              <span className="label-eyebrow text-stock-500">Companii</span>
             </div>
-            <div className="pb-2">
-              {desks.map((d) => (
-                <button
-                  key={d.id}
-                  onClick={() => {
-                    switchDesk(d.id);
-                    setMenuOpen(false);
-                  }}
-                  className={
-                    "w-full text-left flex items-center justify-between gap-2 px-4 py-2.5 text-[13px] transition " +
-                    (activeDesk?.id === d.id ? "text-[#242a88] font-bold bg-[#eef0fb]" : "text-[#2b2b2b] hover:bg-[#f7f7f7]")
-                  }
-                >
-                  <span className="truncate">{d.name}</span>
-                  {activeDesk?.id === d.id && <span className="h-2 w-2 rounded-full bg-[#242a88] shrink-0" />}
-                </button>
-              ))}
+            {desks.map((d) => (
+              <button
+                key={d.id}
+                onClick={() => {
+                  switchDesk(d.id);
+                  setMenuOpen(false);
+                }}
+                className={
+                  "flex min-h-[48px] w-full items-center justify-between gap-2 border-b border-divider px-4 py-3 text-left font-body text-sm transition-colors " +
+                  (activeDesk?.id === d.id ? "font-semibold" : "text-stock-600 hover:bg-stock-100")
+                }
+              >
+                <span className="truncate">{d.name}</span>
+                {activeDesk?.id === d.id && (
+                  <span className="h-2 w-2 shrink-0 bg-editorial" aria-hidden="true" />
+                )}
+              </button>
+            ))}
+            <button
+              onClick={() => {
+                setMenuOpen(false);
+                setDeskManagerOpen(true);
+              }}
+              className="min-h-[48px] border-b border-divider px-4 py-3 text-left font-sans text-[11px] font-semibold uppercase tracking-widest text-editorial transition-colors hover:bg-stock-100"
+            >
+              + Administrare companii
+            </button>
+
+            <div className="mt-auto space-y-3 border-t-4 border-ink p-4">
+              <div>
+                <p className="font-body truncate text-sm font-semibold">{user?.full_name || "Vizitator"}</p>
+                <p className="font-mono truncate text-[11px] text-stock-500">
+                  {user?.email || "Neautentificat — acces public"}
+                </p>
+              </div>
               <button
                 onClick={() => {
                   setMenuOpen(false);
-                  setDeskManagerOpen(true);
+                  setPricingOpen(true);
                 }}
-                className="w-full text-left px-4 py-2.5 text-[13px] font-semibold text-[#242a88] hover:bg-[#eef0fb] transition"
+                className="min-h-[44px] w-full border border-ink px-3 font-sans text-[11px] font-semibold uppercase tracking-widest transition-colors hover:bg-ink hover:text-paper sm:hidden"
               >
-                + Administrare &amp; Adaugare Companii
+                Abonament / Proformă
               </button>
-            </div>
-
-            <div className="mt-auto border-t border-[#eaeaea] p-4 space-y-2">
-              <div>
-                <p className="text-[13px] font-bold text-[#111] truncate">{user?.full_name || "Utilizator Nelogat"}</p>
-                <p className="text-[11px] text-[#2b2b2b] opacity-60 truncate">{user?.email || "Acces limitat demo"}</p>
-                <span className="inline-block mt-1 rounded bg-[#f7f7f7] px-2 py-0.5 text-[10px] font-semibold text-[#2b2b2b]">
-                  {user?.role || "Neautentificat"}
-                </span>
-              </div>
               <button
                 onClick={() => {
                   setMenuOpen(false);
                   setSettingsOpen(true);
                 }}
-                className="w-full rounded-lg bg-[#f7f7f7] py-2 text-center text-[13px] text-[#2b2b2b] hover:bg-[#eaeaea] transition font-medium"
+                className="min-h-[44px] w-full border border-ink px-3 font-sans text-[11px] font-semibold uppercase tracking-widest transition-colors hover:bg-ink hover:text-paper"
               >
-                Setari Cont & Alerte
+                Setări cont & alerte
               </button>
-              {!user ? (
+              {user ? (
                 <button
                   onClick={() => {
                     setMenuOpen(false);
-                    setSettingsOpen(true);
+                    signOut();
                   }}
-                  className="w-full rounded-lg bg-[#242a88] py-2 text-center text-white hover:bg-[#1d226d] transition font-bold text-[13px]"
-                >
-                  Autentificare / Log in
-                </button>
-              ) : (
-                <button
-                  onClick={() => {
-                    setMenuOpen(false);
-                    setSettingsOpen(true);
-                  }}
-                  className="w-full rounded-lg bg-rose-50 py-2 text-center text-rose-700 hover:bg-rose-100 transition font-medium text-[13px] border border-rose-200"
+                  className="min-h-[44px] w-full border border-editorial px-3 font-sans text-[11px] font-semibold uppercase tracking-widest text-editorial transition-colors hover:bg-editorial hover:text-paper"
                 >
                   Deconectare
                 </button>
+              ) : (
+                <Link
+                  href="/login"
+                  className="flex min-h-[44px] w-full items-center justify-center border border-ink bg-ink px-3 font-sans text-[11px] font-semibold uppercase tracking-widest text-paper transition-colors hover:bg-paper hover:text-ink"
+                >
+                  Autentificare
+                </Link>
               )}
             </div>
           </nav>
         </div>
       )}
 
-      <PricingModal isOpen={pricingOpen} onClose={() => setPricingOpen(false)} tenantId={activeDesk?.id || "desk_default"} />
+      <PricingModal
+        isOpen={pricingOpen}
+        onClose={() => setPricingOpen(false)}
+        tenantId={activeDesk?.tenant_id || ""}
+      />
       <AccountSettingsModal isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
       <WorkspaceDeskModal isOpen={deskManagerOpen} onClose={() => setDeskManagerOpen(false)} />
     </>

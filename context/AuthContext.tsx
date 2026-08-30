@@ -1,7 +1,7 @@
 "use client";
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { syncBackendAuth, switchTenantWorkspace } from "@/lib/api";
+import { syncBackendAuth, ApiError } from "@/lib/api";
 
 export interface BusinessDivision {
   id: string;
@@ -18,9 +18,41 @@ export interface BusinessDesk {
   min_budget_ron: number;
   keywords: string[];
   divisions: BusinessDivision[];
+  /**
+   * The backend intelligence profile this desk is matched against.
+   *
+   * Desks are a browser-local concept (see below) but matching is not:
+   * matching_engine.evaluate_opportunity_for_tenant fails closed on an
+   * unrecognised tenant id. The app used to pass the desk's own local id
+   * (`desk_main_infra`) straight through as the tenant id, which matched
+   * nothing at all — every feed request came back with zero leads and the
+   * UI sat on an empty state forever. Every desk must therefore carry a
+   * real key from GET /api/v1/tenants.
+   */
+  tenant_id: string;
+}
+
+/** Real keys from matching_engine.TENANT_ORGANIZATIONS. */
+export const BACKEND_TENANTS = {
+  infrastructura: "t1_infra_transilvania",
+  sanatate: "t2_medtech_bucuresti",
+  energie: "t3_vest_consulting_grants",
+} as const;
+
+export const DEFAULT_TENANT_ID = BACKEND_TENANTS.infrastructura;
+
+/**
+ * Maps a desk's chosen strategic domain onto the closest backend profile.
+ * `aparare` and `digitalizare` have no dedicated profile yet, so they fall
+ * back to the infrastructure desk — which is where their keyword sets
+ * (ITS, smart city, surveillance) actually live in TENANT_ORGANIZATIONS.
+ */
+export function tenantIdForDomain(domain: string): string {
+  return BACKEND_TENANTS[domain as keyof typeof BACKEND_TENANTS] ?? DEFAULT_TENANT_ID;
 }
 
 export interface UserProfile {
+  user_id?: string;
   email: string;
   full_name: string;
   tenant_id: string;
@@ -38,10 +70,14 @@ export interface UserPreferences {
 interface AuthContextType {
   user: UserProfile | null;
   loading: boolean;
+  /** Set when the backend rejected the session — surfaced in the UI. */
+  authError: string | null;
   preferences: UserPreferences;
   updatePreferences: (newPrefs: Partial<UserPreferences>) => void;
   desks: BusinessDesk[];
   activeDesk: BusinessDesk;
+  /** The id to send to the backend for the active desk. */
+  activeTenantId: string;
   createDesk: (desk: Omit<BusinessDesk, "id">) => void;
   updateDesk: (id: string, desk: Partial<BusinessDesk>) => void;
   deleteDesk: (id: string) => void;
@@ -54,6 +90,7 @@ interface AuthContextType {
 const DEFAULT_DESKS: BusinessDesk[] = [
   {
     id: "desk_main_infra",
+    tenant_id: BACKEND_TENANTS.infrastructura,
     name: "SC Infra Construct Transilvania SRL",
     cui: "RO12345678",
     primary_domain: "infrastructura",
@@ -62,11 +99,12 @@ const DEFAULT_DESKS: BusinessDesk[] = [
     keywords: ["drum", "pod", "pasaj", "asfalt", "its", "scats", "semaforizare", "metrou"],
     divisions: [
       { id: "div_heavy", name: "Infrastructura Grea si Drumuri", keywords: ["drum", "pod", "asfalt", "metrou"] },
-      { id: "div_its", name: "Smart City si Sisteme ITS", keywords: ["its", "scats", "semaforizare", "anpr"] }
-    ]
+      { id: "div_its", name: "Smart City si Sisteme ITS", keywords: ["its", "scats", "semaforizare", "anpr"] },
+    ],
   },
   {
     id: "desk_medtech",
+    tenant_id: BACKEND_TENANTS.sanatate,
     name: "SC MedTech Pharma SRL",
     cui: "RO98765432",
     primary_domain: "sanatate",
@@ -75,56 +113,76 @@ const DEFAULT_DESKS: BusinessDesk[] = [
     keywords: ["rmn", "ct", "accelerator", "radioterapie", "spital", "oncologie", "pacs"],
     divisions: [
       { id: "div_imagistica", name: "Imagistica Medicala si RMN", keywords: ["rmn", "ct", "radioterapie"] },
-      { id: "div_digital_health", name: "Digitalizare Spitale PACS", keywords: ["pacs", "soft medical"] }
-    ]
-  }
+      { id: "div_digital_health", name: "Digitalizare Spitale PACS", keywords: ["pacs", "soft medical"] },
+    ],
+  },
 ];
 
 const DEFAULT_PREFERENCES: UserPreferences = {
   notification_email: "",
   auto_alert_score: 9.0,
-  default_sort: "score_desc"
+  default_sort: "score_desc",
 };
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
+  authError: null,
   preferences: DEFAULT_PREFERENCES,
   updatePreferences: () => {},
   desks: DEFAULT_DESKS,
   activeDesk: DEFAULT_DESKS[0],
+  activeTenantId: DEFAULT_TENANT_ID,
   createDesk: () => {},
   updateDesk: () => {},
   deleteDesk: () => {},
   switchDesk: () => {},
   signInWithGoogle: async () => {},
   signInWithEmail: async () => ({ error: null }),
-  signOut: async () => {}
+  signOut: async () => {},
 });
+
+/**
+ * Desks saved before tenant binding existed have no tenant_id (or carry
+ * their own local id in that slot). Repair them on read rather than
+ * dropping the user's saved desks — an unrepaired desk produces a
+ * permanently empty feed with no visible error.
+ */
+function migrateDesks(saved: unknown): BusinessDesk[] | null {
+  if (!Array.isArray(saved) || saved.length === 0) return null;
+  const valid = Object.values(BACKEND_TENANTS) as string[];
+  return saved.map((d: Partial<BusinessDesk>) => ({
+    ...(d as BusinessDesk),
+    tenant_id:
+      d.tenant_id && valid.includes(d.tenant_id) ? d.tenant_id : tenantIdForDomain(d.primary_domain || "infrastructura"),
+  }));
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(null);
   const [desks, setDesks] = useState<BusinessDesk[]>(DEFAULT_DESKS);
   const [activeDeskId, setActiveDeskId] = useState<string>(DEFAULT_DESKS[0].id);
   const [preferences, setPreferences] = useState<UserPreferences>(DEFAULT_PREFERENCES);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
+    if (typeof window === "undefined") return;
+    try {
       const savedDesks = localStorage.getItem("ro_intel_user_desks");
-      const savedActiveId = localStorage.getItem("ro_intel_active_desk_id");
-      const savedPrefs = localStorage.getItem("ro_intel_user_prefs");
-
       if (savedDesks) {
-        try {
-          const parsed = JSON.parse(savedDesks);
-          if (parsed && parsed.length > 0) setDesks(parsed);
-        } catch {}
+        const migrated = migrateDesks(JSON.parse(savedDesks));
+        if (migrated) {
+          setDesks(migrated);
+          localStorage.setItem("ro_intel_user_desks", JSON.stringify(migrated));
+        }
       }
+      const savedActiveId = localStorage.getItem("ro_intel_active_desk_id");
       if (savedActiveId) setActiveDeskId(savedActiveId);
-      if (savedPrefs) {
-        try { setPreferences(JSON.parse(savedPrefs)); } catch {}
-      }
+      const savedPrefs = localStorage.getItem("ro_intel_user_prefs");
+      if (savedPrefs) setPreferences({ ...DEFAULT_PREFERENCES, ...JSON.parse(savedPrefs) });
+    } catch {
+      /* corrupt localStorage — fall back to defaults rather than crashing */
     }
   }, []);
 
@@ -135,43 +193,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const createDesk = (deskData: Omit<BusinessDesk, "id">) => {
-    const newDesk: BusinessDesk = {
-      ...deskData,
-      id: "desk_" + Date.now()
-    };
-    const updated = [...desks, newDesk];
-    saveDesksToStorage(updated);
-    switchDesk(newDesk.id);
-  };
-
-  const updateDesk = (id: string, deskData: Partial<BusinessDesk>) => {
-    const updated = desks.map(d => (d.id === id ? { ...d, ...deskData } : d));
-    saveDesksToStorage(updated);
-  };
-
-  const deleteDesk = (id: string) => {
-    if (desks.length <= 1) {
-      alert("Trebuie sa pastrati cel putin un Desk activ.");
-      return;
-    }
-    const updated = desks.filter(d => d.id !== id);
-    saveDesksToStorage(updated);
-    if (activeDeskId === id) {
-      switchDesk(updated[0].id);
-    }
-  };
-
-  const switchDesk = (id: string) => {
+  const switchDesk = useCallback((id: string) => {
     setActiveDeskId(id);
     if (typeof window !== "undefined") {
       localStorage.setItem("ro_intel_active_desk_id", id);
     }
-    switchTenantWorkspace(id);
+  }, []);
+
+  const createDesk = (deskData: Omit<BusinessDesk, "id">) => {
+    const newDesk: BusinessDesk = { ...deskData, id: "desk_" + Date.now() };
+    saveDesksToStorage([...desks, newDesk]);
+    switchDesk(newDesk.id);
+  };
+
+  const updateDesk = (id: string, deskData: Partial<BusinessDesk>) => {
+    saveDesksToStorage(desks.map((d) => (d.id === id ? { ...d, ...deskData } : d)));
+  };
+
+  const deleteDesk = (id: string) => {
+    if (desks.length <= 1) return;
+    const updated = desks.filter((d) => d.id !== id);
+    saveDesksToStorage(updated);
+    if (activeDeskId === id) switchDesk(updated[0].id);
   };
 
   const updatePreferences = (newPrefs: Partial<UserPreferences>) => {
-    setPreferences(prev => {
+    setPreferences((prev) => {
       const updated = { ...prev, ...newPrefs };
       if (typeof window !== "undefined") {
         localStorage.setItem("ro_intel_user_prefs", JSON.stringify(updated));
@@ -181,49 +228,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    async function initAuth() {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          const authUser = session.user;
-          const synced = await syncBackendAuth(
-            authUser.email || "user@ro-intel.xyz",
-            authUser.user_metadata?.full_name || authUser.user_metadata?.name || authUser.email?.split("@")[0],
-            authUser.user_metadata?.avatar_url
-          );
-          if (synced?.user) {
-            setUser({ ...synced.user, is_subscribed: true });
-          }
-        } else {
+    let cancelled = false;
+
+    async function adoptSession(session: { user: { email?: string; user_metadata?: Record<string, string> } } | null) {
+      if (!session?.user) {
+        if (!cancelled) {
           setUser(null);
+          setAuthError(null);
+        }
+        return;
+      }
+      const authUser = session.user;
+      try {
+        const synced = await syncBackendAuth(
+          authUser.email || "",
+          authUser.user_metadata?.full_name || authUser.user_metadata?.name || authUser.email?.split("@")[0],
+          authUser.user_metadata?.avatar_url
+        );
+        if (!cancelled && synced?.user) {
+          setUser({ ...synced.user, is_subscribed: true });
+          setAuthError(null);
         }
       } catch (err) {
-        console.warn("[AuthInit] Session verify note:", err);
+        // The backend rejecting a session is a real, visible failure now —
+        // it used to fall back to a fabricated offline profile that looked
+        // signed in but could not actually reach any authenticated route.
+        if (cancelled) return;
+        const message =
+          err instanceof ApiError
+            ? err.detail
+            : "Serverul RO-INTEL nu răspunde. Reîncercați în câteva momente.";
         setUser(null);
-      } finally {
-        setLoading(false);
+        setAuthError(message);
       }
     }
 
-    initAuth();
+    supabase.auth
+      .getSession()
+      .then(({ data }) => adoptSession(data.session))
+      .catch(() => !cancelled && setUser(null))
+      .finally(() => !cancelled && setLoading(false));
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session?.user) {
-        const authUser = session.user;
-        const synced = await syncBackendAuth(
-          authUser.email || "user@ro-intel.xyz",
-          authUser.user_metadata?.full_name || authUser.user_metadata?.name,
-          authUser.user_metadata?.avatar_url
-        );
-        if (synced?.user) {
-          setUser({ ...synced.user, is_subscribed: true });
-        }
-      } else {
-        setUser(null);
-      }
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      adoptSession(session);
     });
 
     return () => {
+      cancelled = true;
       subscription.unsubscribe();
     };
   }, []);
@@ -231,18 +284,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signInWithGoogle = async () => {
     await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: {
-        redirectTo: typeof window !== "undefined" ? window.location.origin : ""
-      }
+      options: { redirectTo: typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : "" },
     });
   };
 
   const signInWithEmail = async (email: string) => {
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: {
-        emailRedirectTo: typeof window !== "undefined" ? window.location.origin : ""
-      }
+      options: { emailRedirectTo: typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : "" },
     });
     return { error: error ? error.message : null };
   };
@@ -250,26 +299,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     await supabase.auth.signOut();
     setUser(null);
+    setAuthError(null);
   };
 
-  const activeDesk = desks.find(d => d.id === activeDeskId) || desks[0] || DEFAULT_DESKS[0];
+  const activeDesk = desks.find((d) => d.id === activeDeskId) || desks[0] || DEFAULT_DESKS[0];
 
   return (
     <AuthContext.Provider
       value={{
         user,
         loading,
+        authError,
         preferences,
         updatePreferences,
         desks,
         activeDesk,
+        activeTenantId: activeDesk.tenant_id || DEFAULT_TENANT_ID,
         createDesk,
         updateDesk,
         deleteDesk,
         switchDesk,
         signInWithGoogle,
         signInWithEmail,
-        signOut
+        signOut,
       }}
     >
       {children}

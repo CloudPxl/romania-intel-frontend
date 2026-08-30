@@ -1,127 +1,201 @@
 @import 'tailwindcss';
-@import 'tw-animate-css';
-@import 'shadcn/tailwind.css';
 
-@custom-variant dark (&:is(.dark *));
+/*
+ * RO-INTEL — Newsprint
+ *
+ * A deliberately single-mode design: the palette is ink on paper, and the
+ * whole system (hard borders, zero radius, halftone textures) is built
+ * around that one ground. There is no dark variant and no theme toggle —
+ * every colour below is stated explicitly rather than inherited, so the
+ * page renders identically regardless of the visitor's OS preference.
+ */
 
-@theme inline {
-  --font-sans: var(--font-geist);
-  --font-mono: var(--font-geist-mono);
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-success: var(--success);
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --radius-sm: calc(var(--radius) * .65);
-  --radius-md: calc(var(--radius) * .85);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.35);
+@theme {
+  --color-paper: #f9f9f7;
+  --color-ink: #111111;
+  --color-rule: #111111;
+  --color-divider: #e5e5e0;
+  --color-editorial: #cc0000;
 
-  --color-brand-50: #eef0fb;
-  --color-brand-100: #dde1f5;
-  --color-brand-200: #b9c0ea;
-  --color-brand-300: #8f98da;
-  --color-brand-400: #5c67bd;
-  --color-brand-500: #3a419f;
-  --color-brand-600: #242a88;
-  --color-brand-700: #1d226d;
-  --color-brand-800: #171b57;
-  --color-brand-900: #121542;
-  --color-brand: #242a88;
-}
+  --color-stock-100: #f5f5f5;
+  --color-stock-200: #e5e5e5;
+  --color-stock-400: #a3a3a3;
+  --color-stock-500: #737373;
+  --color-stock-600: #525252;
+  --color-stock-700: #404040;
 
-:root {
-  color-scheme: light;
-  --background: oklch(.968 .006 245);
-  --foreground: oklch(.19 .02 250);
-  --card: oklch(.995 .002 245);
-  --card-foreground: oklch(.19 .02 250);
-  --popover: oklch(.995 .002 245);
-  --popover-foreground: oklch(.19 .02 250);
-  --primary: oklch(.54 .17 252);
-  --primary-foreground: oklch(.99 .002 245);
-  --secondary: oklch(.93 .012 245);
-  --secondary-foreground: oklch(.25 .025 250);
-  --muted: oklch(.935 .008 245);
-  --muted-foreground: oklch(.49 .025 250);
-  --accent: oklch(.92 .022 245);
-  --accent-foreground: oklch(.25 .025 250);
-  --destructive: oklch(.58 .21 28);
-  --success: oklch(.58 .14 158);
-  --border: oklch(.87 .014 245);
-  --input: oklch(.86 .014 245);
-  --ring: oklch(.54 .17 252);
-  --radius: .6rem;
-  --sidebar: oklch(.94 .01 245);
-  --sidebar-foreground: oklch(.19 .02 250);
-  --sidebar-primary: oklch(.54 .17 252);
-  --sidebar-primary-foreground: oklch(.99 .002 245);
-  --sidebar-accent: oklch(.90 .018 245);
-  --sidebar-accent-foreground: oklch(.2 .02 250);
-  --sidebar-border: oklch(.85 .014 245);
-  --sidebar-ring: oklch(.54 .17 252);
-}
+  --font-display: var(--font-playfair), 'Times New Roman', Times, serif;
+  --font-body: var(--font-lora), Georgia, 'Times New Roman', serif;
+  --font-sans: var(--font-inter), 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-mono: var(--font-jetbrains), 'Courier New', Courier, monospace;
 
-.dark, :root:not(.light) {
-  color-scheme: dark;
-  --background: oklch(.155 .018 252);
-  --foreground: oklch(.94 .012 245);
-  --card: oklch(.19 .019 252);
-  --card-foreground: oklch(.94 .012 245);
-  --popover: oklch(.205 .02 252);
-  --popover-foreground: oklch(.94 .012 245);
-  --primary: oklch(.66 .16 249);
-  --primary-foreground: oklch(.14 .018 252);
-  --secondary: oklch(.245 .02 252);
-  --secondary-foreground: oklch(.92 .012 245);
-  --muted: oklch(.225 .018 252);
-  --muted-foreground: oklch(.66 .02 245);
-  --accent: oklch(.255 .028 249);
-  --accent-foreground: oklch(.94 .012 245);
-  --destructive: oklch(.66 .2 27);
-  --success: oklch(.69 .15 158);
-  --border: oklch(.29 .02 252);
-  --input: oklch(.31 .022 252);
-  --ring: oklch(.66 .16 249);
-  --sidebar: oklch(.13 .017 252);
-  --sidebar-foreground: oklch(.9 .012 245);
-  --sidebar-primary: oklch(.66 .16 249);
-  --sidebar-primary-foreground: oklch(.13 .017 252);
-  --sidebar-accent: oklch(.21 .022 252);
-  --sidebar-accent-foreground: oklch(.94 .012 245);
-  --sidebar-border: oklch(.25 .02 252);
-  --sidebar-ring: oklch(.66 .16 249);
+  /* Sharp geometry is the whole point — no component may reintroduce a
+     radius, so the scale itself is zeroed rather than merely unused. */
+  --radius-xs: 0px;
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-2xl: 0px;
+  --radius-3xl: 0px;
+  --radius-full: 0px;
 }
 
 @layer base {
-  * { @apply border-border outline-ring/50; }
-  html { @apply bg-background; }
-  body { @apply min-h-screen bg-background text-foreground; }
-  button:not(:disabled), [role='button']:not(:disabled) { cursor: pointer; }
+  * {
+    border-color: var(--color-rule);
+  }
+
+  html {
+    background-color: var(--color-paper);
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    min-height: 100svh;
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    /* 4x4 halftone dot field — the paper grain. Kept at 0.04 alpha so it
+       reads as texture at arm's length, never as a visible pattern. */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4' viewBox='0 0 4 4'%3E%3Cpath fill='%23111111' fill-opacity='0.04' d='M1 3h1v1H1V3zm2-2h1v1H3V1z'%3E%3C/path%3E%3C/svg%3E");
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3, h4 {
+    font-family: var(--font-display);
+    text-wrap: balance;
+  }
+
+  button:not(:disabled), [role='button']:not(:disabled), summary {
+    cursor: pointer;
+  }
+
+  /* One focus treatment for the entire app: a hard black ring, offset so
+     it stays legible against both paper and inverted sections. */
+  :focus-visible {
+    outline: 2px solid var(--color-ink);
+    outline-offset: 2px;
+  }
+
+  .invert-section :focus-visible {
+    outline-color: var(--color-paper);
+  }
+
+  input, textarea, select, button {
+    font-family: inherit;
+    border-radius: 0;
+  }
+
+  /* Native controls default to a rounded, shaded look on iOS/macOS that
+     fights the entire system — strip it back to the flat rectangle. */
+  input, textarea, select {
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: none;
+  }
+
+  ::placeholder {
+    color: var(--color-stock-400);
+    opacity: 1;
+  }
+}
+
+@layer utilities {
+  /* Fine graph-paper weave for major sections. Sits above the section
+     background and below its content, and never intercepts pointer events. */
+  .newsprint-texture {
+    position: relative;
+  }
+  .newsprint-texture::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(0deg, transparent 98%, rgba(0, 0, 0, 0.02) 100%),
+      linear-gradient(90deg, transparent 98%, rgba(0, 0, 0, 0.02) 100%);
+    background-size: 3px 3px;
+    pointer-events: none;
+    opacity: 0.5;
+  }
+
+  /* The newspaper-cutout lift: a hard offset shadow, no blur, paired with
+     an equal translate so the element appears to peel off the page. */
+  .hard-shadow-hover {
+    transition: box-shadow 150ms ease-out, transform 150ms ease-out;
+  }
+  .hard-shadow-hover:hover {
+    box-shadow: 4px 4px 0 0 var(--color-ink);
+    transform: translate(-2px, -2px);
+  }
+  .invert-section .hard-shadow-hover:hover {
+    box-shadow: 4px 4px 0 0 var(--color-paper);
+  }
+
+  .hard-shadow {
+    box-shadow: 4px 4px 0 0 var(--color-ink);
+  }
+
+  /* Drop cap for the opening paragraph of an editorial block. */
+  .drop-cap::first-letter {
+    float: left;
+    font-family: var(--font-display);
+    font-size: 3.75rem;
+    line-height: 0.78;
+    font-weight: 900;
+    padding-right: 0.5rem;
+    padding-top: 0.25rem;
+  }
+
+  .label-eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    line-height: 1.2;
+  }
+
+  /* Digits that sit in columns must not jitter as values change. */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Wide content (tables, pre blocks) scrolls inside its own box so the
+     page body never scrolls sideways on a phone. */
+  .scroll-x {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Collapsed newspaper grid.
+   *
+   * Rules are drawn by letting the container's ink background show through
+   * a 1px gap, rather than by giving each child a border-right and then
+   * trying to strip it from whichever cell happens to end a row. That
+   * per-child approach only works when the column count is fixed: a grid
+   * that is 2-up on tablet and 4-up on desktop has different row-ending
+   * cells at each breakpoint, so a `:last-child` exception leaves a double
+   * rule against the container edge on one of them. The gap technique is
+   * breakpoint-agnostic and stays exactly one hairline everywhere. */
+  .rule-grid {
+    gap: 1px;
+    background-color: var(--color-rule);
+  }
+  .rule-grid > * {
+    background-color: var(--color-paper);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+@media print {
+  body { background: #fff; }
+  .no-print { display: none !important; }
 }

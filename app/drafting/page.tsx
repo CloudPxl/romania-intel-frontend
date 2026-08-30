@@ -2,229 +2,473 @@
 import React, { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { generateTechnicalProposal, generateLegalClarification } from "@/lib/api";
+import AuthGate from "@/components/AuthGate";
+import {
+  ApiError,
+  exportClarificationDocx,
+  exportDossierDocx,
+  generateLegalClarification,
+  generateTechnicalProposal,
+  type ClarificationRequest,
+  type ClarificationResult,
+  type TechnicalProposalRequest,
+  type TechnicalProposalResult,
+} from "@/lib/api";
+import { CATEGORIES } from "@/lib/format";
+import {
+  Button,
+  Checkbox,
+  Eyebrow,
+  Field,
+  Input,
+  Loading,
+  Notice,
+  PageHeader,
+  Panel,
+  Select,
+  TabBar,
+  Textarea,
+} from "@/components/newsprint";
 
-const CATEGORIES = [
-  { id: "infrastructura", label: "Infrastructura & Transporturi" },
-  { id: "sanatate", label: "Sanatate & Echipamente Medicale" },
-  { id: "energie", label: "Energie & Utilitati Verzi" },
-  { id: "aparare", label: "Aparare & Securitate Speciala" },
-  { id: "digitalizare", label: "Digitalizare, IT & Smart City" }
-];
+const TOOLS = [
+  { id: "proposal", label: "Propunere tehnică" },
+  { id: "clarification", label: "Clarificări & Legea 544" },
+] as const;
 
-function TechnicalProposalTool({ initial }: { initial: { project_title: string; authority_name: string; county: string; category: string } }) {
-  const { activeDesk } = useAuth();
-  const [projectTitle, setProjectTitle] = useState(initial.project_title);
-  const [authorityName, setAuthorityName] = useState(initial.authority_name);
-  const [county, setCounty] = useState(initial.county || "Romania");
-  const [category, setCategory] = useState(initial.category || "infrastructura");
-  const [data, setData] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
+type ToolId = (typeof TOOLS)[number]["id"];
+
+/** Copy-to-clipboard that reports failure instead of silently doing nothing. */
+function useCopy() {
   const [copied, setCopied] = useState(false);
-
-  const handleGenerate = async () => {
-    setLoading(true);
+  const [failed, setFailed] = useState(false);
+  const copy = async (text: string) => {
     try {
-      const res = await generateTechnicalProposal({
-        project_title: projectTitle,
-        authority_name: authorityName,
-        county,
-        category,
-        company_name: activeDesk?.name || "SC Infra Construct Transilvania SRL",
-        cui: activeDesk?.cui || "RO12345678"
-      });
-      setData(res);
-    } catch (err) {
-      console.warn(err);
-      alert("Eroare la generarea propunerii tehnice.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCopy = () => {
-    if (data?.dossier_text) {
-      navigator.clipboard.writeText(data.dossier_text);
+      await navigator.clipboard.writeText(text);
       setCopied(true);
+      setFailed(false);
       setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard access is denied outside a secure context and in some
+      // embedded webviews — say so rather than showing a false "Copiat".
+      setFailed(true);
+      setTimeout(() => setFailed(false), 4000);
     }
   };
+  return { copied, failed, copy };
+}
 
+function DocumentOutput({
+  text,
+  onCopy,
+  copied,
+  failed,
+  onExport,
+  exporting,
+}: {
+  text: string;
+  onCopy: () => void;
+  copied: boolean;
+  failed: boolean;
+  onExport: () => void;
+  exporting: boolean;
+}) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div className="mb-4">
-        <h2 className="text-base font-bold text-slate-900">Generator Schita Propunere Tehnica (Legea 98/2016)</h2>
-        <p className="text-xs text-slate-500">Structura orientativa pe 4 sectiuni conform standardelor nationale de achizitii.</p>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3 text-xs mb-4">
-        <div className="col-span-2">
-          <label className="block text-slate-600 mb-1">Titlu Proiect</label>
-          <input
-            type="text"
-            value={projectTitle}
-            onChange={(e) => setProjectTitle(e.target.value)}
-            className="w-full rounded-lg bg-slate-50 border border-slate-300 p-2 text-slate-900 focus:bg-white"
-          />
-        </div>
-        <div>
-          <label className="block text-slate-600 mb-1">Autoritate Contractanta</label>
-          <input
-            type="text"
-            value={authorityName}
-            onChange={(e) => setAuthorityName(e.target.value)}
-            className="w-full rounded-lg bg-slate-50 border border-slate-300 p-2 text-slate-900 focus:bg-white"
-          />
-        </div>
-        <div>
-          <label className="block text-slate-600 mb-1">Judet</label>
-          <input
-            type="text"
-            value={county}
-            onChange={(e) => setCounty(e.target.value)}
-            className="w-full rounded-lg bg-slate-50 border border-slate-300 p-2 text-slate-900 focus:bg-white"
-          />
-        </div>
-        <div className="col-span-2">
-          <label className="block text-slate-600 mb-1">Categorie</label>
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            className="w-full rounded-lg bg-slate-50 border border-slate-300 p-2 text-slate-900 focus:bg-white"
-          >
-            {CATEGORIES.map((c) => (
-              <option key={c.id} value={c.id}>{c.label}</option>
-            ))}
-          </select>
+    <div className="mt-6">
+      <div className="flex flex-col gap-2 border-y border-ink py-3 sm:flex-row sm:items-center sm:justify-between">
+        <Eyebrow>Document generat</Eyebrow>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={onCopy}>
+            {copied ? "Copiat" : failed ? "Copierea a eșuat" : "Copiază textul"}
+          </Button>
+          <Button onClick={onExport} disabled={exporting}>
+            {exporting ? "Se exportă…" : "Descarcă .docx"}
+          </Button>
         </div>
       </div>
-
-      <button onClick={handleGenerate} disabled={loading || !projectTitle} className="w-full rounded-xl bg-slate-900 py-2.5 font-bold text-white text-xs hover:bg-slate-800 transition disabled:opacity-50">
-        {loading ? "Se asambleaza structura propunerii tehnice..." : "Genereaza Schita Propunere"}
-      </button>
-
-      {data && (
-        <div className="mt-4 space-y-3 text-xs">
-          <div className="flex justify-between items-center">
-            <span className="text-slate-500">Schita generata pentru: <b className="text-slate-800">{data.company_name}</b></span>
-            <button
-              onClick={handleCopy}
-              className="rounded-lg bg-slate-100 border border-slate-200 px-3 py-1.5 font-semibold text-slate-800 hover:bg-slate-200 transition"
-            >
-              {copied ? "Copiat in Clipboard" : "Copiaza Textul Integral"}
-            </button>
-          </div>
-          <pre className="h-96 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-800 whitespace-pre-wrap font-sans leading-relaxed">
-            {data.dossier_text}
-          </pre>
-        </div>
-      )}
+      <pre className="scroll-x font-body max-h-[32rem] overflow-y-auto border-x border-b border-ink p-4 text-sm leading-relaxed whitespace-pre-wrap sm:p-6">
+        {text}
+      </pre>
     </div>
   );
 }
 
-function ClarificationLetterTool({ initial }: { initial: { project_title: string; authority_name: string; source_id: string } }) {
+/* --------------------------------------------------------------- proposal */
+
+function TechnicalProposalTool({
+  initial,
+}: {
+  initial: { project_title: string; authority_name: string; county: string; category: string; source_id: string; budget: string };
+}) {
   const { activeDesk } = useAuth();
-  const [authorityName, setAuthorityName] = useState(initial.authority_name);
-  const [projectTitle, setProjectTitle] = useState(initial.project_title);
-  const [sourceId, setSourceId] = useState(initial.source_id);
-  const [points, setPoints] = useState("1. Solicitam eliminarea cerintei de autorizatie directa de la producator.\n2. Solicitam acceptarea standardelor tehnice europene echivalente conform Art. 160 Legea 98/2016.");
-  const [letter, setLetter] = useState("");
+  const [form, setForm] = useState({
+    project_title: initial.project_title,
+    authority_name: initial.authority_name,
+    county: initial.county || "",
+    category: initial.category || "infrastructura",
+    source_id: initial.source_id || "",
+    cpv_code: "",
+    estimated_value_ron: initial.budget ? Number(initial.budget) : 0,
+  });
+  const [useAi, setUseAi] = useState(false);
+  const [caietText, setCaietText] = useState("");
+  const [data, setData] = useState<TechnicalProposalResult | null>(null);
   const [loading, setLoading] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const { copied, failed, copy } = useCopy();
+
+  const payload = (): TechnicalProposalRequest => ({
+    project_title: form.project_title,
+    authority_name: form.authority_name,
+    county: form.county,
+    category: form.category,
+    company_name: activeDesk?.name || "",
+    cui: activeDesk?.cui || "",
+    estimated_value_ron: form.estimated_value_ron || undefined,
+    cpv_code: form.cpv_code || undefined,
+    source_id: form.source_id || undefined,
+    use_ai_expansion: useAi,
+    caiet_text: useAi && caietText.trim() ? caietText : undefined,
+  });
 
   const handleGenerate = async () => {
+    if (!form.project_title.trim() || !form.authority_name.trim()) {
+      setError("Titlul proiectului și autoritatea contractantă sunt obligatorii.");
+      return;
+    }
     setLoading(true);
+    setError(null);
     try {
-      const data = await generateLegalClarification({
-        authority_name: authorityName,
-        project_title: projectTitle,
-        source_id: sourceId,
-        company_name: activeDesk?.name || "SC Infra Construct Transilvania SRL",
-        cui_fiscal: activeDesk?.cui || "RO12345678",
-        clarification_points: points
-      });
-      setLetter(data.generated_letter);
-    } catch {
-      alert("Eroare la generarea adresei oficiale.");
+      setData(await generateTechnicalProposal(payload()));
+    } catch (e) {
+      setError(e instanceof ApiError ? e.detail : "Generarea propunerii a eșuat.");
     } finally {
       setLoading(false);
     }
   };
 
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(letter);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleExport = async () => {
+    setExporting(true);
+    setError(null);
+    try {
+      await exportDossierDocx(payload());
+    } catch (e) {
+      setError(e instanceof ApiError ? e.detail : "Exportul .docx a eșuat.");
+    } finally {
+      setExporting(false);
+    }
   };
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div className="mb-4">
-        <h2 className="text-base font-bold text-slate-900">Generator Solicitare Clarificari (Legea 98/2016)</h2>
-        <p className="text-xs text-slate-500">Adresa oficiala de solicitare clarificari / contestare clauze restrictive.</p>
+    <Panel className="p-4 sm:p-6">
+      <h2 className="font-display text-2xl font-bold leading-tight tracking-tight">
+        Propunere tehnică — Legea 98/2016
+      </h2>
+      <p className="font-body mt-1.5 text-sm leading-relaxed text-stock-600">
+        Structură pe secțiuni conform standardelor naționale de achiziții, cu tabel de conformitate și declarații
+        aferente. Textul rezultat este un document complet și fără expansiune AI.
+      </p>
+
+      <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2">
+        <Field label="Titlu proiect" className="sm:col-span-2">
+          <Input
+            value={form.project_title}
+            onChange={(e) => setForm({ ...form, project_title: e.target.value })}
+            placeholder="Modernizare DJ 105…"
+          />
+        </Field>
+        <Field label="Autoritate contractantă">
+          <Input
+            value={form.authority_name}
+            onChange={(e) => setForm({ ...form, authority_name: e.target.value })}
+          />
+        </Field>
+        <Field label="Județ">
+          <Input value={form.county} onChange={(e) => setForm({ ...form, county: e.target.value })} />
+        </Field>
+        <Field label="Domeniu">
+          <Select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
+            {CATEGORIES.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.label}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field label="Valoare estimată (RON)" hint="Determină tipul de procedură menționat în document.">
+          <Input
+            type="number"
+            min={0}
+            value={form.estimated_value_ron || ""}
+            onChange={(e) => setForm({ ...form, estimated_value_ron: Number(e.target.value) })}
+          />
+        </Field>
+        <Field label="Cod CPV" hint="Opțional.">
+          <Input value={form.cpv_code} onChange={(e) => setForm({ ...form, cpv_code: e.target.value })} placeholder="45233120-6" />
+        </Field>
+        <Field label="ID anunț / sursă" hint="Opțional.">
+          <Input value={form.source_id} onChange={(e) => setForm({ ...form, source_id: e.target.value })} />
+        </Field>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 text-xs mb-3">
-        <div>
-          <label className="block text-slate-600 mb-1">Autoritate Contractanta</label>
-          <input
-            type="text"
-            value={authorityName}
-            onChange={(e) => setAuthorityName(e.target.value)}
-            className="w-full rounded-lg bg-slate-50 border border-slate-300 p-2 text-slate-900 focus:bg-white"
-          />
-        </div>
-        <div>
-          <label className="block text-slate-600 mb-1">ID Sursa / Anunt</label>
-          <input
-            type="text"
-            value={sourceId}
-            onChange={(e) => setSourceId(e.target.value)}
-            className="w-full rounded-lg bg-slate-50 border border-slate-300 p-2 text-slate-900 focus:bg-white"
-          />
-        </div>
-        <div className="col-span-2">
-          <label className="block text-slate-600 mb-1">Titlu Proiect</label>
-          <input
-            type="text"
-            value={projectTitle}
-            onChange={(e) => setProjectTitle(e.target.value)}
-            className="w-full rounded-lg bg-slate-50 border border-slate-300 p-2 text-slate-900 focus:bg-white"
-          />
-        </div>
-      </div>
-
-      <label className="block text-xs text-slate-700 mb-1">Puncte de clarificat / Clauze restrictive:</label>
-      <textarea
-        value={points}
-        onChange={(e) => setPoints(e.target.value)}
-        className="w-full h-24 rounded-xl border border-slate-300 bg-slate-50 p-2.5 text-xs text-slate-900 mb-3 focus:bg-white focus:outline-none"
-      />
-      <button onClick={handleGenerate} disabled={loading || !authorityName} className="w-full rounded-xl bg-slate-900 py-2.5 font-bold text-white text-xs hover:bg-slate-800 transition disabled:opacity-50">
-        {loading ? "Se redacteaza adresa oficiala..." : "Genereaza Adresa Oficiala"}
-      </button>
-      {letter && (
-        <div className="mt-4">
-          <div className="flex justify-between items-center mb-1">
-            <span className="text-xs font-bold text-slate-700">Document Generat:</span>
-            <button onClick={copyToClipboard} className="rounded bg-slate-100 border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-800 hover:bg-slate-200">
-              {copied ? "Copiat" : "Copiaza Textul"}
-            </button>
+      <div className="mt-6 border-t-2 border-ink pt-4">
+        <Checkbox
+          label="Extinde metodologia și analiza de risc cu AI"
+          checked={useAi}
+          onChange={(e) => setUseAi(e.target.checked)}
+        />
+        <p className="font-body ml-7 -mt-1 text-xs leading-relaxed text-stock-500">
+          Adaugă câteva secunde de procesare. Dacă niciun furnizor AI nu este configurat pe server, documentul este
+          returnat în forma sa completă din șablon.
+        </p>
+        {useAi && (
+          <div className="mt-4">
+            <Field label="Extras din caietul de sarcini" hint="Face expansiunea specifică acestei proceduri.">
+              <Textarea
+                value={caietText}
+                onChange={(e) => setCaietText(e.target.value)}
+                placeholder="Lipiți cerințele tehnice relevante…"
+              />
+            </Field>
           </div>
-          <pre className="h-48 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-800 whitespace-pre-wrap font-sans">
-            {letter}
-          </pre>
+        )}
+      </div>
+
+      {error && (
+        <div className="mt-5">
+          <Notice tone="alert">{error}</Notice>
         </div>
       )}
-    </div>
+
+      <Button onClick={handleGenerate} disabled={loading} fullWidth className="mt-6">
+        {loading ? "Se asamblează propunerea…" : "Generează propunerea"}
+      </Button>
+
+      {loading && (
+        <div className="mt-6">
+          <Loading label="Se redactează documentul" />
+        </div>
+      )}
+
+      {data && !loading && (
+        <>
+          <p className="font-mono mt-6 text-[11px] uppercase tracking-wider text-stock-500">
+            Emis pentru: <span className="text-ink">{data.company_name}</span>
+            {data.cui && ` · ${data.cui}`}
+          </p>
+          <DocumentOutput
+            text={data.dossier_text}
+            onCopy={() => copy(data.dossier_text)}
+            copied={copied}
+            failed={failed}
+            onExport={handleExport}
+            exporting={exporting}
+          />
+          {data.disclaimer && (
+            <p className="font-mono mt-4 text-[11px] leading-relaxed text-stock-500">{data.disclaimer}</p>
+          )}
+        </>
+      )}
+    </Panel>
   );
 }
+
+/* ---------------------------------------------------------- clarification */
+
+function ClarificationTool({
+  initial,
+}: {
+  initial: { project_title: string; authority_name: string; source_id: string };
+}) {
+  const { activeDesk, user } = useAuth();
+  const [form, setForm] = useState({
+    authority_name: initial.authority_name,
+    project_title: initial.project_title,
+    source_id: initial.source_id,
+    procedure_deadline: "",
+  });
+  const [requestType, setRequestType] = useState<"clarification" | "foia">("clarification");
+  const [points, setPoints] = useState(
+    "1. Solicităm eliminarea cerinței de autorizație directă de la producător.\n2. Solicităm acceptarea standardelor tehnice europene echivalente, conform Art. 160 din Legea 98/2016."
+  );
+  const [useAi, setUseAi] = useState(false);
+  const [data, setData] = useState<ClarificationResult | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const { copied, failed, copy } = useCopy();
+
+  const payload = (): ClarificationRequest => ({
+    authority_name: form.authority_name,
+    project_title: form.project_title,
+    source_id: form.source_id,
+    company_name: activeDesk?.name || "",
+    cui_fiscal: activeDesk?.cui || "",
+    clarification_points: points,
+    request_type: requestType,
+    contact_email: user?.email,
+    procedure_deadline: form.procedure_deadline || undefined,
+    use_ai_expansion: useAi,
+  });
+
+  const handleGenerate = async () => {
+    if (!form.authority_name.trim() || !points.trim()) {
+      setError("Autoritatea contractantă și punctele solicitate sunt obligatorii.");
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      setData(await generateLegalClarification(payload()));
+    } catch (e) {
+      setError(e instanceof ApiError ? e.detail : "Generarea adresei a eșuat.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleExport = async () => {
+    setExporting(true);
+    setError(null);
+    try {
+      await exportClarificationDocx(payload());
+    } catch (e) {
+      setError(e instanceof ApiError ? e.detail : "Exportul .docx a eșuat.");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  return (
+    <Panel className="p-4 sm:p-6">
+      <h2 className="font-display text-2xl font-bold leading-tight tracking-tight">
+        Solicitare oficială către autoritate
+      </h2>
+      <p className="font-body mt-1.5 text-sm leading-relaxed text-stock-600">
+        Două instrumente distincte, cu termene și căi de atac diferite — alegeți-l pe cel potrivit situației.
+      </p>
+
+      <div className="mt-5 grid grid-cols-1 border border-ink sm:grid-cols-2">
+        {(
+          [
+            {
+              id: "clarification" as const,
+              title: "Clarificări · Legea 98/2016",
+              body: "În interiorul unei proceduri active, pentru clauze restrictive sau cerințe neclare din documentație.",
+            },
+            {
+              id: "foia" as const,
+              title: "Informații publice · Legea 544/2001",
+              body: "În afara unei proceduri, pentru documente și informații de interes public deținute de autoritate.",
+            },
+          ]
+        ).map((opt, i) => (
+          <button
+            key={opt.id}
+            onClick={() => setRequestType(opt.id)}
+            aria-pressed={requestType === opt.id}
+            className={
+              "p-4 text-left transition-colors " +
+              (i === 0 ? "border-b border-ink sm:border-b-0 sm:border-r " : "") +
+              (requestType === opt.id ? "bg-ink text-paper" : "hover:bg-stock-100")
+            }
+          >
+            <h3 className="font-display text-base font-bold leading-snug">{opt.title}</h3>
+            <p className="font-body mt-1 text-xs leading-relaxed">{opt.body}</p>
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2">
+        <Field label="Autoritate contractantă">
+          <Input
+            value={form.authority_name}
+            onChange={(e) => setForm({ ...form, authority_name: e.target.value })}
+          />
+        </Field>
+        <Field label="ID anunț / sursă">
+          <Input value={form.source_id} onChange={(e) => setForm({ ...form, source_id: e.target.value })} />
+        </Field>
+        <Field label="Titlu proiect" className="sm:col-span-2">
+          <Input
+            value={form.project_title}
+            onChange={(e) => setForm({ ...form, project_title: e.target.value })}
+          />
+        </Field>
+        <Field
+          label="Termen limită procedură"
+          hint="Opțional. Apare în adresă ca reper pentru termenul de răspuns."
+          className="sm:col-span-2"
+        >
+          <Input
+            type="date"
+            value={form.procedure_deadline}
+            onChange={(e) => setForm({ ...form, procedure_deadline: e.target.value })}
+          />
+        </Field>
+      </div>
+
+      <div className="mt-5">
+        <Field label="Puncte solicitate / clauze contestate">
+          <Textarea value={points} onChange={(e) => setPoints(e.target.value)} className="min-h-[10rem]" />
+        </Field>
+      </div>
+
+      <div className="mt-5 border-t-2 border-ink pt-4">
+        <Checkbox
+          label="Extinde argumentația juridică cu AI"
+          checked={useAi}
+          onChange={(e) => setUseAi(e.target.checked)}
+        />
+      </div>
+
+      {error && (
+        <div className="mt-5">
+          <Notice tone="alert">{error}</Notice>
+        </div>
+      )}
+
+      <Button onClick={handleGenerate} disabled={loading} fullWidth className="mt-6">
+        {loading ? "Se redactează adresa…" : "Generează adresa oficială"}
+      </Button>
+
+      {loading && (
+        <div className="mt-6">
+          <Loading label="Se redactează documentul" />
+        </div>
+      )}
+
+      {data && !loading && (
+        <>
+          {data.recipient && (
+            <p className="font-mono mt-6 text-[11px] uppercase tracking-wider text-stock-500">
+              Destinatar: <span className="text-ink">{data.recipient}</span>
+              {data.reference_id && ` · Ref. ${data.reference_id}`}
+            </p>
+          )}
+          <DocumentOutput
+            text={data.generated_letter}
+            onCopy={() => copy(data.generated_letter)}
+            copied={copied}
+            failed={failed}
+            onExport={handleExport}
+            exporting={exporting}
+          />
+          {data.disclaimer && (
+            <p className="font-mono mt-4 text-[11px] leading-relaxed text-stock-500">{data.disclaimer}</p>
+          )}
+        </>
+      )}
+    </Panel>
+  );
+}
+
+/* ------------------------------------------------------------------ shell */
 
 function DraftingContent() {
   const searchParams = useSearchParams();
-  const initialTool = searchParams.get("tool") === "clarification" ? "clarification" : "proposal";
-  const [activeTool, setActiveTool] = useState<"proposal" | "clarification">(initialTool);
+  const requested = searchParams.get("tool");
+  const [activeTool, setActiveTool] = useState<ToolId>(requested === "clarification" ? "clarification" : "proposal");
 
   const initial = {
     project_title: searchParams.get("project_title") || "",
@@ -232,40 +476,43 @@ function DraftingContent() {
     county: searchParams.get("county") || "",
     category: searchParams.get("category") || "",
     source_id: searchParams.get("source_id") || "",
+    budget: searchParams.get("budget") || "",
   };
 
   return (
-    <main className="flex-1 p-6 overflow-y-auto">
-      <div className="max-w-3xl mx-auto">
-        <div className="mb-4 flex items-center gap-2">
-          <button
-            onClick={() => setActiveTool("proposal")}
-            className={"rounded-lg px-3.5 py-1.5 text-xs font-semibold transition " + (activeTool === "proposal" ? "bg-slate-900 text-white" : "bg-white border border-slate-300 text-slate-700 hover:bg-slate-50")}
-          >
-            Propunere Tehnica
-          </button>
-          <button
-            onClick={() => setActiveTool("clarification")}
-            className={"rounded-lg px-3.5 py-1.5 text-xs font-semibold transition " + (activeTool === "clarification" ? "bg-slate-900 text-white" : "bg-white border border-slate-300 text-slate-700 hover:bg-slate-50")}
-          >
-            Adresa Legea 544 / Clarificari
-          </button>
-        </div>
+    <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-6 sm:py-8">
+      <PageHeader
+        eyebrow="Redactare documente"
+        title="Documente de procedură"
+        standfirst="Propuneri tehnice și solicitări oficiale generate din datele dosarului, exportabile în .docx pentru depunere."
+      />
 
-        {activeTool === "proposal" ? (
-          <TechnicalProposalTool initial={initial} />
-        ) : (
-          <ClarificationLetterTool initial={initial} />
-        )}
-      </div>
+      <TabBar tabs={TOOLS} active={activeTool} onChange={setActiveTool} label="Instrument de redactare" />
+
+      {activeTool === "proposal" ? (
+        <TechnicalProposalTool initial={initial} />
+      ) : (
+        <ClarificationTool initial={initial} />
+      )}
     </main>
   );
 }
 
 export default function DraftingPage() {
   return (
-    <Suspense fallback={<main className="flex-1 p-6 text-xs text-slate-500">Se incarca...</main>}>
-      <DraftingContent />
-    </Suspense>
+    <AuthGate
+      title="Generatorul de documente este pentru abonați"
+      description="Redactarea propunerilor tehnice și a solicitărilor oficiale necesită un cont autentificat."
+    >
+      <Suspense
+        fallback={
+          <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-10">
+            <Loading />
+          </main>
+        }
+      >
+        <DraftingContent />
+      </Suspense>
+    </AuthGate>
   );
 }

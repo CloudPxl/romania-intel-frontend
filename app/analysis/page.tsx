@@ -1,154 +1,277 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { fetchMarketTrends } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
+import { ApiError, fetchMarketTrends, type MarketTrendFilters, type MarketTrends } from "@/lib/api";
+import { CATEGORIES, formatDate, formatNumber, formatRon } from "@/lib/format";
+import {
+  Button,
+  ButtonLink,
+  DegradedBanner,
+  EmptyState,
+  Eyebrow,
+  Field,
+  Input,
+  Loading,
+  Notice,
+  PageHeader,
+  Panel,
+  SectionTitle,
+  Select,
+  StatCell,
+} from "@/components/newsprint";
 
-function formatRon(value: number): string {
-  if (!value) return "0 RON";
-  if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(2)} Mld. RON`;
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(2)} Mil. RON`;
-  if (value >= 1_000) return `${(value / 1_000).toFixed(1)} Mii RON`;
-  return `${value.toFixed(0)} RON`;
-}
-
-function BarRow({ label, count, value, maxValue, accent = "bg-brand-600" }: { label: string; count: number; value: number; maxValue: number; accent?: string }) {
-  const pct = maxValue > 0 ? Math.max(4, Math.round((value / maxValue) * 100)) : 0;
+/** Horizontal bar row. Width is share-of-max within the current slice. */
+function BarRow({ label, count, value, maxValue }: { label: string; count: number; value: number; maxValue: number }) {
+  const pct = maxValue > 0 ? Math.max(2, Math.round((value / maxValue) * 100)) : 0;
   return (
-    <div className="space-y-1">
-      <div className="flex items-center justify-between text-[11px]">
-        <span className="font-semibold text-slate-800 truncate pr-2">{label}</span>
-        <span className="text-slate-500 whitespace-nowrap">{count} dosare &middot; {formatRon(value)}</span>
+    <div className="border-b border-divider py-3 last:border-b-0">
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="font-body truncate text-sm font-semibold">{label}</span>
+        <span className="tabular font-mono shrink-0 text-[11px] text-stock-500">
+          {count} · {formatRon(value)}
+        </span>
       </div>
-      <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
-        <div className={`h-full rounded-full ${accent}`} style={{ width: `${pct}%` }} />
+      <div className="mt-1.5 h-2 w-full bg-stock-200">
+        <div className="h-full bg-ink" style={{ width: `${pct}%` }} role="presentation" />
       </div>
     </div>
   );
 }
 
 export default function AnalysisPage() {
-  const [data, setData] = useState<any>(null);
+  const { user } = useAuth();
+  const [data, setData] = useState<MarketTrends | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
-  const load = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await fetchMarketTrends();
-      setData(result);
-    } catch (e: any) {
-      setError(e?.message || "Eroare la incarcarea analizei de piata");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [category, setCategory] = useState("");
+  const [county, setCounty] = useState("");
+  const [minValue, setMinValue] = useState("");
+  const [maxValue, setMaxValue] = useState("");
+
+  const load = useCallback(
+    async (filters: MarketTrendFilters = {}) => {
+      setLoading(true);
+      setError(null);
+      try {
+        setData(await fetchMarketTrends(filters));
+      } catch (e) {
+        setError(e instanceof ApiError ? e.detail : "Nu s-a putut încărca analiza de piață.");
+        setData(null);
+      } finally {
+        setLoading(false);
+      }
+    },
+    []
+  );
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load, user]);
 
-  const maxCounty = data?.by_county?.length ? Math.max(...data.by_county.map((c: any) => c.value_ron)) : 0;
-  const maxCategory = data?.by_category?.length ? Math.max(...data.by_category.map((c: any) => c.value_ron)) : 0;
-  const maxFunding = data?.by_funding_source?.length ? Math.max(...data.by_funding_source.map((c: any) => c.value_ron)) : 0;
+  const applyFilters = () => {
+    load({
+      start_date: startDate || undefined,
+      end_date: endDate || undefined,
+      categories: category ? [category] : undefined,
+      counties: county.trim() ? [county.trim()] : undefined,
+      min_value_ron: minValue ? Number(minValue) : undefined,
+      max_value_ron: maxValue ? Number(maxValue) : undefined,
+    });
+  };
+
+  const resetFilters = () => {
+    setStartDate("");
+    setEndDate("");
+    setCategory("");
+    setCounty("");
+    setMinValue("");
+    setMaxValue("");
+    load();
+  };
+
+  const activeFilterCount = Object.keys(data?.filters_applied ?? {}).filter((k) => k !== "limit").length;
+  const maxCounty = Math.max(0, ...(data?.by_county ?? []).map((c) => c.value_ron));
+  const maxCategory = Math.max(0, ...(data?.by_category ?? []).map((c) => c.value_ron));
+  const maxFunding = Math.max(0, ...(data?.by_funding_source ?? []).map((c) => c.value_ron));
 
   return (
-    <main className="flex-1 p-6 overflow-y-auto bg-slate-50">
-      <div className="max-w-6xl mx-auto space-y-5">
-        <div className="flex justify-between items-start">
-          <div>
-            <h1 className="text-lg font-bold text-slate-900">Analiza de Piata</h1>
-            <p className="text-xs text-slate-500">Tendinte cantitative extrase din buletinul curent de oportunitati pre-SEAP.</p>
+    <main className="mx-auto w-full max-w-screen-xl flex-1 px-4 py-6 sm:py-8">
+      <PageHeader
+        eyebrow="Analiza de piață"
+        title="Unde se concentrează bugetul public"
+        standfirst="Agregări recalculate la fiecare interogare din datele curente din registru. Nu există cache la acest nivel — un filtru aplicat interoghează baza de date din nou."
+        action={
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={() => setFiltersOpen((v) => !v)} aria-expanded={filtersOpen}>
+              {filtersOpen ? "Ascunde filtre" : `Filtre${activeFilterCount ? ` (${activeFilterCount})` : ""}`}
+            </Button>
+            <Button variant="outline" onClick={() => load()} disabled={loading}>
+              {loading ? "Se încarcă…" : "Reîncarcă"}
+            </Button>
           </div>
-          <button
-            onClick={() => load()}
-            disabled={loading}
-            className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition shadow-sm"
-          >
-            {loading ? "Se actualizeaza..." : "Reincarca"}
-          </button>
+        }
+      />
+
+      {filtersOpen && (
+        <Panel className="mb-6 p-4 sm:p-5">
+          <Eyebrow className="mb-4">Restrânge analiza</Eyebrow>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <Field label="De la data">
+              <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+            </Field>
+            <Field label="Până la data">
+              <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+            </Field>
+            <Field label="Domeniu">
+              <Select value={category} onChange={(e) => setCategory(e.target.value)}>
+                <option value="">Toate domeniile</option>
+                {CATEGORIES.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="Județ">
+              <Input value={county} onChange={(e) => setCounty(e.target.value)} placeholder="ex. Cluj" />
+            </Field>
+            <Field label="Valoare minimă (RON)">
+              <Input type="number" min={0} value={minValue} onChange={(e) => setMinValue(e.target.value)} />
+            </Field>
+            <Field label="Valoare maximă (RON)">
+              <Input type="number" min={0} value={maxValue} onChange={(e) => setMaxValue(e.target.value)} />
+            </Field>
+          </div>
+          <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+            <Button onClick={applyFilters} disabled={loading}>
+              Aplică filtrele
+            </Button>
+            <Button variant="ghost" onClick={resetFilters} disabled={loading}>
+              Resetează
+            </Button>
+          </div>
+        </Panel>
+      )}
+
+      {data?.degraded && <DegradedBanner detail={data.detail} />}
+
+      {error && (
+        <div className="mb-6">
+          <Notice tone="alert" title="Eroare">
+            {error}
+          </Notice>
         </div>
+      )}
 
-        {error && (
-          <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-xs text-rose-700">{error}</div>
-        )}
-
-        {loading ? (
-          <div className="flex h-48 items-center justify-center text-xs text-slate-500">Se incarca analiza de piata...</div>
-        ) : !data || data.total_leads === 0 ? (
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 flex flex-col items-center justify-center text-xs text-slate-500 space-y-1 h-48">
-            <span>Nu exista inca date suficiente in buletin pentru analiza de piata.</span>
-            <span className="text-[11px] text-brand-700">Datele apar automat dupa primul ciclu de scanare (la fiecare 6 ore).</span>
+      {loading ? (
+        <Loading label="Se calculează agregările" />
+      ) : !data || data.total_leads === 0 ? (
+        <EmptyState title="Nu există date pentru această selecție">
+          {activeFilterCount > 0
+            ? "Niciun dosar nu corespunde filtrelor aplicate. Extindeți intervalul sau eliminați un criteriu."
+            : "Registrul nu conține încă dosare. Datele apar automat după primul ciclu de scanare."}
+        </EmptyState>
+      ) : (
+        <>
+          <div className="rule-grid grid grid-cols-2 border border-ink lg:grid-cols-4">
+            <StatCell label="Dosare în selecție" value={formatNumber(data.total_leads)} />
+            <StatCell label="Valoare totală" value={formatRon(data.total_market_value_ron)} />
+            <StatCell
+              label="Scor mediu"
+              value={data.average_opportunity_score != null ? `${data.average_opportunity_score} / 10` : "—"}
+            />
+            <StatCell label="Actualizat" value={formatDate(data.updated_at)} hint={`${data.by_county.length} județe`} />
           </div>
-        ) : (
-          <>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                <span className="text-[10px] uppercase font-bold text-slate-400">Total Dosare Active</span>
-                <p className="text-2xl font-extrabold text-slate-900 mt-1">{data.total_leads}</p>
-              </div>
-              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                <span className="text-[10px] uppercase font-bold text-slate-400">Valoare Totala Piata</span>
-                <p className="text-2xl font-extrabold text-slate-900 mt-1">{formatRon(data.total_market_value_ron)}</p>
-              </div>
-              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                <span className="text-[10px] uppercase font-bold text-slate-400">Scor Mediu Oportunitate</span>
-                <p className="text-2xl font-extrabold text-slate-900 mt-1">{data.average_opportunity_score ?? "-"}</p>
-              </div>
-            </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-3">
-                <h2 className="text-xs font-bold text-slate-800 uppercase">Distributie pe Domeniu</h2>
-                <div className="space-y-3">
-                  {data.by_category.map((c: any) => (
-                    <BarRow key={c.category} label={c.category} count={c.count} value={c.value_ron} maxValue={maxCategory} accent="bg-brand-600" />
-                  ))}
-                </div>
+          <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-2">
+            <section>
+              <SectionTitle note={`${data.by_category.length} domenii`}>Distribuție pe domeniu</SectionTitle>
+              <div>
+                {data.by_category.map((c) => (
+                  <BarRow key={c.category} label={c.category} count={c.count} value={c.value_ron} maxValue={maxCategory} />
+                ))}
               </div>
+            </section>
 
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-3">
-                <h2 className="text-xs font-bold text-slate-800 uppercase">Top Judete dupa Valoare</h2>
-                <div className="space-y-3">
-                  {data.by_county.slice(0, 8).map((c: any) => (
-                    <BarRow key={c.county} label={c.county} count={c.count} value={c.value_ron} maxValue={maxCounty} accent="bg-emerald-600" />
-                  ))}
-                </div>
+            <section>
+              <SectionTitle note="top 10">Județe după valoare</SectionTitle>
+              <div>
+                {data.by_county.slice(0, 10).map((c) => (
+                  <BarRow key={c.county} label={c.county} count={c.count} value={c.value_ron} maxValue={maxCounty} />
+                ))}
               </div>
+            </section>
 
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-3">
-                <h2 className="text-xs font-bold text-slate-800 uppercase">Surse de Finantare</h2>
-                <div className="space-y-3">
-                  {data.by_funding_source.map((f: any) => (
-                    <BarRow key={f.funding_source} label={f.funding_source} count={f.count} value={f.value_ron} maxValue={maxFunding} accent="bg-amber-600" />
-                  ))}
-                </div>
+            <section>
+              <SectionTitle note={`${data.by_funding_source.length} surse`}>Surse de finanțare</SectionTitle>
+              <div>
+                {data.by_funding_source.map((f) => (
+                  <BarRow
+                    key={f.funding_source}
+                    label={f.funding_source}
+                    count={f.count}
+                    value={f.value_ron}
+                    maxValue={maxFunding}
+                  />
+                ))}
               </div>
+            </section>
 
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <h2 className="text-xs font-bold text-slate-800 uppercase mb-3">Top 10 Oportunitati dupa Valoare</h2>
-                <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
-                  {data.top_opportunities.map((o: any, i: number) => (
-                    <div key={i} className="rounded-lg border border-slate-100 bg-slate-50 p-2.5 text-[11px] flex items-center justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="font-bold text-slate-900 truncate">{o.project_title}</p>
-                        <p className="text-slate-500 truncate">{o.entity_name} &middot; {o.county}</p>
+            <section>
+              <SectionTitle note={data.is_authenticated ? "top 10" : "restricționat"}>
+                Cele mai mari poziții
+              </SectionTitle>
+              {data.is_authenticated ? (
+                <ol className="border-t border-divider">
+                  {data.top_opportunities.map((o, i) => (
+                    <li key={`${o.project_title}-${i}`} className="flex gap-4 border-b border-divider py-3">
+                      <span className="tabular font-mono w-6 shrink-0 pt-0.5 text-sm text-stock-400">
+                        {String(i + 1).padStart(2, "0")}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-body truncate text-sm font-semibold">{o.project_title}</p>
+                        <p className="font-mono truncate text-[11px] text-stock-500">
+                          {o.entity_name} · {o.county}
+                        </p>
                       </div>
-                      <span className="font-extrabold text-slate-900 whitespace-nowrap">{formatRon(o.financial_value_ron)}</span>
-                    </div>
+                      <span className="tabular font-display shrink-0 text-sm font-black">
+                        {formatRon(o.financial_value_ron)}
+                      </span>
+                    </li>
                   ))}
+                </ol>
+              ) : (
+                <div className="border border-ink p-6">
+                  <Eyebrow className="text-editorial">Necesită autentificare</Eyebrow>
+                  <p className="font-body mt-2 text-sm leading-relaxed text-stock-600">
+                    Cifrele agregate sunt publice. Pozițiile identificate nominal — autoritate, titlu de proiect,
+                    valoare — sunt vizibile doar conturilor autentificate.
+                  </p>
+                  <ButtonLink href="/login" variant="outline" fullWidth className="mt-5">
+                    Autentificare
+                  </ButtonLink>
                 </div>
-              </div>
-            </div>
+              )}
+            </section>
+          </div>
 
-            <div className="text-center">
-              <Link href="/newsletter" className="text-xs font-semibold text-brand-700 hover:underline">
-                Vezi toate dosarele in Newsletter &rarr;
+          {data.is_authenticated && (
+            <p className="mt-10 border-t-4 border-ink pt-5 text-center">
+              <Link
+                href="/newsletter"
+                className="font-sans text-[11px] font-semibold uppercase tracking-widest underline decoration-editorial decoration-2 underline-offset-4"
+              >
+                Vezi toate dosarele în registrul zilnic →
               </Link>
-            </div>
-          </>
-        )}
-      </div>
+            </p>
+          )}
+        </>
+      )}
     </main>
   );
 }

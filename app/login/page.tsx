@@ -1,85 +1,136 @@
 "use client";
-import React, { useState, useEffect } from "react";
-import { useAuth } from "@/context/AuthContext";
+import React, { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, ShieldCheck, Mail, Sparkles, Building2 } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { formatDateline } from "@/lib/format";
+import { Button, Eyebrow, Input, Notice } from "@/components/newsprint";
 
 export default function LoginPage() {
-  const { signInWithGoogle, signInWithEmail, user } = useAuth();
+  const { signInWithGoogle, signInWithEmail, user, loading } = useAuth();
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [dateline, setDateline] = useState("");
   const router = useRouter();
 
+  useEffect(() => setDateline(formatDateline()), []);
+
   useEffect(() => {
-    if (user) router.push("/");
+    if (user) router.replace("/");
   }, [user, router]);
 
-  if (user) return null;
-
-  const handleEmailSubmit = async (e: React.FormEvent) => {
+  const handleEmailSubmit: React.ComponentProps<"form">["onSubmit"] = async (e) => {
     e.preventDefault();
-    if (!email) return;
-    setLoading(true);
-    try {
-      await signInWithEmail(email);
-      setSent(true);
-    } catch (err: any) {
-      alert(err.message || "Eroare la autentificare");
-    } finally {
-      setLoading(false);
-    }
+    if (!email.trim()) return;
+    setSubmitting(true);
+    setError(null);
+    const { error: err } = await signInWithEmail(email.trim());
+    setSubmitting(false);
+    if (err) setError(err);
+    else setSent(true);
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0d14] text-zinc-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-[#111624] border border-zinc-800/80 rounded-2xl p-8 shadow-2xl relative">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-9 h-9 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 font-bold">
-            <Building2 className="w-5 h-5 text-cyan-400" />
-          </div>
-          <div>
-            <h1 className="text-lg font-semibold tracking-tight text-white">RO-INTEL Desk</h1>
-            <p className="text-xs text-zinc-400">Intelligence Comerciala & Ofertare B2B</p>
-          </div>
-        </div>
+    <main className="flex min-h-svh flex-col">
+      <div className="mx-auto grid w-full max-w-screen-xl flex-1 grid-cols-1 lg:grid-cols-12">
+        {/* Editorial column */}
+        <section className="flex flex-col justify-center border-b border-ink px-4 py-10 sm:px-8 lg:col-span-7 lg:border-b-0 lg:border-r lg:py-16">
+          <Eyebrow className="text-editorial">Intelligence achiziții publice · România</Eyebrow>
+          <Link href="/" className="font-display mt-3 block text-5xl font-black leading-[0.88] tracking-tighter sm:text-7xl">
+            RO<span className="text-editorial">·</span>INTEL
+          </Link>
+          <p className="font-mono mt-4 text-[11px] uppercase tracking-[0.2em] text-stock-500">
+            {dateline || " "}
+          </p>
 
-        <button
-          onClick={() => signInWithGoogle()}
-          className="w-full h-11 bg-zinc-900 hover:bg-zinc-800 text-zinc-100 text-sm font-medium rounded-xl border border-zinc-700/60 flex items-center justify-center gap-3 mb-5 transition cursor-pointer"
-        >
-          Continuă cu Google
-        </button>
+          <p className="font-body drop-cap mt-8 max-w-xl text-base leading-relaxed text-stock-700">
+            Contractele publice se decid înainte de a fi publicate. Registrul urmărește consultările de piață,
+            anunțurile de intenție și registrele de investiții din România și le transformă în semnale calificate,
+            cu mult înainte ca procedura să apară în SEAP.
+          </p>
 
-        {sent ? (
-          <div className="p-4 rounded-xl bg-cyan-950/30 border border-cyan-500/30 text-center">
-            <Sparkles className="w-6 h-6 text-cyan-400 mx-auto mb-2" />
-            <p className="text-xs text-zinc-200">Link de autentificare trimis la: <span className="text-cyan-400 font-mono">{email}</span></p>
+          <ul className="mt-8 max-w-xl border-t border-ink">
+            {[
+              ["Surse reale, verificate", "Fiecare scraper citește o sursă publică specifică; o sursă indisponibilă raportează zero, nu date inventate."],
+              ["Scor bazat pe dovezi", "Potrivirea cere dovadă în text — domeniul, județul și bugetul doar întăresc un rezultat, nu îl creează."],
+              ["Documente utilizabile", "Propuneri tehnice și solicitări de clarificare conform Legii 98/2016 și Legii 544/2001."],
+            ].map(([title, body]) => (
+              <li key={title} className="border-b border-divider py-4">
+                <h2 className="font-display text-lg font-bold leading-snug">{title}</h2>
+                <p className="font-body mt-1 text-sm leading-relaxed text-stock-600">{body}</p>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        {/* Access column */}
+        <section className="flex flex-col justify-center px-4 py-10 sm:px-8 lg:col-span-5 lg:py-16">
+          <div className="border-4 border-ink p-5 sm:p-7">
+            <Eyebrow className="text-editorial">Acces abonați</Eyebrow>
+            <h2 className="font-display mt-2 text-3xl font-black leading-tight tracking-tight">Autentificare</h2>
+            <p className="font-body mt-2 text-sm leading-relaxed text-stock-600">
+              Registrul și instrumentele de ofertare sunt disponibile doar conturilor autentificate.
+            </p>
+
+            {loading ? (
+              <p className="font-mono mt-6 text-xs uppercase tracking-widest text-stock-500">Se verifică sesiunea…</p>
+            ) : (
+              <>
+                <Button onClick={signInWithGoogle} fullWidth className="mt-6">
+                  Continuă cu Google
+                </Button>
+
+                <div className="my-5 flex items-center gap-3">
+                  <span className="h-px flex-1 bg-divider" />
+                  <span className="label-eyebrow text-stock-400">sau magic link</span>
+                  <span className="h-px flex-1 bg-divider" />
+                </div>
+
+                {sent ? (
+                  <Notice title="Link expediat">
+                    Am trimis un link de autentificare la <b>{email}</b>. Deschideți-l de pe acest dispozitiv pentru a
+                    intra în cont.
+                  </Notice>
+                ) : (
+                  <form onSubmit={handleEmailSubmit} className="space-y-4">
+                    <div>
+                      <Eyebrow className="mb-1.5 text-stock-600">Email profesional</Eyebrow>
+                      <Input
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="nume@companie.ro"
+                        required
+                        autoComplete="email"
+                        inputMode="email"
+                      />
+                    </div>
+                    <Button type="submit" disabled={submitting} fullWidth>
+                      {submitting ? "Se trimite…" : "Trimite magic link"}
+                    </Button>
+                  </form>
+                )}
+
+                {error && (
+                  <div className="mt-4">
+                    <Notice tone="alert">{error}</Notice>
+                  </div>
+                )}
+              </>
+            )}
           </div>
-        ) : (
-          <form onSubmit={handleEmailSubmit} className="space-y-3">
-            <div>
-              <label className="block text-xs font-medium text-zinc-400 mb-1.5">Email Profesional</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="nume@companie.ro"
-                required
-                className="w-full h-11 bg-zinc-900/90 border border-zinc-800 rounded-xl px-4 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-cyan-500/60"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full h-11 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white text-sm font-medium rounded-xl flex items-center justify-center gap-2 cursor-pointer"
-            >
-              {loading ? "Se trimite..." : "Trimite Magic Link"}
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          </form>
-        )}
+
+          <p className="font-body mt-6 text-center text-xs leading-relaxed text-stock-500">
+            Cifrele agregate de piață rămân publice —{" "}
+            <Link href="/analysis" className="underline decoration-editorial decoration-2 underline-offset-4">
+              vezi analiza fără cont
+            </Link>
+            .
+          </p>
+        </section>
       </div>
-    </div>
+    </main>
   );
 }
