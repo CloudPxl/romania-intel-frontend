@@ -13,6 +13,24 @@ export function formatRon(value: number | null | undefined): string {
   return `${value.toFixed(0)} RON`;
 }
 
+/**
+ * For a single opportunity's own budget field specifically — not for sums,
+ * medians, or any other aggregate, where formatRon's plain "—" is correct
+ * because those legitimately total to zero.
+ *
+ * api.py:_row_to_lead has no separate "unpublished" flag: a tender whose
+ * authority never stated an estimated value and a (hypothetical) tender
+ * genuinely worth 0 RON both arrive as financial_value_ron === 0. Showing
+ * "—" or "0 RON" for that reads as a data error on this specific field;
+ * naming the actual situation is what the value 0 means here.
+ */
+export function formatLeadValue(value: number | null | undefined): string {
+  if (value === null || value === undefined || Number.isNaN(value) || value === 0) {
+    return "Valoare nepublicată";
+  }
+  return formatRon(value);
+}
+
 export function formatNumber(value: number | null | undefined): string {
   if (value === null || value === undefined || Number.isNaN(value)) return "—";
   return new Intl.NumberFormat("ro-RO").format(value);

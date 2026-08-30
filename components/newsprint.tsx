@@ -213,9 +213,23 @@ export function Textarea({ className, ...props }: React.TextareaHTMLAttributes<H
   return <textarea {...props} className={cn(CONTROL, "min-h-[7rem] resize-y leading-relaxed", className)} />;
 }
 
-export function Select({ className, children, ...props }: React.SelectHTMLAttributes<HTMLSelectElement>) {
+// `appearance-none` in globals.css strips the native select chrome (needed
+// to kill iOS/Android's own rounded, shadowed control, which fights the
+// whole flat-rectangle system) — but with nothing put back, the field
+// reads as a plain text input with no indication it opens a menu. This is
+// most costly exactly where there's no hover state to reveal it: mobile.
+// A CSS background image avoids pulling an icon component into a form
+// primitive that has no other icon dependency.
+const CHEVRON_BG =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23111111' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E";
+
+export function Select({ className, children, style, ...props }: React.SelectHTMLAttributes<HTMLSelectElement>) {
   return (
-    <select {...props} className={cn(CONTROL, "pr-8", className)}>
+    <select
+      {...props}
+      className={cn(CONTROL, "cursor-pointer bg-no-repeat pr-8 disabled:cursor-not-allowed disabled:opacity-50", className)}
+      style={{ backgroundImage: `url("${CHEVRON_BG}")`, backgroundPosition: "right 0.25rem center", backgroundSize: "12px 8px", ...style }}
+    >
       {children}
     </select>
   );

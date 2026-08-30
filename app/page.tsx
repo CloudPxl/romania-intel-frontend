@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { fetchMarketTrends, type MarketTrends } from "@/lib/api";
-import { formatDateline, formatNumber, formatRon } from "@/lib/format";
+import { formatDateline, formatLeadValue, formatNumber, formatRon } from "@/lib/format";
 import { ButtonLink, DegradedBanner, Eyebrow, Ornament, StatCell } from "@/components/newsprint";
 
 const SECTIONS = [
@@ -144,7 +144,7 @@ export default function HomePage() {
                 {leadStory.entity_name} · {leadStory.county}
               </p>
               <p className="tabular font-display mt-4 border-t border-ink pt-3 text-3xl font-black">
-                {formatRon(leadStory.financial_value_ron)}
+                {formatLeadValue(leadStory.financial_value_ron)}
               </p>
               {leadStory.opportunity_score != null && (
                 <p className="font-mono mt-1 text-[11px] uppercase tracking-widest text-stock-500">

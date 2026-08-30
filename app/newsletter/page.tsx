@@ -12,7 +12,7 @@ import {
   triggerEmailAlert,
   type Lead,
 } from "@/lib/api";
-import { CATEGORIES, categoryLabel, formatDate, formatRon } from "@/lib/format";
+import { CATEGORIES, categoryLabel, formatDate, formatLeadValue, formatRon } from "@/lib/format";
 import {
   Button,
   DegradedBanner,
@@ -379,9 +379,19 @@ function NewsletterContent() {
                       </div>
 
                       <div className="flex shrink-0 items-center justify-between gap-4 border-t border-divider pt-3 sm:w-40 sm:flex-col sm:items-end sm:justify-start sm:border-l sm:border-t-0 sm:pl-5 sm:pt-0">
-                        <span className="tabular font-display text-xl font-black leading-none sm:text-right sm:text-2xl">
-                          {formatRon(lead.financial_value_ron)}
-                        </span>
+                        {lead.financial_value_ron ? (
+                          <span className="tabular font-display text-xl font-black leading-none sm:text-right sm:text-2xl">
+                            {formatRon(lead.financial_value_ron)}
+                          </span>
+                        ) : (
+                          // A missing budget is absent data, not a large
+                          // number — it gets the muted italic treatment a
+                          // blank field takes elsewhere, not bold display
+                          // type sized for a real currency figure.
+                          <span className="font-body text-sm italic text-stock-400 sm:text-right">
+                            {formatLeadValue(lead.financial_value_ron)}
+                          </span>
+                        )}
                         {lead.opportunity_score != null && (
                           <span className="label-eyebrow whitespace-nowrap text-stock-600">
                             Scor {lead.opportunity_score}/10
@@ -433,8 +443,15 @@ function NewsletterContent() {
               <div className="grid grid-cols-2 border border-ink">
                 <div className="border-r border-ink p-4">
                   <Eyebrow>Buget estimat</Eyebrow>
-                  <p className="tabular font-display mt-1 text-2xl font-black leading-none">
-                    {formatRon(selectedLead.financial_value_ron)}
+                  <p
+                    className={
+                      "mt-1 leading-snug " +
+                      (selectedLead.financial_value_ron
+                        ? "tabular font-display text-2xl font-black leading-none"
+                        : "font-body text-sm italic text-stock-400")
+                    }
+                  >
+                    {formatLeadValue(selectedLead.financial_value_ron)}
                   </p>
                 </div>
                 <div className="p-4">

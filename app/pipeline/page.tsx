@@ -10,7 +10,7 @@ import {
   type Deal,
   type PipelineMetrics,
 } from "@/lib/api";
-import { formatDate, formatNumber, formatPercent, formatRon, stageLabel } from "@/lib/format";
+import { formatDate, formatLeadValue, formatNumber, formatPercent, formatRon, stageLabel } from "@/lib/format";
 import {
   Button,
   ButtonLink,
@@ -95,7 +95,13 @@ function DealCard({
         <div className="flex shrink-0 flex-col gap-3 border-t border-divider pt-3 sm:w-56 sm:border-l sm:border-t-0 sm:pl-5 sm:pt-0">
           <div className="sm:text-right">
             <Eyebrow>{deal.proposed_price ? "Preț ofertat" : "Valoare estimată"}</Eyebrow>
-            <p className="tabular font-display mt-1 text-2xl font-black leading-none">{formatRon(value)}</p>
+            <p
+              className={
+                "mt-1 " + (value ? "tabular font-display text-2xl font-black leading-none" : "font-body text-sm italic text-stock-400")
+              }
+            >
+              {formatLeadValue(value)}
+            </p>
           </div>
           <label className="block">
             <Eyebrow className="mb-1 text-stock-600">Mută în etapa</Eyebrow>
