@@ -259,7 +259,13 @@ export interface SyncedUser {
   user_id: string;
   email: string;
   full_name: string;
-  tenant_id: string;
+  /**
+   * Null when this user has signed in but hasn't been provisioned to a
+   * tenant yet (no matching row from scripts/provision_tenant.py on the
+   * backend) — never a default/guessed tenant. AuthContext treats this
+   * the same as a rejected session rather than silently picking one.
+   */
+  tenant_id: string | null;
   role: string;
   avatar_url?: string;
 }

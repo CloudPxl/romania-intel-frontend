@@ -55,6 +55,7 @@ export interface UserProfile {
   user_id?: string;
   email: string;
   full_name: string;
+  /** The one real backend tenant this signed-in user is provisioned to. */
   tenant_id: string;
   role: string;
   avatar_url?: string;
@@ -201,13 +202,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const createDesk = (deskData: Omit<BusinessDesk, "id">) => {
-    const newDesk: BusinessDesk = { ...deskData, id: "desk_" + Date.now() };
+    const newDesk: BusinessDesk = {
+      ...deskData,
+      id: "desk_" + Date.now(),
+      // A signed-in user may only ever be provisioned to one real backend
+      // tenant (security.require_tenant_membership now 403s any other),
+      // so every desk they create is stamped with it here regardless of
+      // what tenant_id the caller (WorkspaceDeskModal's domain -> tenant
+      // lookup) computed — enforced once, in the one place a desk object
+      // is actually constructed, rather than trusted at every call site.
+      tenant_id: user?.tenant_id || deskData.tenant_id,
+    };
     saveDesksToStorage([...desks, newDesk]);
     switchDesk(newDesk.id);
   };
 
   const updateDesk = (id: string, deskData: Partial<BusinessDesk>) => {
-    saveDesksToStorage(desks.map((d) => (d.id === id ? { ...d, ...deskData } : d)));
+    saveDesksToStorage(
+      desks.map((d) =>
+        d.id === id ? { ...d, ...deskData, tenant_id: user?.tenant_id || deskData.tenant_id || d.tenant_id } : d
+      )
+    );
   };
 
   const deleteDesk = (id: string) => {
@@ -245,10 +260,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           authUser.user_metadata?.full_name || authUser.user_metadata?.name || authUser.email?.split("@")[0],
           authUser.user_metadata?.avatar_url
         );
-        if (!cancelled && synced?.user) {
-          setUser({ ...synced.user, is_subscribed: true });
-          setAuthError(null);
+        if (cancelled || !synced?.user) return;
+        if (!synced.user.tenant_id) {
+          // Signed in successfully, but no scripts/provision_tenant.py row
+          // exists for this user yet — treated the same as a rejected
+          // session rather than silently defaulting into any tenant's
+          // data (which the backend would now 403 on anyway).
+          setUser(null);
+          setAuthError(
+            "Contul dvs. a fost autentificat, dar nu este încă asociat niciunei companii. Contactați administratorul RO-INTEL."
+          );
+          return;
         }
+        setUser({ ...synced.user, tenant_id: synced.user.tenant_id, is_subscribed: true });
+        setAuthError(null);
       } catch (err) {
         // The backend rejecting a session is a real, visible failure now —
         // it used to fall back to a fabricated offline profile that looked
@@ -280,6 +305,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       subscription.unsubscribe();
     };
   }, []);
+
+  // Repairs desks saved (or migrated on read, above) before this user's
+  // real tenant was known, or that were pointed at a different tenant
+  // entirely — the backend now 403s any desk whose tenant_id doesn't
+  // match the signed-in user's own scripts/provision_tenant.py row, so a
+  // stale desk would otherwise produce a permanently broken dashboard
+  // with no obvious fix. Runs whenever the confirmed tenant changes
+  // (login, or switching accounts), not just once on mount.
+  useEffect(() => {
+    if (!user?.tenant_id) return;
+    setDesks((prev) => {
+      if (prev.every((d) => d.tenant_id === user.tenant_id)) return prev;
+      const repaired = prev.map((d) => ({ ...d, tenant_id: user.tenant_id }));
+      if (typeof window !== "undefined") {
+        localStorage.setItem("ro_intel_user_desks", JSON.stringify(repaired));
+      }
+      return repaired;
+    });
+  }, [user?.tenant_id]);
 
   const signInWithGoogle = async () => {
     await supabase.auth.signInWithOAuth({
