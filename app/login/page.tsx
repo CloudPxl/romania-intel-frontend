@@ -130,6 +130,17 @@ export default function LoginPage() {
             </Link>
             .
           </p>
+          <p className="font-body mt-2 text-center text-xs leading-relaxed text-stock-400">
+            Prin autentificare sunteți de acord cu{" "}
+            <Link href="/terms" className="underline decoration-editorial decoration-2 underline-offset-4">
+              Termenii și Condițiile
+            </Link>{" "}
+            și{" "}
+            <Link href="/privacy" className="underline decoration-editorial decoration-2 underline-offset-4">
+              Politica de Confidențialitate
+            </Link>
+            .
+          </p>
         </section>
       </div>
     </main>

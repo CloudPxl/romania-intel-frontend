@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { X } from "lucide-react";
-import { ApiError, generateProformaInvoice, updateTenantAlertSettings, type ProformaResult } from "@/lib/api";
+import { ApiError, deleteOwnAccount, generateProformaInvoice, updateTenantAlertSettings, type ProformaResult } from "@/lib/api";
 import { useAuth, tenantIdForDomain, type BusinessDesk } from "@/context/AuthContext";
 import { Badge, Button, Eyebrow, Field, Input, Notice, Select } from "@/components/newsprint";
 
@@ -302,6 +302,9 @@ export function AccountSettingsModal({ isOpen, onClose }: { isOpen: boolean; onC
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deleteConfirming, setDeleteConfirming] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -309,7 +312,29 @@ export function AccountSettingsModal({ isOpen, onClose }: { isOpen: boolean; onC
     setScoreThreshold(preferences?.auto_alert_score ?? 9.0);
     setSaved(false);
     setError(null);
+    setDeleteConfirming(false);
+    setDeleteError(null);
   }, [isOpen, preferences, user]);
+
+  const handleDeleteAccount = async () => {
+    if (!deleteConfirming) {
+      setDeleteConfirming(true);
+      return;
+    }
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await deleteOwnAccount();
+      // The account no longer exists server-side — sign out locally
+      // rather than leaving a session that would just fail on its next
+      // authenticated request.
+      await signOut();
+      onClose();
+    } catch (err) {
+      setDeleteError(err instanceof ApiError ? err.detail : "Ștergerea contului a eșuat. Reîncercați.");
+      setDeleting(false);
+    }
+  };
 
   const handleSave = async () => {
     // Local preferences drive the manual "trimite-mi acest dosar" button
@@ -419,6 +444,42 @@ export function AccountSettingsModal({ isOpen, onClose }: { isOpen: boolean; onC
               <Button variant="danger" onClick={signOut} fullWidth>
                 Deconectare
               </Button>
+            </div>
+          </div>
+        )}
+
+        {user && (
+          <div className="neu-flat rounded-3xl bg-paper p-4 sm:p-5">
+            <Eyebrow className="mb-2 text-negative">Zonă cu risc</Eyebrow>
+            <p className="font-body mb-4 text-sm leading-relaxed text-stock-600">
+              Ștergerea contului elimină definitiv profilul dvs. de căutare, criteriile de monitorizare și
+              istoricul asociat. Nu poate fi anulată. Vezi{" "}
+              <a href="/privacy" target="_blank" className="text-editorial underline underline-offset-2">
+                Politica de Confidențialitate
+              </a>
+              .
+            </p>
+            {deleteError && (
+              <div className="mb-3">
+                <Notice tone="alert">{deleteError}</Notice>
+              </div>
+            )}
+            {deleteConfirming && (
+              <div className="mb-3">
+                <Notice tone="warning" title="Confirmați ștergerea">
+                  Această acțiune este ireversibilă. Apăsați din nou pentru a șterge definitiv contul.
+                </Notice>
+              </div>
+            )}
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Button variant="danger" onClick={handleDeleteAccount} disabled={deleting} fullWidth>
+                {deleting ? "Se șterge…" : deleteConfirming ? "Confirmă ștergerea definitivă" : "Șterge contul"}
+              </Button>
+              {deleteConfirming && !deleting && (
+                <Button variant="outline" onClick={() => setDeleteConfirming(false)} fullWidth>
+                  Anulează
+                </Button>
+              )}
             </div>
           </div>
         )}

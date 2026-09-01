@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { CATEGORIES } from "@/lib/format";
 import { Button, Field, Input, Notice, Select } from "@/components/newsprint";
@@ -19,6 +20,7 @@ export default function OnboardingForm() {
   const [keywords, setKeywords] = useState("");
   const [excludeKeywords, setExcludeKeywords] = useState("");
   const [minValue, setMinValue] = useState("");
+  const [consentAccepted, setConsentAccepted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,6 +37,10 @@ export default function OnboardingForm() {
       setError("Adăugați cel puțin un cuvânt-cheie, altfel nu veți primi nicio oportunitate relevantă.");
       return;
     }
+    if (!consentAccepted) {
+      setError("Trebuie să fiți de acord cu Termenii și Politica de Confidențialitate pentru a continua.");
+      return;
+    }
     setSubmitting(true);
     setError(null);
     const { error: apiError } = await completeOnboarding({
@@ -44,6 +50,7 @@ export default function OnboardingForm() {
       min_value_ron: minValue ? Number(minValue) : 0,
       keywords: keywordList,
       exclude_keywords: splitList(excludeKeywords),
+      consent_accepted: consentAccepted,
     });
     setSubmitting(false);
     if (apiError) setError(apiError);
@@ -99,6 +106,27 @@ export default function OnboardingForm() {
               placeholder="0"
             />
           </Field>
+
+          <label className="flex min-h-[44px] cursor-pointer items-start gap-3 font-body text-sm text-ink">
+            <input
+              type="checkbox"
+              checked={consentAccepted}
+              onChange={(e) => setConsentAccepted(e.target.checked)}
+              required
+              className="neu-pressed-sm mt-0.5 h-5 w-5 shrink-0 appearance-none rounded-md bg-paper transition-all duration-300 checked:neu-flat-sm checked:[background:var(--color-editorial)]"
+            />
+            <span className="leading-snug text-stock-600">
+              Sunt de acord cu{" "}
+              <Link href="/terms" target="_blank" className="text-editorial underline underline-offset-2">
+                Termenii și Condițiile
+              </Link>{" "}
+              și{" "}
+              <Link href="/privacy" target="_blank" className="text-editorial underline underline-offset-2">
+                Politica de Confidențialitate
+              </Link>
+              .
+            </span>
+          </label>
 
           {error && (
             <Notice tone="alert" title="Nu am putut configura contul">

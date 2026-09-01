@@ -300,6 +300,8 @@ export interface OnboardingProfile {
   min_value_ron: number;
   keywords: string[];
   exclude_keywords: string[];
+  /** Only meaningful on the initial signup call — see completeOnboarding. */
+  consent_accepted?: boolean;
 }
 
 /**
@@ -330,6 +332,18 @@ export async function updateTenantAlertSettings(
   settings: { alert_email: string; min_alert_score: number }
 ): Promise<{ status: string }> {
   return apiFetch(`/api/v1/tenants/${tenantId}/alert-settings`, { method: "PUT", body: settings });
+}
+
+/**
+ * Self-serve GDPR erasure — irreversible. Deletes this identity's own
+ * user_profiles row and, if no other identity still shares it, the tenant
+ * and everything keyed to it (backend: db.delete_own_account). Also asks
+ * Supabase to remove the auth.users row itself when the backend has a
+ * service-role key configured; `auth_identity_deleted` in the response
+ * says whether that half actually happened.
+ */
+export async function deleteOwnAccount(): Promise<{ status: string; auth_identity_deleted: boolean }> {
+  return apiFetch("/api/v1/account", { method: "DELETE" });
 }
 
 /* ----------------------------------------------------------------- feed */
