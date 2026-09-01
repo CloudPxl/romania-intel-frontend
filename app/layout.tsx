@@ -43,7 +43,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="ro" className={`${jakarta.variable} ${dmSans.variable} ${jetbrains.variable}`}>
       <body>
         <AuthProvider>
-          <div className="flex min-h-svh">
+          {/* Ambient colour behind everything. A real element rather than a
+              body::before, so its stacking context is explicit: the shell
+              below sits at z-10 and is never painted underneath it. */}
+          <div className="mesh-layer" aria-hidden="true" />
+          <div className="relative z-10 flex min-h-svh">
             <Sidebar />
             <div className="flex min-h-svh min-w-0 flex-1 flex-col">
               <Topbar />

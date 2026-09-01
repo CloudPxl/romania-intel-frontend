@@ -13,13 +13,20 @@ export default function Topbar() {
 
   return (
     <div className="sticky top-0 z-30 hidden px-4 pb-2 pt-4 lg:block">
-      <div className="neu-flat flex h-14 shrink-0 items-center justify-between rounded-2xl bg-paper px-6">
+      {/* Frosted rather than opaque: content scrolling beneath stays faintly
+          legible, which is what makes a sticky bar read as floating above the
+          page instead of as a lid clamped over it. */}
+      <div className="neu-flat glass flex h-14 shrink-0 items-center justify-between rounded-2xl px-6">
         <div className="flex items-center gap-2 text-sm">
-          <span className="text-stock-500">{activeDesk?.name || "RO-INTEL"}</span>
+          <span className="text-stock-500 transition-colors duration-[var(--duration-base)]">
+            {activeDesk?.name || "RO-INTEL"}
+          </span>
           <span className="text-stock-400">/</span>
-          <span className="font-semibold text-ink">{page}</span>
+          <span key={page} className="rise font-semibold text-ink">
+            {page}
+          </span>
         </div>
-        <span className="neu-flat-sm flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-editorial font-mono text-xs font-semibold text-white">
+        <span className="neu-flat-sm flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-editorial font-mono text-xs font-semibold text-white transition-transform duration-[var(--duration-base)] ease-[var(--ease-spring)] hover:scale-110">
           {user?.full_name ? user.full_name.charAt(0).toUpperCase() : "?"}
         </span>
       </div>

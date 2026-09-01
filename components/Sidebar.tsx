@@ -78,7 +78,7 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
         </button>
 
         {deskMenuOpen && (
-          <div className="neu-flat absolute left-0 right-0 top-full z-30 mt-2 max-h-64 overflow-y-auto rounded-2xl bg-paper p-1.5">
+          <div className="rise neu-flat absolute left-0 right-0 top-full z-30 mt-2 max-h-64 overflow-y-auto rounded-2xl bg-paper p-1.5">
             {desks.map((d) => (
               <button
                 key={d.id}
@@ -87,8 +87,10 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
                   setDeskMenuOpen(false);
                 }}
                 className={
-                  "flex min-h-[40px] w-full items-center justify-between gap-2 rounded-xl px-3 py-2 text-left text-sm transition-colors " +
-                  (activeDesk?.id === d.id ? "neu-pressed-sm font-semibold text-editorial" : "text-stock-600 hover:text-ink")
+                  "flex min-h-[40px] w-full items-center justify-between gap-2 rounded-xl px-3 py-2 text-left text-sm transition-all duration-[var(--duration-base)] ease-[var(--ease-glide)] active:scale-[0.97] " +
+                  (activeDesk?.id === d.id
+                    ? "neu-pressed-sm font-semibold text-editorial"
+                    : "text-stock-600 hover:bg-[rgba(255,255,255,0.5)] hover:text-ink")
                 }
               >
                 <span className="truncate">{d.name}</span>
@@ -122,13 +124,36 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
                     key={link.href}
                     href={link.href}
                     onClick={onNavigate}
-                    className={
-                      "flex min-h-[44px] items-center gap-2.5 rounded-2xl bg-paper px-3 py-2 text-sm transition-all duration-300 " +
-                      (active ? "neu-pressed font-semibold text-editorial" : "text-stock-600 hover:neu-flat-sm hover:text-ink")
-                    }
+                    aria-current={active ? "page" : undefined}
+                    className={cn(
+                      "group/nav relative flex min-h-[44px] items-center gap-2.5 overflow-hidden rounded-2xl px-3 py-2 text-sm",
+                      "transition-all duration-[var(--duration-base)] ease-[var(--ease-glide)] active:scale-[0.97]",
+                      active
+                        ? "neu-pressed bg-paper font-semibold text-editorial"
+                        : "bg-transparent text-stock-600 hover:bg-[rgba(255,255,255,0.5)] hover:text-ink"
+                    )}
                   >
-                    <Icon size={17} strokeWidth={2} className="shrink-0" />
-                    <span className="truncate">{link.label}</span>
+                    {/* Accent rail that wipes down the left edge on hover.
+                        scaleY rather than height so it animates on the
+                        compositor and never reflows the row. */}
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        "absolute left-0 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-r-full bg-editorial transition-transform duration-[var(--duration-base)] ease-[var(--ease-spring)]",
+                        active ? "scale-y-100" : "scale-y-0 group-hover/nav:scale-y-100"
+                      )}
+                    />
+                    <Icon
+                      size={17}
+                      strokeWidth={2}
+                      className={cn(
+                        "shrink-0 transition-transform duration-[var(--duration-base)] ease-[var(--ease-spring)]",
+                        active ? "translate-x-0.5" : "group-hover/nav:translate-x-0.5"
+                      )}
+                    />
+                    <span className="truncate transition-transform duration-[var(--duration-base)] ease-[var(--ease-glide)] group-hover/nav:translate-x-0.5">
+                      {link.label}
+                    </span>
                   </Link>
                 );
               })}
@@ -141,9 +166,9 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
       <div className="shrink-0 pt-2">
         <button
           onClick={() => setSettingsOpen(true)}
-          className="neu-flat-sm flex min-h-[56px] w-full items-center gap-3 rounded-2xl bg-paper px-3 py-2 text-left transition-all duration-300 hover:neu-flat"
+          className="group/acct neu-flat-sm flex min-h-[56px] w-full items-center gap-3 rounded-2xl bg-paper px-3 py-2 text-left transition-all duration-[var(--duration-base)] ease-[var(--ease-glide)] hover:neu-glow hover:-translate-y-0.5 active:neu-pressed-sm active:scale-[0.98]"
         >
-          <span className="neu-flat-sm flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-editorial font-mono text-sm font-semibold text-white">
+          <span className="neu-flat-sm flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-editorial font-mono text-sm font-semibold text-white transition-transform duration-[var(--duration-base)] ease-[var(--ease-spring)] group-hover/acct:scale-110">
             {user?.full_name ? user.full_name.charAt(0).toUpperCase() : "?"}
           </span>
           <span className="min-w-0 flex-1">
@@ -158,21 +183,25 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
         <div className="mt-2 flex flex-col gap-1.5">
           <button
             onClick={() => setPricingOpen(true)}
-            className="flex min-h-[40px] w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm text-stock-600 transition-colors hover:text-ink"
+            className="flex min-h-[40px] w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm text-stock-600 transition-all duration-[var(--duration-base)] ease-[var(--ease-glide)] hover:bg-[rgba(255,255,255,0.5)] hover:text-ink active:scale-[0.97]"
           >
             Abonament / Proformă
           </button>
           {user ? (
             <button
               onClick={signOut}
-              className="flex min-h-[40px] w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm text-negative transition-colors hover:neu-pressed-sm"
+              className="group/out flex min-h-[40px] w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm text-negative transition-all duration-[var(--duration-base)] ease-[var(--ease-glide)] hover:bg-[rgba(224,89,107,0.09)] active:neu-pressed-sm active:scale-[0.97]"
             >
-              <LogOut size={15} /> Deconectare
+              <LogOut
+                size={15}
+                className="transition-transform duration-[var(--duration-base)] ease-[var(--ease-spring)] group-hover/out:translate-x-0.5"
+              />{" "}
+              Deconectare
             </button>
           ) : (
             <Link
               href="/login"
-              className="neu-flat-sm flex min-h-[44px] w-full items-center justify-center gap-2 rounded-2xl bg-editorial px-2.5 py-2 text-sm font-semibold text-white transition-all duration-300 hover:neu-lift"
+              className="neu-flat-sm flex min-h-[44px] w-full items-center justify-center gap-2 rounded-2xl bg-editorial px-2.5 py-2 text-sm font-semibold text-white transition-all duration-[var(--duration-base)] ease-[var(--ease-glide)] hover:neu-glow hover:-translate-y-0.5 active:scale-95"
             >
               Autentificare
             </Link>
@@ -241,8 +270,12 @@ export default function Sidebar() {
 
       {mobileOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
-          <div className="absolute inset-0 bg-[#3D4852]/40" onClick={() => setMobileOpen(false)} aria-hidden="true" />
-          <div className="neu-flat absolute inset-y-3 left-3 flex w-[280px] max-w-[85vw] flex-col rounded-[32px] bg-paper">
+          <div
+            className="animate-[fade-in_var(--duration-base)_var(--ease-glide)_both] absolute inset-0 bg-[#3D4852]/40 backdrop-blur-sm"
+            onClick={() => setMobileOpen(false)}
+            aria-hidden="true"
+          />
+          <div className="animate-[slide-in-left_var(--duration-base)_var(--ease-glide)_both] neu-flat absolute inset-y-3 left-3 flex w-[280px] max-w-[85vw] flex-col rounded-[32px] bg-paper">
             <div className="flex h-14 shrink-0 items-center justify-end px-3">
               <button
                 onClick={() => setMobileOpen(false)}

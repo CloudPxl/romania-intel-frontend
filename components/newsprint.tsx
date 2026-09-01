@@ -1,5 +1,5 @@
 "use client";
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
@@ -14,7 +14,189 @@ import { cn } from "@/lib/utils";
  * background tone or a hard border. An element is either "extruded"
  * (`neu-flat`, molded up out of the surface) or "pressed" (`neu-pressed`,
  * carved into it).
+ *
+ * MOTION. Because depth here is shadow-only, the motion vocabulary is built
+ * from shadow, light and translation — never from a border appearing or a
+ * background tone swapping, which would contradict the one-material rule.
+ * Three gestures, used consistently:
+ *
+ *   arrive  — `.rise` / `.stagger`, a cascading entrance (globals.css).
+ *   lift    — hover: -translate-y + `neu-glow`, the card rising toward you.
+ *   press   — active: `neu-pressed-sm` + scale-95, the card taking the push.
+ *
+ * All of it is CSS, deliberately: these are declarative state transitions,
+ * so they cost no JavaScript, survive with JS disabled, and keep every page
+ * statically prerenderable. Only genuinely imperative motion — counting a
+ * number toward a target — uses a hook, and each of those honours
+ * `prefers-reduced-motion` itself, since a media query in CSS cannot reach
+ * into rAF.
  */
+
+/* ------------------------------------------------------------------ motion */
+
+/** Reads the user's motion preference at call time (never during SSR). */
+function prefersReducedMotion(): boolean {
+  return typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
+}
+
+/**
+ * Counts from the previously displayed number to `value`.
+ *
+ * Renders 0 on the server AND on the client's first paint, then animates in
+ * an effect — starting from the real value instead would hydrate a different
+ * string than the server sent. Re-animates from wherever it currently is
+ * when `value` changes, so a figure that arrives late (loading -> loaded)
+ * still counts up, and one that merely refreshes ticks from its old value
+ * rather than snapping back to zero.
+ */
+export function CountUp({
+  value,
+  format = (n) => String(Math.round(n)),
+  duration = 1100,
+  className,
+}: {
+  value: number;
+  format?: (n: number) => string;
+  duration?: number;
+  className?: string;
+}) {
+  const [display, setDisplay] = useState(0);
+  const currentRef = useRef(0);
+
+  useEffect(() => {
+    if (!Number.isFinite(value)) return;
+    if (prefersReducedMotion()) {
+      currentRef.current = value;
+      setDisplay(value);
+      return;
+    }
+    const from = currentRef.current;
+    const delta = value - from;
+    if (delta === 0) return;
+
+    let frame = 0;
+    const started = performance.now();
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - started) / duration);
+      // easeOutCubic — matches the decelerating character of --ease-glide,
+      // so a number settling and a card settling feel like one system.
+      const eased = 1 - Math.pow(1 - t, 3);
+      const next = from + delta * eased;
+      currentRef.current = next;
+      setDisplay(next);
+      if (t < 1) frame = requestAnimationFrame(tick);
+      else {
+        currentRef.current = value;
+        setDisplay(value);
+      }
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [value, duration]);
+
+  // `tabular` keeps the glyph width fixed so the digits don't jitter as they
+  // climb — without it a counting number visibly reflows on every frame.
+  return <span className={cn("tabular", className)}>{format(display)}</span>;
+}
+
+/**
+ * A score or completion bar that fills on mount.
+ *
+ * Renders at 0 width first, then transitions to the real width one frame
+ * later — a CSS transition needs two distinct computed values to animate
+ * between, so painting the final width immediately would show no fill at all.
+ */
+export function ProgressBar({
+  value,
+  max = 10,
+  tone = "accent",
+  className,
+  label,
+}: {
+  value: number;
+  max?: number;
+  tone?: "accent" | "positive" | "negative" | "warning";
+  className?: string;
+  label?: string;
+}) {
+  const target = Math.max(0, Math.min(100, (value / max) * 100));
+  const [width, setWidth] = useState(0);
+
+  useEffect(() => {
+    if (prefersReducedMotion()) {
+      setWidth(target);
+      return;
+    }
+    const frame = requestAnimationFrame(() => setWidth(target));
+    return () => cancelAnimationFrame(frame);
+  }, [target]);
+
+  const toneClass = {
+    accent: "bg-editorial",
+    positive: "bg-positive",
+    negative: "bg-negative",
+    warning: "bg-warning",
+  }[tone];
+
+  return (
+    <div
+      className={cn("neu-pressed-sm h-2 w-full overflow-hidden rounded-full bg-paper", className)}
+      role="progressbar"
+      aria-valuenow={Math.round(value * 10) / 10}
+      aria-valuemin={0}
+      aria-valuemax={max}
+      aria-label={label}
+    >
+      <div
+        className={cn("h-full rounded-full transition-[width] duration-[900ms] ease-[var(--ease-soft)]", toneClass)}
+        style={{ width: `${width}%` }}
+      />
+    </div>
+  );
+}
+
+/**
+ * Hover/focus tooltip for a metric or a truncated string.
+ *
+ * The wrapper is focusable so the label is reachable by keyboard and not
+ * only by pointer, and carries the text as its accessible name — a
+ * `role="tooltip"` element alone is announced by nothing unless something
+ * references it. Positioned absolutely and `pointer-events-none`, so it can
+ * never sit between the cursor and the thing it describes.
+ */
+export function Tooltip({
+  label,
+  children,
+  side = "top",
+  className,
+}: {
+  label: string;
+  children: React.ReactNode;
+  side?: "top" | "bottom";
+  className?: string;
+}) {
+  return (
+    <span
+      className={cn("group/tip relative inline-flex max-w-full items-center", className)}
+      tabIndex={0}
+      aria-label={label}
+    >
+      {children}
+      <span
+        role="tooltip"
+        className={cn(
+          "neu-flat pointer-events-none absolute left-1/2 z-50 w-max max-w-[16rem] -translate-x-1/2 scale-95 rounded-xl bg-paper px-3 py-2 text-left font-sans text-xs font-medium leading-snug text-ink opacity-0 transition-all duration-[var(--duration-base)] ease-[var(--ease-glide)]",
+          "group-hover/tip:scale-100 group-hover/tip:opacity-100 group-focus-within/tip:scale-100 group-focus-within/tip:opacity-100",
+          side === "top"
+            ? "bottom-full mb-2 group-hover/tip:-translate-y-0.5 group-focus-within/tip:-translate-y-0.5"
+            : "top-full mt-2 group-hover/tip:translate-y-0.5 group-focus-within/tip:translate-y-0.5"
+        )}
+      >
+        {label}
+      </span>
+    </span>
+  );
+}
 
 /* ------------------------------------------------------------- typography */
 
@@ -77,12 +259,27 @@ export function Panel({
   children,
   className,
   as: Tag = "div",
+  interactive,
 }: {
   children: React.ReactNode;
   className?: string;
   as?: React.ElementType;
+  /** Opt in to the lift-on-hover gesture. Off by default: a panel that
+   *  responds to the pointer implies it can be acted on, so a purely
+   *  presentational container should stay still. */
+  interactive?: boolean;
 }) {
-  return <Tag className={cn("neu-flat rounded-3xl bg-paper", className)}>{children}</Tag>;
+  return (
+    <Tag
+      className={cn(
+        "neu-flat rounded-3xl bg-paper transition-all duration-[var(--duration-base)] ease-[var(--ease-glide)]",
+        interactive && "hover:neu-glow hover:-translate-y-1",
+        className
+      )}
+    >
+      {children}
+    </Tag>
+  );
 }
 
 export function StatCell({
@@ -90,19 +287,45 @@ export function StatCell({
   value,
   hint,
   loading,
+  detail,
+  tooltip,
 }: {
   label: string;
   value: React.ReactNode;
   hint?: string;
   loading?: boolean;
+  /** Secondary content revealed on hover/focus — the density lives here,
+   *  out of the resting view, so the default grid stays scannable. */
+  detail?: React.ReactNode;
+  /** Explains what the metric actually measures. */
+  tooltip?: string;
 }) {
+  const labelNode = tooltip ? (
+    <Tooltip label={tooltip}>
+      <Eyebrow className="cursor-help underline decoration-dotted decoration-from-font underline-offset-4">
+        {label}
+      </Eyebrow>
+    </Tooltip>
+  ) : (
+    <Eyebrow>{label}</Eyebrow>
+  );
+
   return (
-    <div className="neu-flat rounded-3xl bg-paper p-4 sm:p-5">
-      <Eyebrow>{label}</Eyebrow>
+    <div className="group neu-flat rounded-3xl bg-paper p-4 transition-all duration-[var(--duration-base)] ease-[var(--ease-glide)] hover:neu-glow hover:-translate-y-1 sm:p-5">
+      {labelNode}
       <p className="tabular font-display mt-2 text-2xl font-extrabold leading-none text-ink sm:text-3xl">
-        {loading ? <span className="text-stock-400">···</span> : value}
+        {loading ? <span className="animate-pulse text-stock-400">···</span> : value}
       </p>
       {hint && <p className="font-mono mt-2 text-[11px] leading-tight text-stock-500">{hint}</p>}
+      {detail && (
+        <div className="reveal">
+          <div>
+            <div className="mt-3 border-t border-divider pt-3 font-body text-xs leading-relaxed text-stock-600">
+              {detail}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -141,8 +364,14 @@ export function Badge({
 
 type ButtonVariant = "primary" | "outline" | "ghost" | "danger";
 
+// Three states, one physical story: at rest the button is molded up out of
+// the surface; on hover it rises further toward the pointer; on press it is
+// pushed into the surface (carved shadow + scale-95), so the click has a
+// tactile result rather than only a colour change. `active:` is listed after
+// `hover:` because a pressed button is still hovered — the later utility has
+// to win on equal specificity.
 const BUTTON_BASE =
-  "neu-flat inline-flex min-h-[44px] items-center justify-center gap-2 rounded-2xl px-5 py-2 text-center font-sans text-sm font-semibold transition-all duration-300 ease-out hover:neu-lift hover:-translate-y-px active:neu-pressed-sm active:translate-y-px disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:neu-flat disabled:hover:translate-y-0";
+  "neu-flat inline-flex min-h-[44px] items-center justify-center gap-2 rounded-2xl px-5 py-2 text-center font-sans text-sm font-semibold transition-all duration-[var(--duration-base)] ease-[var(--ease-glide)] hover:neu-lift hover:-translate-y-0.5 active:neu-pressed-sm active:translate-y-0 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:neu-flat disabled:hover:translate-y-0 disabled:active:scale-100";
 
 const BUTTON_VARIANTS: Record<ButtonVariant, string> = {
   primary: "bg-editorial text-white",
@@ -209,8 +438,10 @@ export function TabBar<T extends string>({
           aria-selected={active === tab.id}
           onClick={() => onChange(tab.id)}
           className={cn(
-            "min-h-[38px] flex-1 whitespace-nowrap rounded-xl px-4 py-2 font-sans text-sm font-semibold transition-all duration-300",
-            active === tab.id ? "neu-flat-sm bg-paper text-editorial" : "text-stock-500 hover:text-ink"
+            "min-h-[38px] flex-1 whitespace-nowrap rounded-xl px-4 py-2 font-sans text-sm font-semibold transition-all duration-[var(--duration-base)] ease-[var(--ease-glide)] active:scale-95",
+            active === tab.id
+              ? "neu-flat-sm bg-paper text-editorial"
+              : "text-stock-500 hover:bg-[rgba(255,255,255,0.45)] hover:text-ink"
           )}
         >
           {tab.label}

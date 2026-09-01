@@ -4,44 +4,61 @@ import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { fetchMarketTrends, type MarketTrends } from "@/lib/api";
 import { formatDateline, formatLeadValue, formatNumber, formatRon } from "@/lib/format";
-import { ButtonLink, DegradedBanner, Eyebrow, Ornament, StatCell } from "@/components/newsprint";
+import {
+  ButtonLink,
+  CountUp,
+  DegradedBanner,
+  Eyebrow,
+  Ornament,
+  ProgressBar,
+  StatCell,
+} from "@/components/newsprint";
 
+/** `tags` name what each section actually contains — they are revealed on
+ *  hover rather than shown at rest, so the grid gains density on demand
+ *  instead of carrying six rows of chips by default. */
 const SECTIONS = [
   {
     href: "/newsletter",
     kicker: "Registrul zilnic",
     title: "Oportunități pre-SEAP, filtrate pe linia dvs. de produse",
     body: "Fluxul complet de semnale calificate din registrele publice, cu dosar strategic pentru fiecare poziție și salvare directă în pipeline.",
+    tags: ["Filtre pe județ", "Dosar strategic", "Export CSV"],
   },
   {
     href: "/analysis",
     kicker: "Analiza de piață",
     title: "Unde se concentrează bugetul public, în cifre",
     body: "Distribuție pe județ, domeniu și sursă de finanțare, recalculată la fiecare interogare din datele curente.",
+    tags: ["Pe județ", "Pe domeniu", "Sursă finanțare"],
   },
   {
     href: "/eligibility",
     kicker: "Eligibilitate",
     title: "Verificarea profilului înainte de a angaja resurse",
     body: "Motivele de excludere obligatorii din Legea 98/2016 și liniile de finanțare pentru care compania se califică.",
+    tags: ["Legea 98/2016", "Linii de finanțare"],
   },
   {
     href: "/drafting",
     kicker: "Redactare",
     title: "Propuneri tehnice și solicitări de clarificare",
     body: "Documente structurate conform legislației naționale, exportabile direct în format .docx.",
+    tags: ["Propunere tehnică", "Clarificări", "Export .docx"],
   },
   {
     href: "/analytics",
     kicker: "Strategie",
     title: "Copilot, radar concurență și scanner caiet de sarcini",
     body: "Analiza clauzelor restrictive, profilul pieței observate și poziționarea financiară față de valoarea estimată.",
+    tags: ["Copilot", "Clauze restrictive", "Poziționare preț"],
   },
   {
     href: "/pipeline",
     kicker: "Ofertare",
     title: "Stadiul real al dosarelor aflate în lucru",
     body: "Valoare ponderată pe etapă, timp mediu petrecut în fiecare fază și rate de conversie din istoricul propriu.",
+    tags: ["8 etape", "Valoare ponderată", "Rate conversie"],
   },
 ];
 
@@ -74,7 +91,7 @@ export default function HomePage() {
       {stats?.degraded && <DegradedBanner detail={stats.detail} />}
 
       {/* Masthead */}
-      <div className="pb-2 text-center">
+      <div className="stagger pb-2 text-center">
         <Eyebrow className="text-editorial">Intelligence achiziții publice · România</Eyebrow>
         <h1 className="font-display mt-3 text-4xl font-semibold leading-[1.05] tracking-tight sm:text-6xl lg:text-7xl">
           Registrul Oportunităților Publice
@@ -84,30 +101,73 @@ export default function HomePage() {
         </p>
       </div>
 
-      {/* Live figures ticker */}
-      <div className="rule-grid mt-8 grid grid-cols-2 lg:grid-cols-4">
-        <StatCell label="Dosare în registru" value={formatNumber(stats?.total_leads ?? 0)} loading={loading} />
+      {/* Live figures ticker. Each figure counts up from zero, and each cell
+          carries a second layer that appears only on hover — the resting grid
+          stays scannable while the detail sits one gesture away. */}
+      <div className="rule-grid stagger mt-8 grid grid-cols-2 lg:grid-cols-4">
+        <StatCell
+          label="Dosare în registru"
+          tooltip="Numărul total de oportunități calificate aflate în registru la această oră."
+          value={<CountUp value={stats?.total_leads ?? 0} format={(n) => formatNumber(Math.round(n))} />}
+          loading={loading}
+          detail={
+            topCategory
+              ? `Cel mai activ domeniu: ${topCategory.category}, cu ${formatNumber(topCategory.count)} dosare.`
+              : "Distribuția pe domenii devine disponibilă după prima colectare."
+          }
+        />
         <StatCell
           label="Valoare totală piață"
-          value={formatRon(stats?.total_market_value_ron)}
+          tooltip="Suma valorilor estimate ale tuturor dosarelor din registru."
+          value={<CountUp value={stats?.total_market_value_ron ?? 0} format={(n) => formatRon(n)} />}
           loading={loading}
           hint={topCategory ? `Domeniu dominant: ${topCategory.category}` : undefined}
+          detail="Valorile provin din anunțurile publice. Acolo unde autoritatea nu publică o estimare, dosarul intră fără valoare — nu cu una presupusă."
         />
         <StatCell
           label="Scor mediu oportunitate"
-          value={stats?.average_opportunity_score != null ? `${stats.average_opportunity_score} / 10` : "—"}
+          tooltip="Media scorului de relevanță (0–10), calculat din dovezile găsite în textul sursei."
+          value={
+            stats?.average_opportunity_score != null ? (
+              <CountUp value={stats.average_opportunity_score} format={(n) => `${n.toFixed(1)} / 10`} />
+            ) : (
+              "—"
+            )
+          }
           loading={loading}
+          detail={
+            stats?.average_opportunity_score != null ? (
+              <>
+                <ProgressBar
+                  value={stats.average_opportunity_score}
+                  max={10}
+                  label="Scor mediu al oportunităților"
+                  className="mb-2"
+                />
+                Scorul crește doar cu dovezi din textul sursei — domeniul și județul îl întăresc, nu îl creează.
+              </>
+            ) : undefined
+          }
         />
         <StatCell
           label="Județ cu volum maxim"
+          tooltip="Județul care concentrează cea mai mare valoare cumulată a dosarelor."
           value={topCounty?.county ?? "—"}
           loading={loading}
           hint={topCounty ? formatRon(topCounty.value_ron) : undefined}
+          detail={
+            topCounty
+              ? `${formatNumber(topCounty.count)} dosare active în ${topCounty.county}.`
+              : "Clasamentul pe județe apare după prima colectare."
+          }
         />
       </div>
 
       {/* Lead article */}
-      <section className="mt-8 grid grid-cols-1 gap-0 neu-flat overflow-hidden rounded-3xl bg-paper lg:grid-cols-12">
+      <section
+        className="rise mt-8 grid grid-cols-1 gap-0 neu-flat overflow-hidden rounded-3xl bg-paper lg:grid-cols-12"
+        style={{ animationDelay: "240ms" }}
+      >
         <div className="border-b border-divider p-5 sm:p-8 lg:col-span-8 lg:border-b-0 lg:border-r">
           <Eyebrow className="text-editorial">
             {user ? `Desk activ · ${activeDesk?.name ?? ""}` : "Ediția publică"}
@@ -173,18 +233,40 @@ export default function HomePage() {
         <span className="label-eyebrow text-stock-500">{SECTIONS.length} rubrici</span>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="stagger grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {SECTIONS.map((section) => (
           <Link
             key={section.href}
             href={section.href}
-            className="group flex flex-col neu-flat rounded-3xl bg-paper p-5 transition-all duration-300 hover:neu-lift hover:-translate-y-0.5 sm:p-6"
+            className="group flex flex-col neu-flat rounded-3xl bg-paper p-5 transition-all duration-[var(--duration-base)] ease-[var(--ease-glide)] hover:neu-glow hover:-translate-y-1 active:scale-[0.99] sm:p-6"
           >
             <Eyebrow className="text-editorial">{section.kicker}</Eyebrow>
             <h3 className="font-display mt-2 text-xl font-semibold leading-snug tracking-tight text-ink">{section.title}</h3>
             <p className="font-body mt-2 flex-1 text-sm leading-relaxed text-stock-500">{section.body}</p>
+            {/* Quick actions surface on hover, so the resting card keeps its
+                editorial calm and the grid does not read as a wall of chips. */}
+            <div className="reveal">
+              <div>
+                <div className="mt-3 flex flex-wrap gap-1.5 border-t border-divider pt-3">
+                  {section.tags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="neu-pressed-sm rounded-full bg-paper px-2.5 py-1 font-sans text-[11px] font-semibold text-stock-600"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
             <span className="font-sans mt-4 inline-flex items-center gap-1 text-[13px] font-medium text-editorial">
-              Deschide <span aria-hidden="true" className="transition-transform group-hover:translate-x-0.5">→</span>
+              Deschide
+              <span
+                aria-hidden="true"
+                className="transition-transform duration-[var(--duration-base)] ease-[var(--ease-spring)] group-hover:translate-x-1"
+              >
+                →
+              </span>
             </span>
           </Link>
         ))}
