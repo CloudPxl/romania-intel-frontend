@@ -2,6 +2,7 @@
 import React from "react";
 import { useAuth } from "@/context/AuthContext";
 import { ButtonLink, Eyebrow, Loading, Notice } from "@/components/newsprint";
+import OnboardingForm from "@/components/OnboardingForm";
 
 /**
  * Wraps any page whose data comes from an authenticated backend route.
@@ -22,7 +23,7 @@ export default function AuthGate({
   title?: string;
   description?: string;
 }) {
-  const { user, loading, authError } = useAuth();
+  const { user, loading, authError, needsOnboarding } = useAuth();
 
   if (loading) {
     return (
@@ -30,6 +31,10 @@ export default function AuthGate({
         <Loading label="Se verifică sesiunea" />
       </div>
     );
+  }
+
+  if (needsOnboarding) {
+    return <OnboardingForm />;
   }
 
   if (!user) {

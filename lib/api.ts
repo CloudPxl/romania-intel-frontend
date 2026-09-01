@@ -293,6 +293,31 @@ export async function fetchTenantProfiles(): Promise<{ tenants: TenantProfile[];
   return apiFetch("/api/v1/tenants", { anonymous: true });
 }
 
+export interface OnboardingProfile {
+  display_name?: string;
+  domain: string;
+  target_counties: string[];
+  min_value_ron: number;
+  keywords: string[];
+  exclude_keywords: string[];
+}
+
+/**
+ * Self-serve replacement for the old admin-only provisioning flow: a
+ * signed-in user with tenant_id === null on SyncedUser calls this once to
+ * create their own individual account (own tenant, own product line), then
+ * the caller must re-run syncBackendAuth to pick up the confirmed
+ * tenant_id — this endpoint does not itself return a session-shaped object.
+ */
+export async function completeOnboarding(profile: OnboardingProfile): Promise<{ status: string; tenant_id: string }> {
+  return apiFetch("/api/v1/onboarding/complete", { method: "POST", body: profile });
+}
+
+/** Lets an already-onboarded individual change their own watch criteria later. */
+export async function updateTenantProfile(tenantId: string, profile: OnboardingProfile): Promise<{ status: string }> {
+  return apiFetch(`/api/v1/tenants/${tenantId}/profile`, { method: "PUT", body: profile });
+}
+
 /* ----------------------------------------------------------------- feed */
 
 export async function fetchTenantFeed(

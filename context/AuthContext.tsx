@@ -1,7 +1,7 @@
 "use client";
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { syncBackendAuth, ApiError } from "@/lib/api";
+import { syncBackendAuth, completeOnboarding as apiCompleteOnboarding, ApiError, type OnboardingProfile } from "@/lib/api";
 
 export interface BusinessDivision {
   id: string;
@@ -73,6 +73,15 @@ interface AuthContextType {
   loading: boolean;
   /** Set when the backend rejected the session — surfaced in the UI. */
   authError: string | null;
+  /**
+   * True when the session itself is valid but this account has no tenant
+   * yet — a new individual subscriber who hasn't set up their watch
+   * profile. Distinct from authError: this is not a failure, it's the
+   * one-time setup step AuthGate shows instead of a dead end.
+   */
+  needsOnboarding: boolean;
+  /** Creates this user's own tenant/product and adopts the resulting session. */
+  completeOnboarding: (profile: OnboardingProfile) => Promise<{ error: string | null }>;
   preferences: UserPreferences;
   updatePreferences: (newPrefs: Partial<UserPreferences>) => void;
   desks: BusinessDesk[];
@@ -129,6 +138,8 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
   authError: null,
+  needsOnboarding: false,
+  completeOnboarding: async () => ({ error: null }),
   preferences: DEFAULT_PREFERENCES,
   updatePreferences: () => {},
   desks: DEFAULT_DESKS,
@@ -163,6 +174,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [desks, setDesks] = useState<BusinessDesk[]>(DEFAULT_DESKS);
   const [activeDeskId, setActiveDeskId] = useState<string>(DEFAULT_DESKS[0].id);
   const [preferences, setPreferences] = useState<UserPreferences>(DEFAULT_PREFERENCES);
@@ -250,6 +262,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!cancelled) {
           setUser(null);
           setAuthError(null);
+          setNeedsOnboarding(false);
         }
         return;
       }
@@ -262,16 +275,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         );
         if (cancelled || !synced?.user) return;
         if (!synced.user.tenant_id) {
-          // Signed in successfully, but no scripts/provision_tenant.py row
-          // exists for this user yet — treated the same as a rejected
-          // session rather than silently defaulting into any tenant's
-          // data (which the backend would now 403 on anyway).
+          // Signed in successfully, but this individual hasn't set up their
+          // own watch profile yet. This is not a rejected session — there
+          // is no admin to contact in a self-serve product — so AuthGate
+          // shows an onboarding form instead of a dead end.
           setUser(null);
-          setAuthError(
-            "Contul dvs. a fost autentificat, dar nu este încă asociat niciunei companii. Contactați administratorul RO-INTEL."
-          );
+          setAuthError(null);
+          setNeedsOnboarding(true);
           return;
         }
+        setNeedsOnboarding(false);
         setUser({ ...synced.user, tenant_id: synced.user.tenant_id, is_subscribed: true });
         setAuthError(null);
       } catch (err) {
@@ -284,6 +297,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             ? err.detail
             : "Serverul RO-INTEL nu răspunde. Reîncercați în câteva momente.";
         setUser(null);
+        setNeedsOnboarding(false);
         setAuthError(message);
       }
     }
@@ -344,6 +358,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await supabase.auth.signOut();
     setUser(null);
     setAuthError(null);
+    setNeedsOnboarding(false);
+  };
+
+  const completeOnboarding = async (profile: OnboardingProfile): Promise<{ error: string | null }> => {
+    try {
+      await apiCompleteOnboarding(profile);
+    } catch (err) {
+      return { error: err instanceof ApiError ? err.detail : "Configurarea contului a eșuat. Reîncercați." };
+    }
+    // The onboarding call only creates the tenant — it doesn't return a
+    // session-shaped object, so re-running the same sync the initial
+    // effect uses is what actually picks up the now-confirmed tenant_id
+    // and flips needsOnboarding off.
+    const { data } = await supabase.auth.getSession();
+    const authUser = data.session?.user;
+    if (!authUser) return { error: null };
+    try {
+      const synced = await syncBackendAuth(
+        authUser.email || "",
+        authUser.user_metadata?.full_name || authUser.user_metadata?.name || authUser.email?.split("@")[0],
+        authUser.user_metadata?.avatar_url
+      );
+      if (synced?.user?.tenant_id) {
+        setNeedsOnboarding(false);
+        setUser({ ...synced.user, tenant_id: synced.user.tenant_id, is_subscribed: true });
+        setAuthError(null);
+      }
+    } catch {
+      // The account was created successfully even if this re-sync hiccups;
+      // the next page load's own sync will pick it up.
+    }
+    return { error: null };
   };
 
   const activeDesk = desks.find((d) => d.id === activeDeskId) || desks[0] || DEFAULT_DESKS[0];
@@ -354,6 +400,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user,
         loading,
         authError,
+        needsOnboarding,
+        completeOnboarding,
         preferences,
         updatePreferences,
         desks,
