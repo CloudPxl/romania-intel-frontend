@@ -388,6 +388,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setNeedsOnboarding(false);
         setUser({ ...synced.user, tenant_id: synced.user.tenant_id, is_subscribed: true });
         setAuthError(null);
+
+        // Without this, a brand-new individual's first desk is whichever
+        // generic DEFAULT_DESKS entry happens to be active — not what they
+        // just told the onboarding form. The backend tenant already has
+        // the real criteria (that's what actually drives matching); this
+        // just makes the desk UI (target counties, keywords, budget shown
+        // on /newsletter etc.) reflect the same thing instead of a
+        // leftover example profile.
+        const newDesk: BusinessDesk = {
+          id: "desk_" + Date.now(),
+          name: profile.display_name?.trim() || synced.user.full_name || "Profilul meu",
+          primary_domain: profile.domain,
+          target_counties: profile.target_counties,
+          min_budget_ron: profile.min_value_ron,
+          keywords: profile.keywords,
+          divisions: [],
+          tenant_id: synced.user.tenant_id,
+        };
+        saveDesksToStorage([newDesk]);
+        switchDesk(newDesk.id);
       }
     } catch {
       // The account was created successfully even if this re-sync hiccups;
