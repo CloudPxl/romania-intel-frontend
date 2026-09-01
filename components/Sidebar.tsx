@@ -72,7 +72,7 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
             <span className="block truncate text-sm font-semibold text-ink">
               {activeDesk?.name || "Desk neconfigurat"}
             </span>
-            <span className="label-eyebrow block truncate text-stock-500">Companie activă</span>
+            <span className="label-eyebrow block truncate text-stock-500">Profil activ</span>
           </span>
           <ChevronsUpDown size={15} className="shrink-0 text-stock-500" />
         </button>
@@ -102,7 +102,7 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
               }}
               className="mt-0.5 min-h-[40px] w-full rounded-xl px-3 py-2 text-left text-sm font-semibold text-editorial hover:text-editorial-light"
             >
-              + Administrare companii
+              + Administrare profiluri
             </button>
           </div>
         )}

@@ -79,7 +79,7 @@ const PLANS = [
       "Acces la toate registrele active de monitorizare",
       "Sinteze executive generate automat",
       "Export CSV al dosarelor calificate",
-      "1 companie · 2 utilizatori",
+      "1 profil de monitorizare · 2 utilizatori",
     ],
   },
   {
@@ -357,7 +357,7 @@ export function AccountSettingsModal({ isOpen, onClose }: { isOpen: boolean; onC
               <div className="flex flex-col gap-3 sm:flex-row">
                 <Input
                   type="email"
-                  placeholder="nume@companie.ro"
+                  placeholder="nume@exemplu.ro"
                   value={emailInput}
                   onChange={(e) => setEmailInput(e.target.value)}
                   className="sm:flex-1"
@@ -408,7 +408,7 @@ export function AccountSettingsModal({ isOpen, onClose }: { isOpen: boolean; onC
                 type="email"
                 value={alertEmail}
                 onChange={(e) => setAlertEmail(e.target.value)}
-                placeholder="director@companie.ro"
+                placeholder="nume@exemplu.ro"
               />
             </Field>
             <Field
@@ -454,8 +454,8 @@ export function WorkspaceDeskModal({ isOpen, onClose }: { isOpen: boolean; onClo
   const [error, setError] = useState<string | null>(null);
 
   const handleCreate = () => {
-    if (!name.trim() || !cui.trim()) {
-      setError("Completați denumirea companiei și codul fiscal (CUI).");
+    if (!name.trim()) {
+      setError("Completați o denumire pentru acest profil.");
       return;
     }
     const countyList = counties.split(",").map((c) => c.trim()).filter(Boolean);
@@ -463,7 +463,7 @@ export function WorkspaceDeskModal({ isOpen, onClose }: { isOpen: boolean; onClo
 
     const desk: Omit<BusinessDesk, "id"> = {
       name: name.trim(),
-      cui: cui.trim(),
+      cui: cui.trim() || undefined,
       primary_domain: domain,
       // Binds the desk to a real backend profile. Without this the feed
       // request carries an id the matching engine does not recognise and
@@ -488,14 +488,14 @@ export function WorkspaceDeskModal({ isOpen, onClose }: { isOpen: boolean; onClo
       isOpen={isOpen}
       onClose={onClose}
       size="lg"
-      title="Companii & desk-uri"
-      subtitle="Fiecare companie este legată de un profil de intelligence care determină ce oportunități sunt potrivite pentru ea."
+      title="Profiluri de monitorizare"
+      subtitle="Fiecare profil este legat de o configurație de intelligence care determină ce oportunități vă sunt arătate."
     >
       {!isCreating ? (
         <div className="space-y-4">
           <div className="flex items-center justify-between gap-3">
-            <Eyebrow>{desks.length} companii configurate</Eyebrow>
-            <Button onClick={() => setIsCreating(true)}>+ Adaugă companie</Button>
+            <Eyebrow>{desks.length} profiluri configurate</Eyebrow>
+            <Button onClick={() => setIsCreating(true)}>+ Adaugă profil</Button>
           </div>
 
           <div className="divide-y divide-divider neu-flat overflow-hidden rounded-3xl bg-paper">
@@ -513,7 +513,7 @@ export function WorkspaceDeskModal({ isOpen, onClose }: { isOpen: boolean; onClo
                     {d.id === activeDesk?.id && <Badge tone="accent">Activ</Badge>}
                   </div>
                   <p className="font-mono mt-1 text-[11px] text-stock-500">
-                    {d.cui} · {d.primary_domain} · {d.tenant_id}
+                    {[d.cui, d.primary_domain, d.tenant_id].filter(Boolean).join(" · ")}
                   </p>
                   <p className="font-body mt-1 text-xs text-stock-600">
                     Județe: {d.target_counties?.join(", ") || "—"}
@@ -536,24 +536,24 @@ export function WorkspaceDeskModal({ isOpen, onClose }: { isOpen: boolean; onClo
           </div>
 
           <Notice title="Notă">
-            Desk-urile sunt salvate local în acest browser. Nu sunt sincronizate între dispozitive.
+            Profilurile sunt salvate local în acest browser. Nu sunt sincronizate între dispozitive.
           </Notice>
         </div>
       ) : (
         <div className="space-y-4">
           <div className="flex items-center justify-between border-b border-divider pb-3">
-            <Eyebrow>Companie nouă</Eyebrow>
+            <Eyebrow>Profil nou</Eyebrow>
             <button onClick={() => setIsCreating(false)} className="text-sm font-medium text-editorial hover:brightness-110">
               ← Înapoi
             </button>
           </div>
 
-          <Field label="Denumire companie">
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="SC Exemplu Construct SRL" />
+          <Field label="Denumire profil">
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="ex. Infrastructură & Transporturi" />
           </Field>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Cod fiscal (CUI)">
+            <Field label="Cod fiscal (CUI) — opțional" hint="Completați doar dacă monitorizați în numele unei firme înregistrate.">
               <Input value={cui} onChange={(e) => setCui(e.target.value)} placeholder="RO34567890" />
             </Field>
             <Field label="Domeniu strategic" hint="Determină profilul de intelligence folosit la potrivire.">

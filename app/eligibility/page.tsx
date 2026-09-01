@@ -54,7 +54,7 @@ function EligibilityContent() {
   useEffect(() => {
     if (!activeDesk) return;
     setCompanyName(activeDesk.name);
-    setCui(activeDesk.cui);
+    setCui(activeDesk.cui || "");
     setCounty(activeDesk.target_counties?.[0] || "");
   }, [activeDesk]);
 

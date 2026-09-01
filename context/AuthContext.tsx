@@ -12,7 +12,13 @@ export interface BusinessDivision {
 export interface BusinessDesk {
   id: string;
   name: string;
-  cui: string;
+  /**
+   * Optional. Left over from when every account was a company — most
+   * individual users have no CUI to give. Still accepted (and used to
+   * prefill the legal-document tools under /eligibility and /drafting)
+   * for the minority of users monitoring on behalf of a registered firm.
+   */
+  cui?: string;
   primary_domain: string;
   target_counties: string[];
   min_budget_ron: number;
@@ -101,8 +107,7 @@ const DEFAULT_DESKS: BusinessDesk[] = [
   {
     id: "desk_main_infra",
     tenant_id: BACKEND_TENANTS.infrastructura,
-    name: "SC Infra Construct Transilvania SRL",
-    cui: "RO12345678",
+    name: "Infrastructură & Transporturi",
     primary_domain: "infrastructura",
     target_counties: ["Cluj", "Iasi", "Bihor", "Timis", "Bucuresti", "Brasov", "Constanta"],
     min_budget_ron: 5000000,
@@ -115,8 +120,7 @@ const DEFAULT_DESKS: BusinessDesk[] = [
   {
     id: "desk_medtech",
     tenant_id: BACKEND_TENANTS.sanatate,
-    name: "SC MedTech Pharma SRL",
-    cui: "RO98765432",
+    name: "Sănătate & Echipamente Medicale",
     primary_domain: "sanatate",
     target_counties: ["Bucuresti", "Iasi", "Cluj", "Timis", "Brasov"],
     min_budget_ron: 3000000,
