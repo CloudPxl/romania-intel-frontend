@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { X } from "lucide-react";
-import { ApiError, generateProformaInvoice, type ProformaResult } from "@/lib/api";
+import { ApiError, generateProformaInvoice, updateTenantAlertSettings, type ProformaResult } from "@/lib/api";
 import { useAuth, tenantIdForDomain, type BusinessDesk } from "@/context/AuthContext";
 import { Badge, Button, Eyebrow, Field, Input, Notice, Select } from "@/components/newsprint";
 
@@ -300,6 +300,7 @@ export function AccountSettingsModal({ isOpen, onClose }: { isOpen: boolean; onC
   const [magicLinkSent, setMagicLinkSent] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -310,9 +311,31 @@ export function AccountSettingsModal({ isOpen, onClose }: { isOpen: boolean; onC
     setError(null);
   }, [isOpen, preferences, user]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    // Local preferences drive the manual "trimite-mi acest dosar" button
+    // and client-side display filtering; they're legitimate on their own.
+    // But automated alerts (notifier.py's dispatch_lead_alert_to_tenant)
+    // read tenants.alert_emails/min_alert_score from Postgres, not this —
+    // saving only locally used to look successful while changing nothing
+    // about where real alerts actually go.
     updatePreferences({ notification_email: alertEmail, auto_alert_score: Number(scoreThreshold) });
-    setSaved(true);
+    if (!user?.tenant_id || !alertEmail.trim()) {
+      setSaved(true);
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      await updateTenantAlertSettings(user.tenant_id, {
+        alert_email: alertEmail.trim(),
+        min_alert_score: Number(scoreThreshold),
+      });
+      setSaved(true);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.detail : "Nu am putut salva preferințele de alertă.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleSendMagicLink = async () => {
@@ -403,7 +426,7 @@ export function AccountSettingsModal({ isOpen, onClose }: { isOpen: boolean; onC
         <div className="neu-flat rounded-3xl bg-paper p-4 sm:p-5">
           <Eyebrow className="mb-4">Alerte email</Eyebrow>
           <div className="space-y-4">
-            <Field label="Email destinatar notificări">
+            <Field label="Email destinatar notificări" hint="Adresa pe care o primesc alertele automate pentru dosarele cu scor ridicat.">
               <Input
                 type="email"
                 value={alertEmail}
@@ -411,10 +434,7 @@ export function AccountSettingsModal({ isOpen, onClose }: { isOpen: boolean; onC
                 placeholder="nume@exemplu.ro"
               />
             </Field>
-            <Field
-              label="Prag minim scor pentru alertă"
-              hint="Serverul aplică propriul prag per profil; această valoare filtrează suplimentar alertele către dvs."
-            >
+            <Field label="Prag minim scor pentru alertă">
               <Select value={scoreThreshold} onChange={(e) => setScoreThreshold(Number(e.target.value))}>
                 <option value={9.5}>Scor ≥ 9.5 — doar proiecte strategice critice</option>
                 <option value={9.0}>Scor ≥ 9.0 — toate oportunitățile calificate</option>
@@ -422,8 +442,13 @@ export function AccountSettingsModal({ isOpen, onClose }: { isOpen: boolean; onC
               </Select>
             </Field>
           </div>
-          <Button onClick={handleSave} fullWidth className="mt-5">
-            {saved ? "Preferințe salvate" : "Salvează preferințele"}
+          {error && (
+            <div className="mt-4">
+              <Notice tone="alert">{error}</Notice>
+            </div>
+          )}
+          <Button onClick={handleSave} fullWidth className="mt-5" disabled={saving}>
+            {saving ? "Se salvează…" : saved ? "Preferințe salvate" : "Salvează preferințele"}
           </Button>
         </div>
       </div>

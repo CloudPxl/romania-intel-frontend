@@ -318,6 +318,20 @@ export async function updateTenantProfile(tenantId: string, profile: OnboardingP
   return apiFetch(`/api/v1/tenants/${tenantId}/profile`, { method: "PUT", body: profile });
 }
 
+/**
+ * Where automated alerts actually go and at what score they fire — separate
+ * from updateTenantProfile (matching criteria) because it's a different
+ * backend table (tenants.alert_emails/min_alert_score, not tenant_products).
+ * Before this existed, the Settings modal's "Alerte email" panel wrote only
+ * to localStorage, so changing it here had no effect on real alert dispatch.
+ */
+export async function updateTenantAlertSettings(
+  tenantId: string,
+  settings: { alert_email: string; min_alert_score: number }
+): Promise<{ status: string }> {
+  return apiFetch(`/api/v1/tenants/${tenantId}/alert-settings`, { method: "PUT", body: settings });
+}
+
 /* ----------------------------------------------------------------- feed */
 
 export async function fetchTenantFeed(
