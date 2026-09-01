@@ -70,6 +70,12 @@ export interface UserProfile {
 
 export interface UserPreferences {
   notification_email?: string;
+  /**
+   * Mirrored locally only so the Settings field can be repopulated on
+   * reopen — the authoritative copy is tenants.telegram_chat_id in
+   * Postgres, which is what notifier.py actually dispatches against.
+   */
+  telegram_chat_id?: string;
   auto_alert_score: number;
   default_sort: "score_desc" | "budget_desc" | "date_desc" | "deadline_asc";
 }

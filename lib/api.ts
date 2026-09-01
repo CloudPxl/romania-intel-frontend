@@ -329,7 +329,7 @@ export async function updateTenantProfile(tenantId: string, profile: OnboardingP
  */
 export async function updateTenantAlertSettings(
   tenantId: string,
-  settings: { alert_email: string; min_alert_score: number }
+  settings: { alert_email: string; min_alert_score: number; telegram_chat_id?: string }
 ): Promise<{ status: string }> {
   return apiFetch(`/api/v1/tenants/${tenantId}/alert-settings`, { method: "PUT", body: settings });
 }

@@ -297,6 +297,7 @@ export function AccountSettingsModal({ isOpen, onClose }: { isOpen: boolean; onC
   const [emailInput, setEmailInput] = useState("");
   const [alertEmail, setAlertEmail] = useState("");
   const [scoreThreshold, setScoreThreshold] = useState(9.0);
+  const [telegramChatId, setTelegramChatId] = useState("");
   const [magicLinkSent, setMagicLinkSent] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -310,6 +311,7 @@ export function AccountSettingsModal({ isOpen, onClose }: { isOpen: boolean; onC
     if (!isOpen) return;
     setAlertEmail(preferences?.notification_email || user?.email || "");
     setScoreThreshold(preferences?.auto_alert_score ?? 9.0);
+    setTelegramChatId(preferences?.telegram_chat_id || "");
     setSaved(false);
     setError(null);
     setDeleteConfirming(false);
@@ -343,7 +345,11 @@ export function AccountSettingsModal({ isOpen, onClose }: { isOpen: boolean; onC
     // read tenants.alert_emails/min_alert_score from Postgres, not this —
     // saving only locally used to look successful while changing nothing
     // about where real alerts actually go.
-    updatePreferences({ notification_email: alertEmail, auto_alert_score: Number(scoreThreshold) });
+    updatePreferences({
+      notification_email: alertEmail,
+      auto_alert_score: Number(scoreThreshold),
+      telegram_chat_id: telegramChatId,
+    });
     if (!user?.tenant_id || !alertEmail.trim()) {
       setSaved(true);
       return;
@@ -354,6 +360,10 @@ export function AccountSettingsModal({ isOpen, onClose }: { isOpen: boolean; onC
       await updateTenantAlertSettings(user.tenant_id, {
         alert_email: alertEmail.trim(),
         min_alert_score: Number(scoreThreshold),
+        // Always sent, so clearing the field genuinely clears it
+        // server-side (the backend treats "" as "remove", and omitting
+        // the key entirely as "leave untouched").
+        telegram_chat_id: telegramChatId.trim(),
       });
       setSaved(true);
     } catch (err) {
@@ -485,7 +495,7 @@ export function AccountSettingsModal({ isOpen, onClose }: { isOpen: boolean; onC
         )}
 
         <div className="neu-flat rounded-3xl bg-paper p-4 sm:p-5">
-          <Eyebrow className="mb-4">Alerte email</Eyebrow>
+          <Eyebrow className="mb-4">Alerte automate</Eyebrow>
           <div className="space-y-4">
             <Field label="Email destinatar notificări" hint="Adresa pe care o primesc alertele automate pentru dosarele cu scor ridicat.">
               <Input
@@ -501,6 +511,18 @@ export function AccountSettingsModal({ isOpen, onClose }: { isOpen: boolean; onC
                 <option value={9.0}>Scor ≥ 9.0 — toate oportunitățile calificate</option>
                 <option value={8.5}>Scor ≥ 8.5 — toate semnalele active</option>
               </Select>
+            </Field>
+            <Field
+              label="ID chat Telegram (opțional)"
+              hint="Primiți aceleași alerte și pe Telegram. Deschideți @userinfobot în Telegram, care vă returnează ID-ul numeric al contului. Lăsați gol pentru a dezactiva."
+            >
+              <Input
+                type="text"
+                inputMode="numeric"
+                value={telegramChatId}
+                onChange={(e) => setTelegramChatId(e.target.value)}
+                placeholder="123456789"
+              />
             </Field>
           </div>
           {error && (
