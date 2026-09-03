@@ -3,7 +3,8 @@ import React, { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { ApiError, deleteOwnAccount, generateProformaInvoice, updateMyAlertSettings, type ProformaResult } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
-import { Badge, Button, Eyebrow, Field, Input, Notice, Select } from "@/components/newsprint";
+import { CATEGORIES, COUNTIES } from "@/lib/format";
+import { Badge, Button, ChipSelect, Eyebrow, Field, Input, Notice, Select } from "@/components/newsprint";
 
 /* ------------------------------------------------------------ modal shell */
 
@@ -534,13 +535,10 @@ export function AccountSettingsModal({ isOpen, onClose }: { isOpen: boolean; onC
 
 /* -------------------------------------------------------------- criteria */
 
-const DOMAINS = [
-  { id: "infrastructura", label: "Infrastructură & Transporturi" },
-  { id: "sanatate", label: "Sănătate & Echipamente Medicale" },
-  { id: "energie", label: "Energie & Utilități Verzi" },
-  { id: "aparare", label: "Apărare & Securitate" },
-  { id: "digitalizare", label: "Digitalizare, IT & Smart City" },
-];
+// Was a second, hand-copied list of the same five domains. One of the two
+// would eventually gain an entry the other lacked, and the drift would
+// show up as a domain you can pick at onboarding but not edit afterwards.
+const DOMAINS = CATEGORIES;
 
 /**
  * Edit the matching criteria after signup.
@@ -554,8 +552,10 @@ const DOMAINS = [
 export function ProfileCriteriaModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const { profile, updateProfile } = useAuth();
   const [displayName, setDisplayName] = useState("");
-  const [domain, setDomain] = useState(DOMAINS[0].id);
-  const [counties, setCounties] = useState("");
+  // Explicit `string`: CATEGORIES is `as const`, so DOMAINS[0].id alone
+  // narrows this to the literal "infrastructura" and nothing else assigns.
+  const [domain, setDomain] = useState<string>(DOMAINS[0].id);
+  const [counties, setCounties] = useState<string[]>([]);
   const [keywords, setKeywords] = useState("");
   const [excludeKeywords, setExcludeKeywords] = useState("");
   const [minValue, setMinValue] = useState("");
@@ -569,7 +569,7 @@ export function ProfileCriteriaModal({ isOpen, onClose }: { isOpen: boolean; onC
     if (!isOpen || !profile) return;
     setDisplayName(profile.display_name || "");
     setDomain(profile.domain || DOMAINS[0].id);
-    setCounties((profile.target_counties || []).join(", "));
+    setCounties([...(profile.target_counties || [])]);
     setKeywords((profile.keywords || []).join(", "));
     setExcludeKeywords((profile.exclude_keywords || []).join(", "));
     setMinValue(profile.min_value_ron ? String(profile.min_value_ron) : "");
@@ -596,7 +596,7 @@ export function ProfileCriteriaModal({ isOpen, onClose }: { isOpen: boolean; onC
     const { error: apiError } = await updateProfile({
       display_name: displayName.trim() || undefined,
       domain,
-      target_counties: splitList(counties),
+      target_counties: counties,
       min_value_ron: minValue ? Number(minValue) : 0,
       keywords: keywordList,
       exclude_keywords: splitList(excludeKeywords),
@@ -630,8 +630,19 @@ export function ProfileCriteriaModal({ isOpen, onClose }: { isOpen: boolean; onC
           </Select>
         </Field>
 
-        <Field label="Județe de interes (separate prin virgulă)">
-          <Input value={counties} onChange={(e) => setCounties(e.target.value)} placeholder="Cluj, Iasi, Timis" />
+        <Field
+          label={
+            counties.length
+              ? `Județe de interes (${counties.length} selectate)`
+              : "Județe de interes"
+          }
+        >
+          <ChipSelect
+            options={COUNTIES}
+            selected={counties}
+            onChange={setCounties}
+            emptyHint="Niciun județ selectat — veți vedea oportunități din toată țara."
+          />
         </Field>
 
         <Field

@@ -50,7 +50,14 @@ function NewsletterContent() {
   const [activeCategory, setActiveCategory] = useState<string>("all");
   // The feed now returns the WHOLE market ranked, not just matches, so
   // this toggle is what lets someone go back to just their own.
-  const [onlyMatches, setOnlyMatches] = useState(false);
+  // Start on the user's own matches, not the whole market. The feed is a
+  // soft filter server-side — it ranks everything and hides nothing — but
+  // landing on all 500 rows made the criteria someone just entered at
+  // onboarding look like they had been ignored. `matchDefaultApplied`
+  // makes this a one-time decision per load: once the user touches the
+  // toggle, their choice stands and is never overridden by a refresh.
+  const [onlyMatches, setOnlyMatches] = useState(true);
+  const [matchDefaultApplied, setMatchDefaultApplied] = useState(false);
   const [selectedCounty, setSelectedCounty] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<SortId>("score_desc");
@@ -86,6 +93,17 @@ function NewsletterContent() {
   useEffect(() => {
     loadWorkspace(false);
   }, [loadWorkspace]);
+
+  // The one case where defaulting to "my matches" would backfire: a
+  // profile that currently matches nothing would open on an empty page,
+  // which reads as a broken product rather than as a narrow filter. Fall
+  // back to the full market and say why. Runs once per mount, so it
+  // cannot fight the user after they set the toggle themselves.
+  useEffect(() => {
+    if (loading || matchDefaultApplied || leads.length === 0) return;
+    if (!leads.some((l) => l.match?.is_match)) setOnlyMatches(false);
+    setMatchDefaultApplied(true);
+  }, [loading, leads, matchDefaultApplied]);
 
   useEffect(() => {
     if (!toast) return;
@@ -134,6 +152,9 @@ function NewsletterContent() {
   }, [leads, searchQuery, selectedCounty, onlyMatches, sortBy]);
 
   const totalValue = visibleLeads.reduce((sum, l) => sum + (l.financial_value_ron || 0), 0);
+
+  const noMatchesForProfile =
+    leads.length > 0 && !leads.some((l) => l.match?.is_match);
 
   const handleSaveToPipeline = async (lead: Lead) => {
     setBusyAction("pipeline");
@@ -212,7 +233,12 @@ function NewsletterContent() {
           ].map((opt) => (
             <button
               key={String(opt.id)}
-              onClick={() => setOnlyMatches(opt.id)}
+              onClick={() => {
+                // Claim the decision, so a still-loading feed cannot
+                // flip the toggle back underneath the user.
+                setMatchDefaultApplied(true);
+                setOnlyMatches(opt.id);
+              }}
               className={
                 "min-h-[40px] rounded-lg px-2.5 py-2 text-left font-body text-sm transition-colors " +
                 (onlyMatches === opt.id
@@ -225,8 +251,9 @@ function NewsletterContent() {
           ))}
         </div>
         <p className="font-body mt-2 px-2.5 text-[11px] leading-snug text-stock-500">
-          Registrul afișează toată piața, ordonată după potrivirea cu criteriile
-          dvs. Dosarele potrivite sunt marcate.
+          {onlyMatches
+            ? "Vedeți dosarele care corespund criteriilor dvs. Comutați pe „Toată piața” pentru restul licitațiilor, ordonate după relevanță."
+            : "Vedeți toată piața, ordonată după potrivirea cu criteriile dvs. Dosarele potrivite sunt marcate."}
         </p>
       </div>
 
@@ -322,6 +349,19 @@ function NewsletterContent() {
             <div className="mb-5">
               <Notice tone="alert" title="Eroare la încărcare">
                 {error}
+              </Notice>
+            </div>
+          )}
+
+          {/* The criteria are being honoured and still matched nothing —
+              say so, otherwise falling back to the whole market looks
+              like the filter silently failing. */}
+          {!loading && !error && noMatchesForProfile && (
+            <div className="mb-5">
+              <Notice tone="neutral" title="Niciun dosar nu corespunde criteriilor dvs.">
+                Afișăm toată piața, ordonată după relevanță. Ajustați
+                cuvintele-cheie, județele sau valoarea minimă din setările
+                profilului pentru a primi potriviri.
               </Notice>
             </div>
           )}

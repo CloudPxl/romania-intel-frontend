@@ -95,3 +95,25 @@ export function categoryLabel(id: string | null | undefined): string {
   if (!id) return "General";
   return CATEGORIES.find((c) => c.id === id)?.label || id;
 }
+
+/**
+ * The 41 județe plus București, spelled correctly.
+ *
+ * Counties used to be a free-text field, which is a closed vocabulary
+ * asked as an open question: "Cluj-Napoca", "CJ" or a plain typo saved
+ * fine and then matched nothing, with no feedback anywhere. Picking from
+ * this list makes an unmatchable value impossible to enter.
+ *
+ * Diacritics and hyphens are safe here — the backend normalises both
+ * sides of the comparison (db._county_key), so "Caraș-Severin" matches
+ * the "Caras Severin" the scrapers store.
+ */
+export const COUNTIES = [
+  "Alba", "Arad", "Argeș", "Bacău", "Bihor", "Bistrița-Năsăud", "Botoșani",
+  "Brăila", "Brașov", "București", "Buzău", "Călărași", "Caraș-Severin",
+  "Cluj", "Constanța", "Covasna", "Dâmbovița", "Dolj", "Galați", "Giurgiu",
+  "Gorj", "Harghita", "Hunedoara", "Ialomița", "Iași", "Ilfov", "Maramureș",
+  "Mehedinți", "Mureș", "Neamț", "Olt", "Prahova", "Sălaj", "Satu Mare",
+  "Sibiu", "Suceava", "Teleorman", "Timiș", "Tulcea", "Vâlcea", "Vaslui",
+  "Vrancea",
+] as const;

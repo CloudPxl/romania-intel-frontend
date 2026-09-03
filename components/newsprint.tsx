@@ -520,6 +520,62 @@ export function Checkbox({
   );
 }
 
+/**
+ * Multi-select over a closed vocabulary, as toggleable chips.
+ *
+ * Used for județe, which were previously a comma-separated text input —
+ * an open question asked of a closed set, so an unmatchable value was
+ * always one typo away and failed silently. Lives here rather than in a
+ * page so onboarding and the criteria editor cannot drift apart.
+ */
+export function ChipSelect({
+  options,
+  selected,
+  onChange,
+  emptyHint,
+}: {
+  options: readonly string[];
+  selected: string[];
+  onChange: (next: string[]) => void;
+  emptyHint?: string;
+}) {
+  const toggle = (option: string) =>
+    onChange(
+      selected.includes(option)
+        ? selected.filter((s) => s !== option)
+        : [...selected, option]
+    );
+
+  return (
+    <div>
+      <div className="scroll-x flex max-h-56 flex-wrap gap-1.5 overflow-y-auto p-0.5">
+        {options.map((option) => {
+          const active = selected.includes(option);
+          return (
+            <button
+              key={option}
+              type="button"
+              onClick={() => toggle(option)}
+              aria-pressed={active}
+              className={cn(
+                "min-h-[36px] rounded-xl px-3 py-1.5 font-body text-[13px] transition-all duration-[var(--duration-base)] ease-[var(--ease-glide)] active:scale-95",
+                active
+                  ? "neu-pressed-sm bg-editorial-soft font-medium text-editorial"
+                  : "neu-flat-sm bg-paper text-stock-600 hover:neu-lift"
+              )}
+            >
+              {option}
+            </button>
+          );
+        })}
+      </div>
+      {selected.length === 0 && emptyHint && (
+        <p className="font-body mt-2 text-[11px] leading-snug text-stock-500">{emptyHint}</p>
+      )}
+    </div>
+  );
+}
+
 /* ------------------------------------------------------------------ states */
 
 export function Notice({

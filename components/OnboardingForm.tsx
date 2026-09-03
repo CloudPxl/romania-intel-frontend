@@ -2,8 +2,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
-import { CATEGORIES } from "@/lib/format";
-import { Button, Field, Input, Notice, Select } from "@/components/newsprint";
+import { CATEGORIES, COUNTIES } from "@/lib/format";
+import { Button, ChipSelect, Field, Input, Notice, Select } from "@/components/newsprint";
 
 /**
  * Shown by AuthGate the first time someone signs in without criteria yet.
@@ -16,7 +16,7 @@ export default function OnboardingForm() {
   const { completeOnboarding } = useAuth();
   const [displayName, setDisplayName] = useState("");
   const [domain, setDomain] = useState<string>(CATEGORIES[0].id);
-  const [counties, setCounties] = useState("");
+  const [counties, setCounties] = useState<string[]>([]);
   const [keywords, setKeywords] = useState("");
   const [excludeKeywords, setExcludeKeywords] = useState("");
   const [minValue, setMinValue] = useState("");
@@ -46,7 +46,7 @@ export default function OnboardingForm() {
     const { error: apiError } = await completeOnboarding({
       display_name: displayName.trim() || undefined,
       domain,
-      target_counties: splitList(counties),
+      target_counties: counties,
       min_value_ron: minValue ? Number(minValue) : 0,
       keywords: keywordList,
       exclude_keywords: splitList(excludeKeywords),
@@ -80,8 +80,19 @@ export default function OnboardingForm() {
             </Select>
           </Field>
 
-          <Field label="Județe de interes (opțional, separate prin virgulă)">
-            <Input value={counties} onChange={(e) => setCounties(e.target.value)} placeholder="Cluj, Iasi, Timis" />
+          <Field
+            label={
+              counties.length
+                ? `Județe de interes (${counties.length} selectate)`
+                : "Județe de interes (opțional)"
+            }
+          >
+            <ChipSelect
+              options={COUNTIES}
+              selected={counties}
+              onChange={setCounties}
+              emptyHint="Niciun județ selectat — veți vedea oportunități din toată țara."
+            />
           </Field>
 
           <Field label="Cuvinte-cheie (separate prin virgulă)">
