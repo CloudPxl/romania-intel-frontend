@@ -34,7 +34,7 @@ const EXCLUSION_GROUNDS = [
 type ExclusionKey = (typeof EXCLUSION_GROUNDS)[number]["key"];
 
 function EligibilityContent() {
-  const { activeDesk } = useAuth();
+  const { profile } = useAuth();
   const [companyName, setCompanyName] = useState("");
   const [cui, setCui] = useState("");
   const [caen, setCaen] = useState("4211");
@@ -51,12 +51,15 @@ function EligibilityContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Prefills from the profile's own billing identity. Both are optional —
+  // an individual monitoring the market has no CUI — so the fields stay
+  // editable and simply start empty when unset.
   useEffect(() => {
-    if (!activeDesk) return;
-    setCompanyName(activeDesk.name);
-    setCui(activeDesk.cui || "");
-    setCounty(activeDesk.target_counties?.[0] || "");
-  }, [activeDesk]);
+    if (!profile) return;
+    setCompanyName(profile.company_name || "");
+    setCui(profile.cui || "");
+    setCounty(profile.target_counties?.[0] || "");
+  }, [profile]);
 
   const handleScan = async () => {
     if (!companyName.trim() || !cui.trim()) {

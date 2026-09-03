@@ -99,7 +99,7 @@ function TechnicalProposalTool({
 }: {
   initial: { project_title: string; authority_name: string; county: string; category: string; source_id: string; budget: string };
 }) {
-  const { activeDesk } = useAuth();
+  const { profile } = useAuth();
   const [form, setForm] = useState({
     project_title: initial.project_title,
     authority_name: initial.authority_name,
@@ -122,8 +122,8 @@ function TechnicalProposalTool({
     authority_name: form.authority_name,
     county: form.county,
     category: form.category,
-    company_name: activeDesk?.name || "",
-    cui: activeDesk?.cui || "",
+    company_name: profile?.company_name || "",
+    cui: profile?.cui || "",
     estimated_value_ron: form.estimated_value_ron || undefined,
     cpv_code: form.cpv_code || undefined,
     source_id: form.source_id || undefined,
@@ -280,7 +280,7 @@ function ClarificationTool({
 }: {
   initial: { project_title: string; authority_name: string; source_id: string };
 }) {
-  const { activeDesk, user } = useAuth();
+  const { profile, user } = useAuth();
   const [form, setForm] = useState({
     authority_name: initial.authority_name,
     project_title: initial.project_title,
@@ -302,8 +302,8 @@ function ClarificationTool({
     authority_name: form.authority_name,
     project_title: form.project_title,
     source_id: form.source_id,
-    company_name: activeDesk?.name || "",
-    cui_fiscal: activeDesk?.cui || "",
+    company_name: profile?.company_name || "",
+    cui_fiscal: profile?.cui || "",
     clarification_points: points,
     request_type: requestType,
     contact_email: user?.email,

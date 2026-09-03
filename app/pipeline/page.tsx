@@ -5,7 +5,7 @@ import AuthGate from "@/components/AuthGate";
 import {
   ApiError,
   fetchPipelineMetrics,
-  fetchTenantPipeline,
+  fetchMyPipeline,
   updatePipelineDeal,
   type Deal,
   type PipelineMetrics,
@@ -118,7 +118,7 @@ function DealCard({
 }
 
 function PipelineContent() {
-  const { activeDesk, activeTenantId } = useAuth();
+  const { profile } = useAuth();
   const [deals, setDeals] = useState<Deal[]>([]);
   const [stages, setStages] = useState<string[]>([]);
   const [metrics, setMetrics] = useState<PipelineMetrics | null>(null);
@@ -132,12 +132,12 @@ function PipelineContent() {
     setLoading(true);
     setError(null);
     try {
-      // Both reads target the same tenant, and neither depends on the
-      // other's result — serialising them would double the time the page
-      // spends on its loading state for no benefit.
+      // Neither read depends on the other's result — serialising them
+      // would double the time the page spends on its loading state for no
+      // benefit.
       const [pipeline, pipelineMetrics] = await Promise.all([
-        fetchTenantPipeline(activeTenantId),
-        fetchPipelineMetrics(activeTenantId),
+        fetchMyPipeline(),
+        fetchPipelineMetrics(),
       ]);
       setDeals(pipeline.deals || []);
       setStages(pipeline.stages || []);
@@ -148,7 +148,7 @@ function PipelineContent() {
     } finally {
       setLoading(false);
     }
-  }, [activeTenantId]);
+  }, []);
 
   useEffect(() => {
     load();
@@ -163,7 +163,7 @@ function PipelineContent() {
   const handleMove = async (dealId: string, newStage: string) => {
     setMovingDeal(dealId);
     try {
-      const res = await updatePipelineDeal(activeTenantId, { deal_id: dealId, new_stage: newStage });
+      const res = await updatePipelineDeal(dealId, { new_stage: newStage });
       if (res.status === "success") {
         setToast(`Dosar mutat în „${stageLabel(newStage)}”.`);
         await load();
@@ -187,7 +187,7 @@ function PipelineContent() {
   return (
     <main className="mx-auto w-full max-w-screen-xl flex-1 px-4 py-6 sm:py-8">
       <PageHeader
-        eyebrow={`Pipeline ofertare · ${activeDesk?.name ?? ""}`}
+        eyebrow={`Pipeline ofertare · ${profile?.display_name ?? ""}`}
         title="Dosare în lucru"
         standfirst="Stadiul real al dosarelor preluate din registru, cu valoare ponderată pe etapă și rate de conversie calculate din istoricul propriu de tranziții."
         action={

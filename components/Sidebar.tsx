@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BarChart3,
-  ChevronsUpDown,
   FileText,
   Kanban,
   LayoutDashboard,
@@ -12,12 +11,13 @@ import {
   Menu,
   Newspaper,
   Settings,
+  SlidersHorizontal,
   ShieldCheck,
   Sparkles,
   X,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { PricingModal, AccountSettingsModal, WorkspaceDeskModal } from "@/components/EnterpriseModals";
+import { PricingModal, AccountSettingsModal, ProfileCriteriaModal } from "@/components/EnterpriseModals";
 import { cn } from "@/lib/utils";
 
 const NAV_LINKS = [
@@ -32,6 +32,18 @@ const NAV_LINKS = [
 
 const SECTIONS = ["Ediția", "Instrumente"] as const;
 
+const DOMAIN_LABELS: Record<string, string> = {
+  infrastructura: "Infrastructură & Transporturi",
+  sanatate: "Sănătate",
+  energie: "Energie",
+  aparare: "Apărare",
+  digitalizare: "Digitalizare",
+};
+
+function domainLabel(domain: string): string {
+  return DOMAIN_LABELS[domain] ?? domain;
+}
+
 export function pageTitleForPath(pathname: string | null): string {
   if (!pathname) return "RO-INTEL";
   const link = NAV_LINKS.find((l) => (l.href === "/" ? pathname === "/" : pathname.startsWith(l.href)));
@@ -40,11 +52,10 @@ export function pageTitleForPath(pathname: string | null): string {
 
 function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
-  const { user, desks, activeDesk, switchDesk, signOut } = useAuth();
+  const { user, profile, signOut } = useAuth();
   const [pricingOpen, setPricingOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [deskManagerOpen, setDeskManagerOpen] = useState(false);
-  const [deskMenuOpen, setDeskMenuOpen] = useState(false);
+  const [criteriaOpen, setCriteriaOpen] = useState(false);
 
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname === href || pathname?.startsWith(href + "/");
@@ -58,56 +69,25 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
         <span className="font-display text-[15px] font-bold tracking-tight text-ink">RO-INTEL</span>
       </div>
 
-      {/* Desk switcher */}
-      <div className="relative pb-2 pt-1">
+      {/* Who you are. This was a desk switcher — a dropdown over saved
+          company profiles, each carrying the tenant id to send with every
+          request. With one profile per user there is nothing to switch
+          between, so it states rather than selects. */}
+      <div className="pb-2 pt-1">
         <button
-          onClick={() => setDeskMenuOpen((v) => !v)}
-          aria-expanded={deskMenuOpen}
-          className={cn(
-            "flex min-h-[48px] w-full items-center justify-between gap-2 rounded-2xl bg-paper px-3.5 py-2 text-left transition-all duration-300",
-            deskMenuOpen ? "neu-pressed" : "neu-flat-sm"
-          )}
+          onClick={() => setCriteriaOpen(true)}
+          className="neu-flat-sm flex min-h-[48px] w-full items-center gap-2 rounded-2xl bg-paper px-3.5 py-2 text-left transition-all duration-[var(--duration-base)] ease-[var(--ease-glide)] hover:neu-glow hover:-translate-y-0.5 active:neu-pressed-sm active:scale-[0.98]"
         >
           <span className="min-w-0 flex-1">
             <span className="block truncate text-sm font-semibold text-ink">
-              {activeDesk?.name || "Desk neconfigurat"}
+              {profile?.display_name || user?.full_name || "Profil neconfigurat"}
             </span>
-            <span className="label-eyebrow block truncate text-stock-500">Profil activ</span>
+            <span className="label-eyebrow block truncate text-stock-500">
+              {profile?.domain ? domainLabel(profile.domain) : "Fără criterii"}
+            </span>
           </span>
-          <ChevronsUpDown size={15} className="shrink-0 text-stock-500" />
+          <SlidersHorizontal size={15} className="shrink-0 text-stock-500" />
         </button>
-
-        {deskMenuOpen && (
-          <div className="rise neu-flat absolute left-0 right-0 top-full z-30 mt-2 max-h-64 overflow-y-auto rounded-2xl bg-paper p-1.5">
-            {desks.map((d) => (
-              <button
-                key={d.id}
-                onClick={() => {
-                  switchDesk(d.id);
-                  setDeskMenuOpen(false);
-                }}
-                className={
-                  "flex min-h-[40px] w-full items-center justify-between gap-2 rounded-xl px-3 py-2 text-left text-sm transition-all duration-[var(--duration-base)] ease-[var(--ease-glide)] active:scale-[0.97] " +
-                  (activeDesk?.id === d.id
-                    ? "neu-pressed-sm font-semibold text-editorial"
-                    : "text-stock-600 hover:bg-[rgba(255,255,255,0.5)] hover:text-ink")
-                }
-              >
-                <span className="truncate">{d.name}</span>
-                {activeDesk?.id === d.id && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-editorial" />}
-              </button>
-            ))}
-            <button
-              onClick={() => {
-                setDeskMenuOpen(false);
-                setDeskManagerOpen(true);
-              }}
-              className="mt-0.5 min-h-[40px] w-full rounded-xl px-3 py-2 text-left text-sm font-semibold text-editorial hover:text-editorial-light"
-            >
-              + Administrare profiluri
-            </button>
-          </div>
-        )}
       </div>
 
       {/* Nav */}
@@ -209,9 +189,9 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
         </div>
       </div>
 
-      <PricingModal isOpen={pricingOpen} onClose={() => setPricingOpen(false)} tenantId={activeDesk?.tenant_id || ""} />
+      <PricingModal isOpen={pricingOpen} onClose={() => setPricingOpen(false)} />
       <AccountSettingsModal isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
-      <WorkspaceDeskModal isOpen={deskManagerOpen} onClose={() => setDeskManagerOpen(false)} />
+      <ProfileCriteriaModal isOpen={criteriaOpen} onClose={() => setCriteriaOpen(false)} />
     </div>
   );
 }

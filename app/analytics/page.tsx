@@ -46,7 +46,6 @@ type ToolId = (typeof TOOLS)[number]["id"];
 /* ---------------------------------------------------------------- copilot */
 
 function CopilotTool() {
-  const { activeTenantId } = useAuth();
   const [report, setReport] = useState<MacroReport | null>(null);
   const [messages, setMessages] = useState<{ sender: "user" | "ai"; text: string; degraded?: boolean }[]>([
     {
@@ -61,13 +60,13 @@ function CopilotTool() {
 
   useEffect(() => {
     let mounted = true;
-    fetch72hMarketReport(activeTenantId)
+    fetch72hMarketReport()
       .then((d) => mounted && setReport(d))
       .catch((e) => mounted && setReportError(e instanceof ApiError ? e.detail : "Raportul macro nu este disponibil."));
     return () => {
       mounted = false;
     };
-  }, [activeTenantId]);
+  }, []);
 
   // Keep the newest turn in view without yanking the whole page.
   useEffect(() => {
@@ -81,7 +80,7 @@ function CopilotTool() {
     setMessages((prev) => [...prev, { sender: "user", text: question }]);
     setLoading(true);
     try {
-      const data = await askCopilotChat(question, activeTenantId);
+      const data = await askCopilotChat(question);
       setMessages((prev) => [...prev, { sender: "ai", text: data.reply, degraded: data.degraded }]);
     } catch (e) {
       setMessages((prev) => [

@@ -6,11 +6,11 @@ import { CATEGORIES } from "@/lib/format";
 import { Button, Field, Input, Notice, Select } from "@/components/newsprint";
 
 /**
- * Shown by AuthGate the first time an individual signs in with no tenant
- * yet — the self-serve replacement for the old "Contactați administratorul"
- * dead end. Deliberately asks nothing company-shaped (no CUI, no company
- * name required): just the watch criteria that actually drives matching
- * server-side (see api.py's /api/v1/onboarding/complete).
+ * Shown by AuthGate the first time someone signs in without criteria yet.
+ * Deliberately asks nothing company-shaped (no CUI, no company name): just
+ * the watch criteria that drives the feed ranking server-side. The billing
+ * identity is optional and lives in the criteria editor, for the minority
+ * who need it on a generated document.
  */
 export default function OnboardingForm() {
   const { completeOnboarding } = useAuth();

@@ -1,8 +1,8 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { X } from "lucide-react";
-import { ApiError, deleteOwnAccount, generateProformaInvoice, updateTenantAlertSettings, type ProformaResult } from "@/lib/api";
-import { useAuth, tenantIdForDomain, type BusinessDesk } from "@/context/AuthContext";
+import { ApiError, deleteOwnAccount, generateProformaInvoice, updateMyAlertSettings, type ProformaResult } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 import { Badge, Button, Eyebrow, Field, Input, Notice, Select } from "@/components/newsprint";
 
 /* ------------------------------------------------------------ modal shell */
@@ -72,14 +72,14 @@ function Modal({
 const PLANS = [
   {
     id: "plan_acces_complet",
-    name: "Acces Complet Desk",
+    name: "Acces Complet",
     tier: "Standard",
     price: 499,
     features: [
       "Acces la toate registrele active de monitorizare",
       "Sinteze executive generate automat",
       "Export CSV al dosarelor calificate",
-      "1 profil de monitorizare · 2 utilizatori",
+      "Profil de monitorizare propriu",
     ],
   },
   {
@@ -93,21 +93,13 @@ const PLANS = [
       "Simulator șanse de câștig și marje",
       "Generator adrese Legea 544 și clarificări",
       "Radar concurență și propunere tehnică",
-      "Până la 10 utilizatori",
+      "Suport prioritar",
     ],
   },
 ] as const;
 
-export function PricingModal({
-  isOpen,
-  onClose,
-  tenantId,
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  tenantId: string;
-}) {
-  const { user, activeDesk } = useAuth();
+export function PricingModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  const { user, profile } = useAuth();
   const [selectedPlan, setSelectedPlan] = useState<string>("plan_founder_vip");
   const [companyName, setCompanyName] = useState("");
   const [cui, setCui] = useState("");
@@ -117,16 +109,17 @@ export function PricingModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Prefill from the active desk and the signed-in account rather than the
-  // hardcoded demo company that used to ship here — a real customer should
-  // never have to delete someone else's CUI before invoicing themselves.
+  // Prefill from the profile's own billing identity and the signed-in
+  // account rather than the hardcoded demo company that used to ship here —
+  // a real customer should never have to delete someone else's CUI before
+  // invoicing themselves.
   useEffect(() => {
     if (!isOpen) return;
-    setCompanyName(activeDesk?.name || "");
-    setCui(activeDesk?.cui || "");
+    setCompanyName(profile?.company_name || "");
+    setCui(profile?.cui || "");
     setEmail(user?.email || "");
     setError(null);
-  }, [isOpen, activeDesk, user]);
+  }, [isOpen, profile, user]);
 
   const plan = PLANS.find((p) => p.id === selectedPlan);
 
@@ -140,7 +133,6 @@ export function PricingModal({
     try {
       setProforma(
         await generateProformaInvoice({
-          tenant_id: tenantId,
           plan_id: selectedPlan,
           company_name: companyName,
           cui_fiscal: cui,
@@ -293,7 +285,7 @@ export function PricingModal({
 /* ---------------------------------------------------------------- account */
 
 export function AccountSettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  const { user, preferences, updatePreferences, signInWithGoogle, signInWithEmail, signOut } = useAuth();
+  const { user, profile, preferences, updatePreferences, signInWithGoogle, signInWithEmail, signOut } = useAuth();
   const [emailInput, setEmailInput] = useState("");
   const [alertEmail, setAlertEmail] = useState("");
   const [scoreThreshold, setScoreThreshold] = useState(9.0);
@@ -341,8 +333,8 @@ export function AccountSettingsModal({ isOpen, onClose }: { isOpen: boolean; onC
   const handleSave = async () => {
     // Local preferences drive the manual "trimite-mi acest dosar" button
     // and client-side display filtering; they're legitimate on their own.
-    // But automated alerts (notifier.py's dispatch_lead_alert_to_tenant)
-    // read tenants.alert_emails/min_alert_score from Postgres, not this —
+    // But automated alerts (notifier.py's dispatch_lead_alert_to_user)
+    // read alert_email/min_alert_score from Postgres, not this —
     // saving only locally used to look successful while changing nothing
     // about where real alerts actually go.
     updatePreferences({
@@ -350,14 +342,14 @@ export function AccountSettingsModal({ isOpen, onClose }: { isOpen: boolean; onC
       auto_alert_score: Number(scoreThreshold),
       telegram_chat_id: telegramChatId,
     });
-    if (!user?.tenant_id || !alertEmail.trim()) {
+    if (!user || !alertEmail.trim()) {
       setSaved(true);
       return;
     }
     setSaving(true);
     setError(null);
     try {
-      await updateTenantAlertSettings(user.tenant_id, {
+      await updateMyAlertSettings({
         alert_email: alertEmail.trim(),
         min_alert_score: Number(scoreThreshold),
         // Always sent, so clearing the field genuinely clears it
@@ -438,8 +430,9 @@ export function AccountSettingsModal({ isOpen, onClose }: { isOpen: boolean; onC
               <tbody>
                 {[
                   ["Cont", user.email],
-                  ["Rol", user.role],
-                  ["Profil intelligence", user.tenant_id],
+                  ["Domeniu urmărit", profile?.domain ? (DOMAINS.find((d) => d.id === profile.domain)?.label ?? profile.domain) : ""],
+                  ["Județe", (profile?.target_counties || []).join(", ")],
+                  ["Cuvinte-cheie", (profile?.keywords || []).join(", ")],
                 ].map(([label, value]) => (
                   <tr key={label} className="border-b border-divider last:border-b-0">
                     <th scope="row" className="w-44 whitespace-nowrap border-r border-divider bg-stock-100 px-3 py-2.5 font-sans text-[10px] font-semibold uppercase tracking-widest text-stock-500">
@@ -539,7 +532,7 @@ export function AccountSettingsModal({ isOpen, onClose }: { isOpen: boolean; onC
   );
 }
 
-/* ------------------------------------------------------------------ desks */
+/* -------------------------------------------------------------- criteria */
 
 const DOMAINS = [
   { id: "infrastructura", label: "Infrastructură & Transporturi" },
@@ -549,161 +542,142 @@ const DOMAINS = [
   { id: "digitalizare", label: "Digitalizare, IT & Smart City" },
 ];
 
-export function WorkspaceDeskModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  const { desks, activeDesk, createDesk, deleteDesk, switchDesk } = useAuth();
-  const [isCreating, setIsCreating] = useState(false);
-  const [name, setName] = useState("");
+/**
+ * Edit the matching criteria after signup.
+ *
+ * This replaces a "desk manager" that maintained a browser-local list of
+ * company profiles, each stamped with a backend tenant id. There is one
+ * profile per user now, so there is nothing to manage — but editing the
+ * criteria was genuinely unreachable before (the backend route existed and
+ * nothing called it), so that is what this does instead.
+ */
+export function ProfileCriteriaModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  const { profile, updateProfile } = useAuth();
+  const [displayName, setDisplayName] = useState("");
+  const [domain, setDomain] = useState(DOMAINS[0].id);
+  const [counties, setCounties] = useState("");
+  const [keywords, setKeywords] = useState("");
+  const [excludeKeywords, setExcludeKeywords] = useState("");
+  const [minValue, setMinValue] = useState("");
+  const [companyName, setCompanyName] = useState("");
   const [cui, setCui] = useState("");
-  const [domain, setDomain] = useState("infrastructura");
-  const [counties, setCounties] = useState("Cluj, Iași, București");
-  const [minBudget, setMinBudget] = useState(5000000);
-  const [keywords, setKeywords] = useState("drum, pod, asfalt, consolidare");
-  const [divisionName, setDivisionName] = useState("Divizia principală");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleCreate = () => {
-    if (!name.trim()) {
-      setError("Completați o denumire pentru acest profil.");
+  useEffect(() => {
+    if (!isOpen || !profile) return;
+    setDisplayName(profile.display_name || "");
+    setDomain(profile.domain || DOMAINS[0].id);
+    setCounties((profile.target_counties || []).join(", "));
+    setKeywords((profile.keywords || []).join(", "));
+    setExcludeKeywords((profile.exclude_keywords || []).join(", "));
+    setMinValue(profile.min_value_ron ? String(profile.min_value_ron) : "");
+    setCompanyName(profile.company_name || "");
+    setCui(profile.cui || "");
+    setSaved(false);
+    setError(null);
+  }, [isOpen, profile]);
+
+  const splitList = (value: string) =>
+    value
+      .split(",")
+      .map((v) => v.trim())
+      .filter(Boolean);
+
+  const handleSave = async () => {
+    const keywordList = splitList(keywords);
+    if (keywordList.length === 0) {
+      setError("Păstrați cel puțin un cuvânt-cheie — fără el nu se poate calcula nicio potrivire.");
       return;
     }
-    const countyList = counties.split(",").map((c) => c.trim()).filter(Boolean);
-    const keywordList = keywords.split(",").map((k) => k.trim().toLowerCase()).filter(Boolean);
-
-    const desk: Omit<BusinessDesk, "id"> = {
-      name: name.trim(),
-      cui: cui.trim() || undefined,
-      primary_domain: domain,
-      // Binds the desk to a real backend profile. Without this the feed
-      // request carries an id the matching engine does not recognise and
-      // returns nothing at all.
-      tenant_id: tenantIdForDomain(domain),
-      target_counties: countyList.length ? countyList : ["Toate"],
-      min_budget_ron: Number(minBudget) || 1_000_000,
-      keywords: keywordList,
-      divisions: [{ id: "div_" + Date.now(), name: divisionName || "Divizia principală", keywords: keywordList }],
-    };
-
-    createDesk(desk);
-    setIsCreating(false);
-    setName("");
-    setCui("");
+    setSaving(true);
     setError(null);
-    onClose();
+    const { error: apiError } = await updateProfile({
+      display_name: displayName.trim() || undefined,
+      domain,
+      target_counties: splitList(counties),
+      min_value_ron: minValue ? Number(minValue) : 0,
+      keywords: keywordList,
+      exclude_keywords: splitList(excludeKeywords),
+      company_name: companyName.trim() || undefined,
+      cui: cui.trim() || undefined,
+    });
+    setSaving(false);
+    if (apiError) setError(apiError);
+    else setSaved(true);
   };
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      size="lg"
-      title="Profiluri de monitorizare"
-      subtitle="Fiecare profil este legat de o configurație de intelligence care determină ce oportunități vă sunt arătate."
+      title="Criterii de monitorizare"
+      subtitle="Ce urmărim pentru dvs. Registrul afișează toată piața, dar ordonată după aceste criterii."
     >
-      {!isCreating ? (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between gap-3">
-            <Eyebrow>{desks.length} profiluri configurate</Eyebrow>
-            <Button onClick={() => setIsCreating(true)}>+ Adaugă profil</Button>
-          </div>
+      <div className="space-y-5">
+        <Field label="Numele dvs. (opțional)">
+          <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Ion Popescu" />
+        </Field>
 
-          <div className="divide-y divide-divider neu-flat overflow-hidden rounded-3xl bg-paper">
-            {desks.map((d) => (
-              <div
-                key={d.id}
-                className={
-                  "flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between " +
-                  (d.id === activeDesk?.id ? "bg-editorial-soft" : "")
-                }
-              >
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="font-display text-lg font-semibold leading-tight">{d.name}</h3>
-                    {d.id === activeDesk?.id && <Badge tone="accent">Activ</Badge>}
-                  </div>
-                  <p className="font-mono mt-1 text-[11px] text-stock-500">
-                    {[d.cui, d.primary_domain, d.tenant_id].filter(Boolean).join(" · ")}
-                  </p>
-                  <p className="font-body mt-1 text-xs text-stock-600">
-                    Județe: {d.target_counties?.join(", ") || "—"}
-                  </p>
-                </div>
-                <div className="flex shrink-0 gap-2">
-                  {d.id !== activeDesk?.id && (
-                    <Button variant="outline" onClick={() => switchDesk(d.id)}>
-                      Comută
-                    </Button>
-                  )}
-                  {desks.length > 1 && (
-                    <Button variant="danger" onClick={() => deleteDesk(d.id)}>
-                      Șterge
-                    </Button>
-                  )}
-                </div>
-              </div>
+        <Field label="Domeniu principal de interes">
+          <Select value={domain} onChange={(e) => setDomain(e.target.value)}>
+            {DOMAINS.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.label}
+              </option>
             ))}
-          </div>
+          </Select>
+        </Field>
 
-          <Notice title="Notă">
-            Profilurile sunt salvate local în acest browser. Nu sunt sincronizate între dispozitive.
-          </Notice>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between border-b border-divider pb-3">
-            <Eyebrow>Profil nou</Eyebrow>
-            <button onClick={() => setIsCreating(false)} className="text-sm font-medium text-editorial hover:brightness-110">
-              ← Înapoi
-            </button>
-          </div>
+        <Field label="Județe de interes (separate prin virgulă)">
+          <Input value={counties} onChange={(e) => setCounties(e.target.value)} placeholder="Cluj, Iasi, Timis" />
+        </Field>
 
-          <Field label="Denumire profil">
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="ex. Infrastructură & Transporturi" />
-          </Field>
+        <Field
+          label="Cuvinte-cheie (separate prin virgulă)"
+          hint="Dovada obligatorie a unei potriviri. Județul și domeniul o întăresc, dar nu o pot crea singure."
+        >
+          <Input value={keywords} onChange={(e) => setKeywords(e.target.value)} placeholder="drum, pod, asfaltare" />
+        </Field>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Cod fiscal (CUI) — opțional" hint="Completați doar dacă monitorizați în numele unei firme înregistrate.">
-              <Input value={cui} onChange={(e) => setCui(e.target.value)} placeholder="RO34567890" />
+        <Field
+          label="Cuvinte de exclus (opțional)"
+          hint="Dosarele care le conțin coboară la baza registrului — nu sunt ascunse."
+        >
+          <Input
+            value={excludeKeywords}
+            onChange={(e) => setExcludeKeywords(e.target.value)}
+            placeholder="curatenie, catering"
+          />
+        </Field>
+
+        <Field label="Valoare minimă a contractului, RON (opțional)">
+          <Input type="number" min="0" value={minValue} onChange={(e) => setMinValue(e.target.value)} placeholder="0" />
+        </Field>
+
+        <div className="neu-pressed rounded-2xl bg-paper p-4">
+          <Eyebrow className="mb-3">Date de facturare (opțional)</Eyebrow>
+          <p className="font-body mb-3 text-xs leading-relaxed text-stock-500">
+            Folosite doar pentru a precompleta raportul de eligibilitate, documentele
+            generate și factura proformă. Nu sunt necesare pentru monitorizare.
+          </p>
+          <div className="space-y-4">
+            <Field label="Denumire companie">
+              <Input value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="SC Exemplu SRL" />
             </Field>
-            <Field label="Domeniu strategic" hint="Determină profilul de intelligence folosit la potrivire.">
-              <Select value={domain} onChange={(e) => setDomain(e.target.value)}>
-                {DOMAINS.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.label}
-                  </option>
-                ))}
-              </Select>
+            <Field label="Cod fiscal (CUI)">
+              <Input value={cui} onChange={(e) => setCui(e.target.value)} placeholder="RO12345678" />
             </Field>
-          </div>
-
-          <Field label="Județe vizate" hint="Separate prin virgulă.">
-            <Input value={counties} onChange={(e) => setCounties(e.target.value)} />
-          </Field>
-
-          <Field label="Cuvinte-cheie monitorizate" hint="Separate prin virgulă.">
-            <Input value={keywords} onChange={(e) => setKeywords(e.target.value)} />
-          </Field>
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Nume divizie principală">
-              <Input value={divisionName} onChange={(e) => setDivisionName(e.target.value)} />
-            </Field>
-            <Field label="Buget minim proiect (RON)">
-              <Input type="number" value={minBudget} onChange={(e) => setMinBudget(Number(e.target.value))} min={0} />
-            </Field>
-          </div>
-
-          {error && <Notice tone="alert">{error}</Notice>}
-
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <Button onClick={handleCreate} className="sm:flex-1">
-              Salvează și activează
-            </Button>
-            <Button variant="outline" onClick={() => setIsCreating(false)}>
-              Anulează
-            </Button>
           </div>
         </div>
-      )}
+
+        {error && <Notice tone="alert">{error}</Notice>}
+
+        <Button onClick={handleSave} fullWidth disabled={saving}>
+          {saving ? "Se salvează…" : saved ? "Criterii salvate" : "Salvează criteriile"}
+        </Button>
+      </div>
     </Modal>
   );
 }

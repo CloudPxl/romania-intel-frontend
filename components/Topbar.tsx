@@ -5,7 +5,7 @@ import { pageTitleForPath } from "@/components/Sidebar";
 
 export default function Topbar() {
   const pathname = usePathname();
-  const { user, activeDesk } = useAuth();
+  const { user, profile } = useAuth();
 
   if (pathname === "/login") return null;
 
@@ -19,7 +19,7 @@ export default function Topbar() {
       <div className="neu-flat glass flex h-14 shrink-0 items-center justify-between rounded-2xl px-6">
         <div className="flex items-center gap-2 text-sm">
           <span className="text-stock-500 transition-colors duration-[var(--duration-base)]">
-            {activeDesk?.name || "RO-INTEL"}
+            {profile?.display_name || "RO-INTEL"}
           </span>
           <span className="text-stock-400">/</span>
           <span key={page} className="rise font-semibold text-ink">

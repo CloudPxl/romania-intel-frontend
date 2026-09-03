@@ -63,7 +63,7 @@ const SECTIONS = [
 ];
 
 export default function HomePage() {
-  const { user, activeDesk } = useAuth();
+  const { user, profile } = useAuth();
   const [stats, setStats] = useState<MarketTrends | null>(null);
   const [loading, setLoading] = useState(true);
   const [dateline, setDateline] = useState("");
@@ -170,7 +170,7 @@ export default function HomePage() {
       >
         <div className="border-b border-divider p-5 sm:p-8 lg:col-span-8 lg:border-b-0 lg:border-r">
           <Eyebrow className="text-editorial">
-            {user ? `Desk activ · ${activeDesk?.name ?? ""}` : "Ediția publică"}
+            {user ? `Profil activ · ${profile?.display_name ?? user.email}` : "Ediția publică"}
           </Eyebrow>
           <h2 className="font-display mt-3 text-2xl font-semibold leading-tight tracking-tight sm:text-4xl">
             {firstName ? `Bun venit, ${firstName}.` : "Contractele publice se decid înainte de a fi publicate."}

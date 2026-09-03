@@ -7,13 +7,14 @@ import AuthGate from "@/components/AuthGate";
 import {
   ApiError,
   addLeadToPipeline,
-  downloadTenantCsv,
-  fetchTenantFeed,
+  downloadMyCsv,
+  fetchMyFeed,
   triggerEmailAlert,
   type Lead,
 } from "@/lib/api";
 import { CATEGORIES, categoryLabel, formatDate, formatLeadValue, formatRon } from "@/lib/format";
 import {
+  Badge,
   Button,
   DegradedBanner,
   EmptyState,
@@ -36,7 +37,7 @@ type SortId = (typeof SORTS)[number]["id"];
 
 function NewsletterContent() {
   const router = useRouter();
-  const { user, preferences, activeDesk, activeTenantId } = useAuth();
+  const { user, preferences, profile } = useAuth();
 
   const [leads, setLeads] = useState<Lead[]>([]);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
@@ -47,7 +48,9 @@ function NewsletterContent() {
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
 
   const [activeCategory, setActiveCategory] = useState<string>("all");
-  const [selectedDivision, setSelectedDivision] = useState<string>("all");
+  // The feed now returns the WHOLE market ranked, not just matches, so
+  // this toggle is what lets someone go back to just their own.
+  const [onlyMatches, setOnlyMatches] = useState(false);
   const [selectedCounty, setSelectedCounty] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<SortId>("score_desc");
@@ -62,7 +65,7 @@ function NewsletterContent() {
       else setLoading(true);
       setError(null);
       try {
-        const feed = await fetchTenantFeed(activeTenantId, undefined, activeCategory, force);
+        const feed = await fetchMyFeed(activeCategory, force);
         setLeads(feed.leads || []);
         setDegraded(Boolean(feed.degraded));
         setUpdatedAt(feed.data_updated_at);
@@ -77,7 +80,7 @@ function NewsletterContent() {
         setRefreshing(false);
       }
     },
-    [activeTenantId, activeCategory]
+    [activeCategory]
   );
 
   useEffect(() => {
@@ -105,9 +108,9 @@ function NewsletterContent() {
 
   const visibleLeads = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    const division = activeDesk?.divisions?.find((d) => d.id === selectedDivision);
 
     const filtered = leads.filter((l) => {
+      if (onlyMatches && !l.match?.is_match) return false;
       if (selectedCounty !== "all" && (l.county || "").toLowerCase() !== selectedCounty.toLowerCase()) return false;
       if (query) {
         const haystack = [l.project_title, l.entity_name, l.locality, l.sub_category, l.county]
@@ -116,10 +119,6 @@ function NewsletterContent() {
           .toLowerCase();
         if (!haystack.includes(query)) return false;
       }
-      if (division?.keywords?.length) {
-        const text = [l.project_title, l.executive_summary, l.sub_category].filter(Boolean).join(" ").toLowerCase();
-        if (!division.keywords.some((k) => text.includes(k.toLowerCase()))) return false;
-      }
       return true;
     });
 
@@ -127,16 +126,19 @@ function NewsletterContent() {
       if (sortBy === "budget_desc") return (b.financial_value_ron || 0) - (a.financial_value_ron || 0);
       if (sortBy === "budget_asc") return (a.financial_value_ron || 0) - (b.financial_value_ron || 0);
       if (sortBy === "date_desc") return (b.published_date || "").localeCompare(a.published_date || "");
-      return (b.opportunity_score || 0) - (a.opportunity_score || 0);
+      // Default: leave the server's relevance order alone. Re-sorting by
+      // opportunity_score here would discard the ranking the whole feed
+      // was just built around.
+      return 0;
     });
-  }, [leads, searchQuery, selectedCounty, selectedDivision, sortBy, activeDesk]);
+  }, [leads, searchQuery, selectedCounty, onlyMatches, sortBy]);
 
   const totalValue = visibleLeads.reduce((sum, l) => sum + (l.financial_value_ron || 0), 0);
 
   const handleSaveToPipeline = async (lead: Lead) => {
     setBusyAction("pipeline");
     try {
-      const res = await addLeadToPipeline(activeTenantId, lead);
+      const res = await addLeadToPipeline(lead);
       setToast(res.status === "success" ? "Dosar salvat în pipeline." : res.message || "Nu s-a putut salva dosarul.");
     } catch (e) {
       setToast(e instanceof ApiError ? e.detail : "Nu s-a putut salva dosarul.");
@@ -169,7 +171,7 @@ function NewsletterContent() {
   const handleExport = async () => {
     setBusyAction("csv");
     try {
-      await downloadTenantCsv(activeTenantId);
+      await downloadMyCsv();
     } catch (e) {
       setToast(e instanceof ApiError ? e.detail : "Exportul CSV a eșuat.");
     } finally {
@@ -201,25 +203,32 @@ function NewsletterContent() {
         </div>
       </div>
 
-      {(activeDesk?.divisions?.length ?? 0) > 0 && (
-        <div>
-          <Eyebrow className="mb-2">Divizii desk</Eyebrow>
-          <div className="flex flex-col gap-0.5">
-            {[{ id: "all", name: "Toate liniile" }, ...(activeDesk?.divisions ?? [])].map((d) => (
-              <button
-                key={d.id}
-                onClick={() => setSelectedDivision(d.id)}
-                className={
-                  "min-h-[40px] rounded-lg px-2.5 py-2 text-left font-body text-sm transition-colors " +
-                  (selectedDivision === d.id ? "neu-pressed-sm bg-editorial-soft font-medium text-editorial" : "text-stock-600 hover:neu-flat-sm")
-                }
-              >
-                {"name" in d ? d.name : ""}
-              </button>
-            ))}
-          </div>
+      <div>
+        <Eyebrow className="mb-2">Relevanță</Eyebrow>
+        <div className="flex flex-col gap-0.5">
+          {[
+            { id: false, label: "Toată piața" },
+            { id: true, label: "Doar potrivirile mele" },
+          ].map((opt) => (
+            <button
+              key={String(opt.id)}
+              onClick={() => setOnlyMatches(opt.id)}
+              className={
+                "min-h-[40px] rounded-lg px-2.5 py-2 text-left font-body text-sm transition-colors " +
+                (onlyMatches === opt.id
+                  ? "neu-pressed-sm bg-editorial-soft font-medium text-editorial"
+                  : "text-stock-600 hover:neu-flat-sm")
+              }
+            >
+              {opt.label}
+            </button>
+          ))}
         </div>
-      )}
+        <p className="font-body mt-2 px-2.5 text-[11px] leading-snug text-stock-500">
+          Registrul afișează toată piața, ordonată după potrivirea cu criteriile
+          dvs. Dosarele potrivite sunt marcate.
+        </p>
+      </div>
 
       <Field label="Județ">
         <Select value={selectedCounty} onChange={(e) => setSelectedCounty(e.target.value)}>
@@ -245,7 +254,7 @@ function NewsletterContent() {
   return (
     <main className="mx-auto w-full max-w-screen-xl flex-1 px-4 py-6 sm:py-8">
       <header className="border-b border-divider pb-6">
-        <Eyebrow className="text-editorial">Registrul zilnic · {activeDesk?.name}</Eyebrow>
+        <Eyebrow className="text-editorial">Registrul zilnic · {profile?.display_name ?? ""}</Eyebrow>
         <div className="mt-2 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <h1 className="font-display text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">
@@ -328,17 +337,30 @@ function NewsletterContent() {
           ) : (
             <ul className="divide-y divide-divider neu-flat overflow-hidden rounded-3xl bg-paper">
               {visibleLeads.map((lead) => {
-                const locked = Boolean(lead.is_locked);
+                const matched = Boolean(lead.match?.is_match);
                 return (
                   <li key={lead.source_id}>
                     <button
-                      onClick={() => !locked && setSelectedLead(lead)}
-                      disabled={locked}
-                      className="flex w-full flex-col gap-3 p-4 text-left transition-all duration-300 hover:neu-pressed-sm disabled:cursor-not-allowed sm:flex-row sm:gap-5 sm:p-5"
+                      onClick={() => setSelectedLead(lead)}
+                      className={
+                        "flex w-full flex-col gap-3 p-4 text-left transition-all duration-300 hover:neu-pressed-sm sm:flex-row sm:gap-5 sm:p-5 " +
+                        // A matched row gets a left rail in the accent
+                        // colour. Deliberately not a filled background: in
+                        // this design depth is shadow, and a tinted row
+                        // would read as a different material.
+                        (matched ? "border-l-[3px] border-editorial" : "border-l-[3px] border-transparent")
+                      }
                     >
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                           <span className="label-eyebrow text-editorial">{categoryLabel(lead.category)}</span>
+                          {matched && (
+                            <Badge tone="accent">
+                              {/* Names WHY it matched, so the ranking is
+                                  explainable rather than magic. */}
+                              Potrivire · {lead.match?.reasons.join(", ")}
+                            </Badge>
+                          )}
                           {lead.sub_category && (
                             <span className="label-eyebrow text-stock-500">{lead.sub_category}</span>
                           )}
@@ -349,8 +371,7 @@ function NewsletterContent() {
 
                         <h2
                           className={
-                            "font-display mt-2 text-xl font-bold leading-snug tracking-tight sm:text-2xl " +
-                            (locked ? "blur-[3px] select-none" : "")
+                            "font-display mt-2 text-xl font-bold leading-snug tracking-tight sm:text-2xl"
                           }
                         >
                           {lead.project_title}
@@ -364,8 +385,7 @@ function NewsletterContent() {
                         {lead.executive_summary && (
                           <p
                             className={
-                              "font-body mt-2 line-clamp-2 text-sm leading-relaxed text-stock-700 " +
-                              (locked ? "blur-[4px] select-none" : "")
+                              "font-body mt-2 line-clamp-2 text-sm leading-relaxed text-stock-700"
                             }
                           >
                             {lead.executive_summary}
@@ -398,7 +418,7 @@ function NewsletterContent() {
                           </span>
                         )}
                         <span className="label-eyebrow whitespace-nowrap text-editorial">
-                          {locked ? "Blocat" : "Deschide →"}
+                          Deschide →
                         </span>
                       </div>
                     </button>

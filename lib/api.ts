@@ -135,25 +135,26 @@ export interface Lead {
   opportunity_score?: number;
   executive_summary?: string;
   sales_pitch_angle?: string;
-  is_locked?: boolean;
-  product_matches?: { product_id: string; name?: string }[];
+  /**
+   * Why this lead is where it is in the feed. Null when the user hasn't
+   * onboarded yet (nothing to rank against). Computed by the ranking
+   * query, not recomputed client-side.
+   */
+  match?: {
+    score: number;
+    is_match: boolean;
+    excluded: boolean;
+    reasons: string[];
+  } | null;
 }
 
-export interface TenantFeedResponse {
-  tenant_id: string;
+export interface FeedResponse {
   count: number;
   leads: Lead[];
   data_source: "postgres" | "file-cache";
   data_updated_at: string | null;
   /** True when Postgres was unreachable and this is a stale disk snapshot. */
   degraded?: boolean;
-}
-
-export interface TenantProfile {
-  tenant_id: string;
-  name: string;
-  primary_domain: string;
-  products: { product_id: string; name: string; domain: string }[];
 }
 
 export interface MarketTrends {
@@ -194,12 +195,9 @@ export interface MarketTrendFilters {
 
 export interface Deal {
   deal_id: string;
-  tenant_id?: string;
-  product_id?: string | null;
   opportunity_id?: string | null;
   project_title: string;
   stage: string;
-  assigned_to?: string | null;
   target_margin_pct?: number | null;
   estimated_value_ron?: number | null;
   proposed_price?: number | null;
@@ -210,14 +208,11 @@ export interface Deal {
 }
 
 export interface PipelineResponse {
-  tenant_id: string;
   stages: string[];
   deals: Deal[];
 }
 
 export interface PipelineMetrics {
-  tenant_id: string;
-  product_id: string | null;
   total_deals: number;
   active_deals: number;
   won_deals: number;
@@ -260,14 +255,30 @@ export interface SyncedUser {
   email: string;
   full_name: string;
   /**
-   * Null when this user has signed in but hasn't been provisioned to a
-   * tenant yet (no matching row from scripts/provision_tenant.py on the
-   * backend) — never a default/guessed tenant. AuthContext treats this
-   * the same as a rejected session rather than silently picking one.
+   * False when this user has signed in but hasn't set up their criteria
+   * yet. AuthContext shows the onboarding form rather than an empty
+   * dashboard.
    */
-  tenant_id: string | null;
-  role: string;
+  onboarded: boolean;
   avatar_url?: string;
+}
+
+/** A user's own matching criteria and alert settings. */
+export interface UserProfile {
+  id: string;
+  email: string;
+  display_name: string | null;
+  domain: string | null;
+  target_counties: string[];
+  keywords: string[];
+  exclude_keywords: string[];
+  min_value_ron: number;
+  company_name: string | null;
+  cui: string | null;
+  alert_email: string | null;
+  telegram_chat_id: string | null;
+  min_alert_score: number | null;
+  onboarded_at: string | null;
 }
 
 /**
@@ -281,16 +292,11 @@ export async function syncBackendAuth(
   email: string,
   fullName?: string,
   avatarUrl?: string
-): Promise<{ status: string; user: SyncedUser }> {
+): Promise<{ status: string; user: SyncedUser; profile: UserProfile | null }> {
   return apiFetch("/api/v1/auth/sync", {
     method: "POST",
     body: { email, full_name: fullName, avatar_url: avatarUrl },
   });
-}
-
-/** The intelligence profiles a desk can be bound to. Public route. */
-export async function fetchTenantProfiles(): Promise<{ tenants: TenantProfile[]; default_tenant_id: string }> {
-  return apiFetch("/api/v1/tenants", { anonymous: true });
 }
 
 export interface OnboardingProfile {
@@ -300,95 +306,93 @@ export interface OnboardingProfile {
   min_value_ron: number;
   keywords: string[];
   exclude_keywords: string[];
+  /** Optional, and only for paperwork that names a legal entity. */
+  company_name?: string;
+  cui?: string;
   /** Only meaningful on the initial signup call — see completeOnboarding. */
   consent_accepted?: boolean;
 }
 
-/**
- * Self-serve replacement for the old admin-only provisioning flow: a
- * signed-in user with tenant_id === null on SyncedUser calls this once to
- * create their own individual account (own tenant, own product line), then
- * the caller must re-run syncBackendAuth to pick up the confirmed
- * tenant_id — this endpoint does not itself return a session-shaped object.
- */
-export async function completeOnboarding(profile: OnboardingProfile): Promise<{ status: string; tenant_id: string }> {
-  return apiFetch("/api/v1/onboarding/complete", { method: "POST", body: profile });
+/** This user's own profile. There is no route for anyone else's. */
+export async function fetchMyProfile(): Promise<{
+  user_id: string;
+  email: string;
+  onboarded: boolean;
+  profile: UserProfile | null;
+}> {
+  return apiFetch("/api/v1/me");
 }
 
-/** Lets an already-onboarded individual change their own watch criteria later. */
-export async function updateTenantProfile(tenantId: string, profile: OnboardingProfile): Promise<{ status: string }> {
-  return apiFetch(`/api/v1/tenants/${tenantId}/profile`, { method: "PUT", body: profile });
+/** One-time setup after a first sign-in. Returns the configured profile. */
+export async function completeOnboarding(
+  profile: OnboardingProfile
+): Promise<{ status: string; profile: UserProfile }> {
+  return apiFetch("/api/v1/me/onboarding", { method: "POST", body: profile });
+}
+
+/** Change the watch criteria later. */
+export async function updateMyProfile(
+  profile: OnboardingProfile
+): Promise<{ status: string; profile: UserProfile }> {
+  return apiFetch("/api/v1/me/profile", { method: "PUT", body: profile });
 }
 
 /**
  * Where automated alerts actually go and at what score they fire — separate
- * from updateTenantProfile (matching criteria) because it's a different
- * backend table (tenants.alert_emails/min_alert_score, not tenant_products).
- * Before this existed, the Settings modal's "Alerte email" panel wrote only
- * to localStorage, so changing it here had no effect on real alert dispatch.
+ * from the criteria because it's a different concern. Before this existed
+ * the Settings modal wrote only to localStorage, so changing it had no
+ * effect on real alert dispatch.
  */
-export async function updateTenantAlertSettings(
-  tenantId: string,
+export async function updateMyAlertSettings(
   settings: { alert_email: string; min_alert_score: number; telegram_chat_id?: string }
 ): Promise<{ status: string }> {
-  return apiFetch(`/api/v1/tenants/${tenantId}/alert-settings`, { method: "PUT", body: settings });
+  return apiFetch("/api/v1/me/alert-settings", { method: "PUT", body: settings });
 }
 
 /**
- * Self-serve GDPR erasure — irreversible. Deletes this identity's own
- * user_profiles row and, if no other identity still shares it, the tenant
- * and everything keyed to it (backend: db.delete_own_account). Also asks
- * Supabase to remove the auth.users row itself when the backend has a
- * service-role key configured; `auth_identity_deleted` in the response
- * says whether that half actually happened.
+ * Self-serve GDPR erasure — irreversible. Deletes the profile row; the
+ * database cascades everything keyed to it (saved deals, their history,
+ * the alert log). Also asks Supabase to remove the auth.users row when the
+ * backend has a service-role key configured; `auth_identity_deleted` says
+ * whether that half actually happened.
  */
 export async function deleteOwnAccount(): Promise<{ status: string; auth_identity_deleted: boolean }> {
-  return apiFetch("/api/v1/account", { method: "DELETE" });
+  return apiFetch("/api/v1/me", { method: "DELETE" });
 }
 
 /* ----------------------------------------------------------------- feed */
 
-export async function fetchTenantFeed(
-  tenantId: string,
-  productId?: string,
-  category?: string,
-  forceRefresh = false
-): Promise<TenantFeedResponse> {
+/**
+ * The whole market, ranked so this user's matches come first.
+ *
+ * A soft filter: nothing is hidden. Each lead carries a `match` object
+ * explaining its position, so a card can be badged with the reason rather
+ * than the ordering being unexplained.
+ */
+export async function fetchMyFeed(category?: string, forceRefresh = false): Promise<FeedResponse> {
   return apiFetch(
-    `/api/v1/tenants/${encodeURIComponent(tenantId)}/feed` +
+    "/api/v1/me/feed" +
       qs({
         force_refresh: forceRefresh,
-        product_id: productId,
         category: category && category !== "all" ? category : undefined,
       })
   );
 }
 
-/** The raw, unmatched feed across every tenant. Authenticated. */
-export async function fetchNewsletterFeed(): Promise<{ updated_at: string | null; count: number; leads: Lead[]; degraded?: boolean }> {
-  return apiFetch("/api/v1/newsletter/feed");
-}
-
-export async function fetchTenantProducts(
-  tenantId: string
-): Promise<{ tenant_id: string; company_name: string; products: { product_id: string; name: string }[] }> {
-  return apiFetch(`/api/v1/tenants/${encodeURIComponent(tenantId)}/products`);
-}
-
 /**
- * Downloads the tenant's qualified leads as CSV.
+ * Downloads the user's qualified leads as CSV.
  *
  * Goes through fetch + object URL rather than a plain <a download href>:
  * the export route is authenticated now, and a bare link cannot carry an
  * Authorization header, so the old link would just render a 401 page.
  */
-export async function downloadTenantCsv(tenantId: string): Promise<void> {
-  const res = await apiFetch<Response>(`/api/v1/tenants/${encodeURIComponent(tenantId)}/export/csv`, { raw: true });
+export async function downloadMyCsv(): Promise<void> {
+  const res = await apiFetch<Response>("/api/v1/me/export/csv", { raw: true });
   const blob = await res.blob();
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `RO-INTEL-${tenantId}.csv`;
+  link.download = "RO-INTEL-export.csv";
   document.body.appendChild(link);
   link.click();
   link.remove();
@@ -408,36 +412,39 @@ export interface MacroReport {
   strategic_recommendation?: string;
 }
 
-export async function fetch72hMarketReport(tenantId: string): Promise<MacroReport> {
-  return apiFetch(`/api/v1/analytics/market-report-72h${qs({ tenant_id: tenantId })}`);
+export async function fetch72hMarketReport(): Promise<MacroReport> {
+  return apiFetch("/api/v1/analytics/market-report-72h");
 }
 
-export async function askCopilotChat(query: string, tenantId: string): Promise<{ reply: string; degraded?: boolean }> {
-  return apiFetch("/api/v1/copilot/chat", { method: "POST", body: { query, tenant_id: tenantId } });
+export async function askCopilotChat(query: string): Promise<{ reply: string; degraded?: boolean }> {
+  return apiFetch("/api/v1/copilot/chat", { method: "POST", body: { query } });
 }
 
 /* ------------------------------------------------------------- pipeline */
 
-export async function fetchTenantPipeline(tenantId: string, productId?: string): Promise<PipelineResponse> {
-  return apiFetch(`/api/v1/tenants/${encodeURIComponent(tenantId)}/pipeline${qs({ product_id: productId })}`);
+export async function fetchMyPipeline(): Promise<PipelineResponse> {
+  return apiFetch("/api/v1/me/pipeline");
 }
 
-export async function fetchPipelineMetrics(tenantId: string, productId?: string): Promise<PipelineMetrics> {
-  return apiFetch(`/api/v1/tenants/${encodeURIComponent(tenantId)}/pipeline/metrics${qs({ product_id: productId })}`);
+export async function fetchPipelineMetrics(): Promise<PipelineMetrics> {
+  return apiFetch("/api/v1/me/pipeline/metrics");
 }
 
-export async function addLeadToPipeline(tenantId: string, leadData: Lead | Record<string, unknown>): Promise<DealMutationResult> {
-  return apiFetch(`/api/v1/tenants/${encodeURIComponent(tenantId)}/pipeline/add`, {
+export async function addLeadToPipeline(leadData: Lead | Record<string, unknown>): Promise<DealMutationResult> {
+  return apiFetch("/api/v1/me/pipeline/deals", {
     method: "POST",
     body: { lead_data: leadData },
   });
 }
 
 export async function updatePipelineDeal(
-  tenantId: string,
-  payload: { deal_id: string; new_stage: string; notes?: string; proposed_price?: number }
+  dealId: string,
+  payload: { new_stage: string; notes?: string; proposed_price?: number }
 ): Promise<DealMutationResult> {
-  return apiFetch(`/api/v1/tenants/${encodeURIComponent(tenantId)}/pipeline/update`, { method: "POST", body: payload });
+  return apiFetch(`/api/v1/me/pipeline/deals/${encodeURIComponent(dealId)}`, {
+    method: "PATCH",
+    body: payload,
+  });
 }
 
 /* --------------------------------------------------------- notification */
@@ -756,15 +763,11 @@ export interface ProformaResult {
 }
 
 export async function generateProformaInvoice(payload: {
-  tenant_id: string;
   plan_id: string;
   company_name: string;
   cui_fiscal: string;
   billing_email: string;
   billing_address?: string;
 }): Promise<ProformaResult> {
-  return apiFetch(`/api/v1/tenants/${encodeURIComponent(payload.tenant_id)}/billing/proforma`, {
-    method: "POST",
-    body: payload,
-  });
+  return apiFetch("/api/v1/me/billing/proforma", { method: "POST", body: payload });
 }
