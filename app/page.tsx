@@ -69,17 +69,19 @@ const SECTIONS = [
 export default function HomePage() {
   const { user, needsOnboarding } = useAuth();
 
-  // Anonymous, still resolving the session, or mid-onboarding all fall
-  // through to the public page below — `user` is null for the first two,
-  // so the public branch is what every visitor sees before we know better.
-  // This is the exact page that existed before personalization: unchanged
-  // on purpose, so nothing about the anonymous experience regresses.
-  if (user && needsOnboarding) {
+  // Precedence deliberately mirrors AuthGate's: onboarding is checked
+  // FIRST, on its own, not as `user && needsOnboarding`. The two are
+  // orthogonal (see AuthContext.adoptSynced), and coupling them here is
+  // what previously sent a freshly-signed-in Google account to the public
+  // marketing page instead of the setup form.
+  if (needsOnboarding) {
     return <OnboardingForm />;
   }
   if (user) {
     return <PersonalizedHomePage />;
   }
+  // Anonymous, or still resolving the session — the exact page that
+  // existed before personalization, unchanged on purpose.
   return <PublicHomePage />;
 }
 

@@ -132,8 +132,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!synced.user.onboarded) {
         // Signed in successfully, but hasn't chosen what to watch yet.
         // Not a rejected session — there is no admin to contact in a
-        // self-serve product — so AuthGate shows the setup form.
-        setUser(null);
+        // self-serve product — so the setup form is shown instead.
+        //
+        // `user` STAYS SET here. It used to be nulled, which made
+        // "signed in but not yet configured" indistinguishable from
+        // "signed out" to every consumer that tests `user` — and that
+        // one line caused the whole broken-login experience: /login's
+        // `if (user) redirect` never fired, so a correct email+password
+        // (or Google) sign-in silently left you sitting on the login
+        // screen, and clicking Autentificare again just repeated it;
+        // meanwhile app/page.tsx's `user && needsOnboarding` branch
+        // could never be true, so a new Google account landed on the
+        // public marketing page and was never asked the setup
+        // questions at all. `user` means "there is a verified
+        // session"; `needsOnboarding` is orthogonal to it.
+        setUser(synced.user);
         setProfile(null);
         setAuthError(null);
         setNeedsOnboarding(true);

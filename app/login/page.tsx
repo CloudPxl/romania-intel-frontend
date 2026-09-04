@@ -15,8 +15,17 @@ type AuthMethod = (typeof METHODS)[number]["id"];
 const MIN_PASSWORD_LENGTH = 8;
 
 export default function LoginPage() {
-  const { signInWithGoogle, signInWithEmail, signUpWithPassword, signInWithPassword, requestPasswordReset, user, loading } =
-    useAuth();
+  const {
+    signInWithGoogle,
+    signInWithEmail,
+    signUpWithPassword,
+    signInWithPassword,
+    requestPasswordReset,
+    user,
+    loading,
+    needsOnboarding,
+    authError,
+  } = useAuth();
   const router = useRouter();
   const [dateline, setDateline] = useState("");
   const [method, setMethod] = useState<AuthMethod>("magic");
@@ -40,9 +49,15 @@ export default function LoginPage() {
 
   useEffect(() => setDateline(formatDateline()), []);
 
+  // Either state means the sign-in itself worked, so this page is done:
+  // `user` is a configured account, `needsOnboarding` is a valid session
+  // that hasn't picked its criteria yet (app/page.tsx renders the setup
+  // form for it). Testing only `user` is what stranded a successful
+  // sign-in on this screen — the credentials were accepted, nothing
+  // navigated, and pressing Autentificare again just did it all over.
   useEffect(() => {
-    if (user) router.replace("/");
-  }, [user, router]);
+    if (user || needsOnboarding) router.replace("/");
+  }, [user, needsOnboarding, router]);
 
   const handleEmailSubmit: React.ComponentProps<"form">["onSubmit"] = async (e) => {
     e.preventDefault();
@@ -137,6 +152,18 @@ export default function LoginPage() {
             <p className="font-body mt-2 text-sm leading-relaxed text-stock-600">
               Registrul și instrumentele de ofertare sunt disponibile doar conturilor autentificate.
             </p>
+
+            {/* Supabase accepted the credentials but the RO-INTEL backend
+                refused or never answered the session sync. Without this the
+                page showed nothing at all in that case — the sign-in looked
+                like it had simply been ignored. */}
+            {authError && (
+              <div className="mt-5">
+                <Notice tone="alert" title="Autentificat, dar serverul nu a confirmat sesiunea">
+                  {authError}
+                </Notice>
+              </div>
+            )}
 
             {loading ? (
               <p className="font-mono mt-6 text-xs uppercase tracking-widest text-stock-500">Se verifică sesiunea…</p>
