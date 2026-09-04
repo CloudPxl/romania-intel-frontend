@@ -5,11 +5,11 @@ import { usePathname } from "next/navigation";
 import {
   BarChart3,
   FileText,
+  Home,
   Kanban,
-  LayoutDashboard,
   LogOut,
   Menu,
-  Newspaper,
+  Search,
   Settings,
   SlidersHorizontal,
   ShieldCheck,
@@ -20,17 +20,22 @@ import { useAuth } from "@/context/AuthContext";
 import { PricingModal, AccountSettingsModal, ProfileCriteriaModal } from "@/components/EnterpriseModals";
 import { cn } from "@/lib/utils";
 
+// The first group used to render under a header reading "Ediția" — a word
+// that named none of Prima pagină, Analiza de piață or Căutare avansată and
+// existed only because a nav needs *some* grouping. It's gone rather than
+// replaced: an empty `section` renders no header at all (see the render
+// loop below), instead of trading one meaningless label for another.
 const NAV_LINKS = [
-  { href: "/", label: "Prima pagină", section: "Ediția", icon: LayoutDashboard },
-  { href: "/newsletter", label: "Registrul zilnic", section: "Ediția", icon: Newspaper },
-  { href: "/analysis", label: "Analiza de piață", section: "Ediția", icon: BarChart3 },
+  { href: "/", label: "Prima pagină", section: "", icon: Home },
+  { href: "/analysis", label: "Analiza de piață", section: "", icon: BarChart3 },
+  { href: "/cautare-avansata", label: "Căutare avansată", section: "", icon: Search },
   { href: "/eligibility", label: "Eligibilitate finanțări", section: "Instrumente", icon: ShieldCheck },
   { href: "/drafting", label: "Redactare documente", section: "Instrumente", icon: FileText },
   { href: "/analytics", label: "Strategie & Copilot", section: "Instrumente", icon: Sparkles },
   { href: "/pipeline", label: "Pipeline ofertare", section: "Instrumente", icon: Kanban },
 ];
 
-const SECTIONS = ["Ediția", "Instrumente"] as const;
+const SECTIONS = ["", "Instrumente"] as const;
 
 const DOMAIN_LABELS: Record<string, string> = {
   infrastructura: "Infrastructură & Transporturi",
@@ -93,8 +98,8 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
       {/* Nav */}
       <nav aria-label="Navigare principală" className="flex-1 overflow-y-auto py-2">
         {SECTIONS.map((section) => (
-          <div key={section} className="mb-4">
-            <div className="label-eyebrow px-3 py-1.5 text-stock-500">{section}</div>
+          <div key={section || "primary"} className="mb-4">
+            {section && <div className="label-eyebrow px-3 py-1.5 text-stock-500">{section}</div>}
             <div className="flex flex-col gap-1.5">
               {NAV_LINKS.filter((l) => l.section === section).map((link) => {
                 const active = isActive(link.href);

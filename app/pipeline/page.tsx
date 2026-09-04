@@ -211,7 +211,7 @@ function PipelineContent() {
         <EmptyState title="Niciun dosar salvat">
           Deschideți o poziție din registrul zilnic și apăsați „Salvează în pipeline” pentru a începe urmărirea ei.
           <span className="mt-5 block">
-            <ButtonLink href="/newsletter" variant="outline">
+            <ButtonLink href="/cautare-avansata" variant="outline">
               Deschide registrul
             </ButtonLink>
           </span>

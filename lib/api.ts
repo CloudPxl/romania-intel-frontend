@@ -167,6 +167,8 @@ export interface MarketTrends {
   by_category: { category: string; count: number; value_ron: number }[];
   by_funding_source: { funding_source: string; count: number; value_ron: number }[];
   top_opportunities: {
+    /** Powers the "?openLead=" click-through to Căutare Avansată. */
+    source_id?: string;
     project_title: string;
     entity_name: string;
     county: string;
@@ -176,6 +178,9 @@ export interface MarketTrends {
   }[];
   /** False for anonymous callers — top_opportunities is empty in that case. */
   is_authenticated: boolean;
+  /** Only on GET /api/v1/me/market-trends — false when the profile currently
+   *  matches nothing and this response fell back to the full market. */
+  is_personalized?: boolean;
   ai_strategic_report?: string | null;
   ai_report_locked?: boolean;
   degraded?: boolean;
@@ -309,6 +314,12 @@ export interface OnboardingProfile {
   /** Optional, and only for paperwork that names a legal entity. */
   company_name?: string;
   cui?: string;
+  /** Collected on the same form as the matching criteria, so the full
+   *  customization surface is set in one sitting. Both optional; the
+   *  backend defaults them the same way PUT /api/v1/me/alert-settings
+   *  does (7.5, no Telegram) when omitted. */
+  min_alert_score?: number;
+  telegram_chat_id?: string;
   /** Only meaningful on the initial signup call — see completeOnboarding. */
   consent_accepted?: boolean;
 }
@@ -403,6 +414,14 @@ export async function downloadMyCsv(): Promise<void> {
 
 export async function fetchMarketTrends(filters: MarketTrendFilters = {}): Promise<MarketTrends> {
   return apiFetch(`/api/v1/analysis/market-trends${qs({ ...filters })}`);
+}
+
+/** The same aggregation, scoped to the signed-in user's own matches — see
+ *  `is_personalized` on the response for whether it actually is (a profile
+ *  matching nothing falls back to the full market rather than an empty
+ *  page). Powers Prima Pagina once a user is onboarded. */
+export async function fetchMyMarketTrends(): Promise<MarketTrends> {
+  return apiFetch("/api/v1/me/market-trends");
 }
 
 export interface MacroReport {

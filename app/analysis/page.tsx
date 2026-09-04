@@ -4,9 +4,9 @@ import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { ApiError, fetchMarketTrends, type MarketTrendFilters, type MarketTrends } from "@/lib/api";
 import { CATEGORIES, formatDate, formatNumber, formatRon } from "@/lib/format";
+import MarketTrendsView from "@/components/MarketTrendsView";
 import {
   Button,
-  ButtonLink,
   DegradedBanner,
   EmptyState,
   Eyebrow,
@@ -16,28 +16,9 @@ import {
   Notice,
   PageHeader,
   Panel,
-  SectionTitle,
   Select,
   StatCell,
 } from "@/components/newsprint";
-
-/** Horizontal bar row. Width is share-of-max within the current slice. */
-function BarRow({ label, count, value, maxValue }: { label: string; count: number; value: number; maxValue: number }) {
-  const pct = maxValue > 0 ? Math.max(2, Math.round((value / maxValue) * 100)) : 0;
-  return (
-    <div className="border-b border-divider py-3 last:border-b-0">
-      <div className="flex items-baseline justify-between gap-3">
-        <span className="font-body truncate text-sm font-semibold">{label}</span>
-        <span className="tabular font-mono shrink-0 text-[11px] text-stock-500">
-          {count} · {formatRon(value)}
-        </span>
-      </div>
-      <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-stock-200">
-        <div className="h-full rounded-full bg-editorial" style={{ width: `${pct}%` }} role="presentation" />
-      </div>
-    </div>
-  );
-}
 
 export default function AnalysisPage() {
   const { user } = useAuth();
@@ -95,9 +76,6 @@ export default function AnalysisPage() {
   };
 
   const activeFilterCount = Object.keys(data?.filters_applied ?? {}).filter((k) => k !== "limit").length;
-  const maxCounty = Math.max(0, ...(data?.by_county ?? []).map((c) => c.value_ron));
-  const maxCategory = Math.max(0, ...(data?.by_category ?? []).map((c) => c.value_ron));
-  const maxFunding = Math.max(0, ...(data?.by_funding_source ?? []).map((c) => c.value_ron));
 
   return (
     <main className="mx-auto w-full max-w-screen-xl flex-1 px-4 py-6 sm:py-8">
@@ -188,82 +166,14 @@ export default function AnalysisPage() {
             <StatCell label="Actualizat" value={formatDate(data.updated_at)} hint={`${data.by_county.length} județe`} />
           </div>
 
-          <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-2">
-            <Panel as="section" className="p-4 sm:p-5">
-              <SectionTitle note={`${data.by_category.length} domenii`}>Distribuție pe domeniu</SectionTitle>
-              <div>
-                {data.by_category.map((c) => (
-                  <BarRow key={c.category} label={c.category} count={c.count} value={c.value_ron} maxValue={maxCategory} />
-                ))}
-              </div>
-            </Panel>
-
-            <Panel as="section" className="p-4 sm:p-5">
-              <SectionTitle note="top 10">Județe după valoare</SectionTitle>
-              <div>
-                {data.by_county.slice(0, 10).map((c) => (
-                  <BarRow key={c.county} label={c.county} count={c.count} value={c.value_ron} maxValue={maxCounty} />
-                ))}
-              </div>
-            </Panel>
-
-            <Panel as="section" className="p-4 sm:p-5">
-              <SectionTitle note={`${data.by_funding_source.length} surse`}>Surse de finanțare</SectionTitle>
-              <div>
-                {data.by_funding_source.map((f) => (
-                  <BarRow
-                    key={f.funding_source}
-                    label={f.funding_source}
-                    count={f.count}
-                    value={f.value_ron}
-                    maxValue={maxFunding}
-                  />
-                ))}
-              </div>
-            </Panel>
-
-            <Panel as="section" className="p-4 sm:p-5">
-              <SectionTitle note={data.is_authenticated ? "top 10" : "restricționat"}>
-                Cele mai mari poziții
-              </SectionTitle>
-              {data.is_authenticated ? (
-                <ol className="divide-y divide-divider">
-                  {data.top_opportunities.map((o, i) => (
-                    <li key={`${o.project_title}-${i}`} className="flex gap-4 py-3">
-                      <span className="tabular font-mono w-6 shrink-0 pt-0.5 text-sm text-stock-400">
-                        {String(i + 1).padStart(2, "0")}
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="font-body truncate text-sm font-semibold">{o.project_title}</p>
-                        <p className="font-mono truncate text-[11px] text-stock-500">
-                          {o.entity_name} · {o.county}
-                        </p>
-                      </div>
-                      <span className="tabular font-display shrink-0 text-sm font-semibold">
-                        {formatRon(o.financial_value_ron)}
-                      </span>
-                    </li>
-                  ))}
-                </ol>
-              ) : (
-                <div className="neu-pressed rounded-3xl p-6">
-                  <Eyebrow className="text-editorial">Necesită autentificare</Eyebrow>
-                  <p className="font-body mt-2 text-sm leading-relaxed text-stock-600">
-                    Cifrele agregate sunt publice. Pozițiile identificate nominal — autoritate, titlu de proiect,
-                    valoare — sunt vizibile doar conturilor autentificate.
-                  </p>
-                  <ButtonLink href="/login" variant="outline" fullWidth className="mt-5">
-                    Autentificare
-                  </ButtonLink>
-                </div>
-              )}
-            </Panel>
+          <div className="mt-8">
+            <MarketTrendsView data={data} variant="full" />
           </div>
 
           {data.is_authenticated && (
             <p className="mt-10 border-t border-divider pt-5 text-center">
-              <Link href="/newsletter" className="font-sans text-sm font-medium text-editorial hover:brightness-110">
-                Vezi toate dosarele în registrul zilnic →
+              <Link href="/cautare-avansata" className="font-sans text-sm font-medium text-editorial hover:brightness-110">
+                Vezi toate dosarele în căutarea avansată →
               </Link>
             </p>
           )}

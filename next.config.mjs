@@ -16,6 +16,15 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  // "Registrul zilnic" was renamed "Căutare avansată" (the page grew real
+  // filters and became a search surface, not a passive daily list) and its
+  // URL moved with it. Anyone with an old bookmark or a link from before
+  // the rename still lands somewhere real rather than a 404.
+  async redirects() {
+    return [
+      { source: "/newsletter", destination: "/cautare-avansata", permanent: true },
+    ];
+  },
 };
 
 export default nextConfig;

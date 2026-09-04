@@ -4,16 +4,39 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { formatDateline } from "@/lib/format";
-import { Button, Eyebrow, Input, Notice } from "@/components/newsprint";
+import { Button, Eyebrow, Input, Notice, TabBar } from "@/components/newsprint";
+
+const METHODS = [
+  { id: "magic", label: "Magic link" },
+  { id: "password", label: "Parolă" },
+] as const;
+type AuthMethod = (typeof METHODS)[number]["id"];
+
+const MIN_PASSWORD_LENGTH = 8;
 
 export default function LoginPage() {
-  const { signInWithGoogle, signInWithEmail, user, loading } = useAuth();
+  const { signInWithGoogle, signInWithEmail, signUpWithPassword, signInWithPassword, requestPasswordReset, user, loading } =
+    useAuth();
+  const router = useRouter();
+  const [dateline, setDateline] = useState("");
+  const [method, setMethod] = useState<AuthMethod>("magic");
+
+  // Magic link
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [dateline, setDateline] = useState("");
-  const router = useRouter();
+
+  // Password: sign in / sign up, plus a nested "forgot password" mode.
+  const [passwordMode, setPasswordMode] = useState<"signin" | "signup">("signin");
+  const [password, setPassword] = useState("");
+  const [pwSubmitting, setPwSubmitting] = useState(false);
+  const [pwError, setPwError] = useState<string | null>(null);
+  const [confirmEmailSent, setConfirmEmailSent] = useState(false);
+  const [resetMode, setResetMode] = useState(false);
+  const [resetSubmitting, setResetSubmitting] = useState(false);
+  const [resetError, setResetError] = useState<string | null>(null);
+  const [resetSent, setResetSent] = useState(false);
 
   useEffect(() => setDateline(formatDateline()), []);
 
@@ -30,6 +53,46 @@ export default function LoginPage() {
     setSubmitting(false);
     if (err) setError(err);
     else setSent(true);
+  };
+
+  const handlePasswordSubmit: React.ComponentProps<"form">["onSubmit"] = async (e) => {
+    e.preventDefault();
+    if (!email.trim() || !password) return;
+    if (passwordMode === "signup" && password.length < MIN_PASSWORD_LENGTH) {
+      setPwError(`Parola trebuie să aibă cel puțin ${MIN_PASSWORD_LENGTH} caractere.`);
+      return;
+    }
+    setPwSubmitting(true);
+    setPwError(null);
+    if (passwordMode === "signup") {
+      const { error: err, needsEmailConfirmation } = await signUpWithPassword(email.trim(), password);
+      setPwSubmitting(false);
+      if (err) {
+        setPwError(err);
+        return;
+      }
+      if (needsEmailConfirmation) {
+        setConfirmEmailSent(true);
+        return;
+      }
+      // No confirmation required by this Supabase project — a session was
+      // granted immediately, and the redirect effect above takes it from here.
+    } else {
+      const { error: err } = await signInWithPassword(email.trim(), password);
+      setPwSubmitting(false);
+      if (err) setPwError(err);
+    }
+  };
+
+  const handleResetSubmit: React.ComponentProps<"form">["onSubmit"] = async (e) => {
+    e.preventDefault();
+    if (!email.trim()) return;
+    setResetSubmitting(true);
+    setResetError(null);
+    const { error: err } = await requestPasswordReset(email.trim());
+    setResetSubmitting(false);
+    if (err) setResetError(err);
+    else setResetSent(true);
   };
 
   return (
@@ -85,40 +148,153 @@ export default function LoginPage() {
 
                 <div className="my-5 flex items-center gap-3">
                   <span className="h-px flex-1 bg-divider" />
-                  <span className="label-eyebrow text-stock-400">sau magic link</span>
+                  <span className="label-eyebrow text-stock-400">sau</span>
                   <span className="h-px flex-1 bg-divider" />
                 </div>
 
-                {sent ? (
-                  <Notice title="Link expediat">
-                    Am trimis un link de autentificare la <b>{email}</b>. Deschideți-l de pe acest dispozitiv pentru a
-                    intra în cont.
-                  </Notice>
-                ) : (
-                  <form onSubmit={handleEmailSubmit} className="space-y-4">
-                    <div>
-                      <Eyebrow className="mb-1.5 text-stock-600">Email profesional</Eyebrow>
-                      <Input
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="nume@exemplu.ro"
-                        required
-                        autoComplete="email"
-                        inputMode="email"
-                      />
-                    </div>
-                    <Button type="submit" disabled={submitting} fullWidth>
-                      {submitting ? "Se trimite…" : "Trimite magic link"}
-                    </Button>
-                  </form>
-                )}
+                <TabBar
+                  label="Metodă de autentificare"
+                  tabs={METHODS}
+                  active={method}
+                  onChange={(id) => {
+                    setMethod(id);
+                    setError(null);
+                    setPwError(null);
+                    setResetError(null);
+                  }}
+                />
 
-                {error && (
-                  <div className="mt-4">
-                    <Notice tone="alert">{error}</Notice>
-                  </div>
-                )}
+                {method === "magic" &&
+                  (sent ? (
+                    <Notice title="Link expediat">
+                      Am trimis un link de autentificare la <b>{email}</b>. Deschideți-l de pe acest dispozitiv pentru a
+                      intra în cont.
+                    </Notice>
+                  ) : (
+                    <form onSubmit={handleEmailSubmit} className="space-y-4">
+                      <div>
+                        <Eyebrow className="mb-1.5 text-stock-600">Email profesional</Eyebrow>
+                        <Input
+                          type="email"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          placeholder="nume@exemplu.ro"
+                          required
+                          autoComplete="email"
+                          inputMode="email"
+                        />
+                      </div>
+                      <Button type="submit" disabled={submitting} fullWidth>
+                        {submitting ? "Se trimite…" : "Trimite magic link"}
+                      </Button>
+                      {error && (
+                        <Notice tone="alert">{error}</Notice>
+                      )}
+                    </form>
+                  ))}
+
+                {method === "password" &&
+                  (resetMode ? (
+                    resetSent ? (
+                      <Notice title="Email expediat">
+                        Dacă există un cont pentru <b>{email}</b>, am trimis un link de resetare a parolei.
+                      </Notice>
+                    ) : (
+                      <form onSubmit={handleResetSubmit} className="space-y-4">
+                        <div>
+                          <Eyebrow className="mb-1.5 text-stock-600">Email profesional</Eyebrow>
+                          <Input
+                            type="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            placeholder="nume@exemplu.ro"
+                            required
+                            autoComplete="email"
+                            inputMode="email"
+                          />
+                        </div>
+                        <Button type="submit" disabled={resetSubmitting} fullWidth>
+                          {resetSubmitting ? "Se trimite…" : "Trimite link de resetare"}
+                        </Button>
+                        {resetError && <Notice tone="alert">{resetError}</Notice>}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setResetMode(false);
+                            setResetError(null);
+                          }}
+                          className="font-body block w-full text-center text-sm text-stock-500 underline decoration-dotted underline-offset-4 hover:text-ink"
+                        >
+                          Înapoi la autentificare
+                        </button>
+                      </form>
+                    )
+                  ) : confirmEmailSent ? (
+                    <Notice title="Verificați email-ul">
+                      Am trimis un link de confirmare la <b>{email}</b>. Confirmați adresa pentru a vă putea
+                      autentifica cu parola aleasă.
+                    </Notice>
+                  ) : (
+                    <form onSubmit={handlePasswordSubmit} className="space-y-4">
+                      <div>
+                        <Eyebrow className="mb-1.5 text-stock-600">Email profesional</Eyebrow>
+                        <Input
+                          type="email"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          placeholder="nume@exemplu.ro"
+                          required
+                          autoComplete="email"
+                          inputMode="email"
+                        />
+                      </div>
+                      <div>
+                        <Eyebrow className="mb-1.5 text-stock-600">Parolă</Eyebrow>
+                        <Input
+                          type="password"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          placeholder="••••••••"
+                          required
+                          minLength={passwordMode === "signup" ? MIN_PASSWORD_LENGTH : undefined}
+                          autoComplete={passwordMode === "signup" ? "new-password" : "current-password"}
+                        />
+                      </div>
+                      <Button type="submit" disabled={pwSubmitting} fullWidth>
+                        {pwSubmitting
+                          ? "Se procesează…"
+                          : passwordMode === "signup"
+                            ? "Creează cont"
+                            : "Autentificare"}
+                      </Button>
+                      {pwError && <Notice tone="alert">{pwError}</Notice>}
+                      <div className="flex items-center justify-between gap-3 text-sm">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPasswordMode((m) => (m === "signin" ? "signup" : "signin"));
+                            setPwError(null);
+                          }}
+                          className="font-body text-stock-500 underline decoration-dotted underline-offset-4 hover:text-ink"
+                        >
+                          {passwordMode === "signin" ? "Nu aveți cont? Creați unul" : "Aveți deja cont? Autentificare"}
+                        </button>
+                        {passwordMode === "signin" && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setResetMode(true);
+                              setResetSent(false);
+                              setResetError(null);
+                            }}
+                            className="font-body text-stock-500 underline decoration-dotted underline-offset-4 hover:text-ink"
+                          >
+                            Ai uitat parola?
+                          </button>
+                        )}
+                      </div>
+                    </form>
+                  ))}
               </>
             )}
           </div>

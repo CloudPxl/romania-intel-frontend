@@ -5,21 +5,30 @@ import { useAuth } from "@/context/AuthContext";
 import { CATEGORIES, COUNTIES } from "@/lib/format";
 import { Button, ChipSelect, Field, Input, Notice, Select } from "@/components/newsprint";
 
+// Same numeric-only rule PUT /api/v1/me/alert-settings enforces server-side
+// (api.py:_validate_alert_fields) — checked here too so a bad value is
+// rejected immediately instead of round-tripping to the server first.
+const TELEGRAM_CHAT_ID_PATTERN = /^-?\d{1,20}$/;
+
 /**
  * Shown by AuthGate the first time someone signs in without criteria yet.
  * Deliberately asks nothing company-shaped (no CUI, no company name): just
- * the watch criteria that drives the feed ranking server-side. The billing
- * identity is optional and lives in the criteria editor, for the minority
- * who need it on a generated document.
+ * the watch criteria that drives the feed ranking server-side, plus alert
+ * settings — the full customization surface in one sitting, rather than
+ * requiring a second visit to the criteria editor just to turn on
+ * Telegram. The billing identity stays optional and lives in the criteria
+ * editor, for the minority who need it on a generated document.
  */
 export default function OnboardingForm() {
-  const { completeOnboarding } = useAuth();
+  const { completeOnboarding, updatePreferences } = useAuth();
   const [displayName, setDisplayName] = useState("");
   const [domain, setDomain] = useState<string>(CATEGORIES[0].id);
   const [counties, setCounties] = useState<string[]>([]);
   const [keywords, setKeywords] = useState("");
   const [excludeKeywords, setExcludeKeywords] = useState("");
   const [minValue, setMinValue] = useState("");
+  const [minAlertScore, setMinAlertScore] = useState(9.0);
+  const [telegramChatId, setTelegramChatId] = useState("");
   const [consentAccepted, setConsentAccepted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,6 +46,11 @@ export default function OnboardingForm() {
       setError("Adăugați cel puțin un cuvânt-cheie, altfel nu veți primi nicio oportunitate relevantă.");
       return;
     }
+    const chatId = telegramChatId.trim();
+    if (chatId && !TELEGRAM_CHAT_ID_PATTERN.test(chatId)) {
+      setError("ID-ul de chat Telegram trebuie să fie numeric (ex: 123456789), nu un @nume de utilizator.");
+      return;
+    }
     if (!consentAccepted) {
       setError("Trebuie să fiți de acord cu Termenii și Politica de Confidențialitate pentru a continua.");
       return;
@@ -50,10 +64,20 @@ export default function OnboardingForm() {
       min_value_ron: minValue ? Number(minValue) : 0,
       keywords: keywordList,
       exclude_keywords: splitList(excludeKeywords),
+      min_alert_score: minAlertScore,
+      telegram_chat_id: chatId || undefined,
       consent_accepted: consentAccepted,
     });
     setSubmitting(false);
-    if (apiError) setError(apiError);
+    if (apiError) {
+      setError(apiError);
+      return;
+    }
+    // The Settings modal reads its preview from this local, localStorage-
+    // backed copy (the server row is authoritative for real alert
+    // dispatch) — without this, opening it right after onboarding would
+    // show its own defaults instead of what was just chosen here.
+    updatePreferences({ auto_alert_score: minAlertScore, telegram_chat_id: chatId });
   };
 
   return (
@@ -115,6 +139,27 @@ export default function OnboardingForm() {
               value={minValue}
               onChange={(e) => setMinValue(e.target.value)}
               placeholder="0"
+            />
+          </Field>
+
+          <Field label="Prag minim scor pentru alertă">
+            <Select value={minAlertScore} onChange={(e) => setMinAlertScore(Number(e.target.value))}>
+              <option value={9.5}>Scor ≥ 9.5 — doar proiecte strategice critice</option>
+              <option value={9.0}>Scor ≥ 9.0 — toate oportunitățile calificate</option>
+              <option value={8.5}>Scor ≥ 8.5 — toate semnalele active</option>
+            </Select>
+          </Field>
+
+          <Field
+            label="ID chat Telegram (opțional)"
+            hint="Primiți aceleași alerte și pe Telegram. Deschideți @userinfobot în Telegram, care vă returnează ID-ul numeric al contului. Lăsați gol pentru a dezactiva."
+          >
+            <Input
+              type="text"
+              inputMode="numeric"
+              value={telegramChatId}
+              onChange={(e) => setTelegramChatId(e.target.value)}
+              placeholder="123456789"
             />
           </Field>
 

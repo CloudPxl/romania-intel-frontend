@@ -61,6 +61,9 @@ interface AuthContextType {
   updatePreferences: (newPrefs: Partial<UserPreferences>) => void;
   signInWithGoogle: () => Promise<void>;
   signInWithEmail: (email: string) => Promise<{ error: string | null }>;
+  signUpWithPassword: (email: string, password: string) => Promise<{ error: string | null; needsEmailConfirmation: boolean }>;
+  signInWithPassword: (email: string, password: string) => Promise<{ error: string | null }>;
+  requestPasswordReset: (email: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -82,6 +85,9 @@ const AuthContext = createContext<AuthContextType>({
   updatePreferences: () => {},
   signInWithGoogle: async () => {},
   signInWithEmail: async () => ({ error: null }),
+  signUpWithPassword: async () => ({ error: null, needsEmailConfirmation: false }),
+  signInWithPassword: async () => ({ error: null }),
+  requestPasswordReset: async () => ({ error: null }),
   signOut: async () => {},
 });
 
@@ -210,6 +216,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error: error ? error.message : null };
   };
 
+  const signUpWithPassword = async (email: string, password: string) => {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : "" },
+    });
+    if (error) return { error: error.message, needsEmailConfirmation: false };
+    // Supabase returns 200 with no error for a duplicate email too — it
+    // deliberately doesn't reveal whether an account already exists, to
+    // avoid leaking which addresses are registered. The one visible tell
+    // is an empty `identities` array on the returned (unconfirmed, unusable)
+    // user. Without checking this, a returning user typing their own email
+    // sees "check your inbox" for a confirmation email that never arrives.
+    if (data.user && data.user.identities?.length === 0) {
+      return {
+        error: "Există deja un cont cu acest email. Încercați să vă autentificați sau folosiți linkul magic.",
+        needsEmailConfirmation: false,
+      };
+    }
+    // A session is returned immediately only when the Supabase project has
+    // email confirmation turned off; otherwise data.session is null until
+    // the confirmation link is followed.
+    return { error: null, needsEmailConfirmation: !data.session };
+  };
+
+  const signInWithPassword = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    return { error: error ? error.message : null };
+  };
+
+  const requestPasswordReset = async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: typeof window !== "undefined" ? `${window.location.origin}/auth/reset-password` : "",
+    });
+    return { error: error ? error.message : null };
+  };
+
   const signOut = async () => {
     await supabase.auth.signOut();
     setUser(null);
@@ -264,6 +307,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         updatePreferences,
         signInWithGoogle,
         signInWithEmail,
+        signUpWithPassword,
+        signInWithPassword,
+        requestPasswordReset,
         signOut,
       }}
     >

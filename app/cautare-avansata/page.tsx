@@ -1,6 +1,6 @@
 "use client";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import React, { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import AuthGate from "@/components/AuthGate";
@@ -35,8 +35,9 @@ const SORTS = [
 
 type SortId = (typeof SORTS)[number]["id"];
 
-function NewsletterContent() {
+function CautareAvansataContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, preferences, profile } = useAuth();
 
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -47,7 +48,17 @@ function NewsletterContent() {
   const [degraded, setDegraded] = useState<boolean>(false);
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
 
-  const [activeCategory, setActiveCategory] = useState<string>("all");
+  // A click-through from Analiza de Piață or Prima Pagina arrives with one
+  // of these set — a deliberate choice to see a specific slice, not the
+  // page's own default. Read once, via lazy initializers, rather than in
+  // an effect: that avoids a second fetch firing right after the first.
+  const initialCounty = searchParams.get("county") || "all";
+  const initialCategory = searchParams.get("category") || "all";
+  const initialFundingSource = searchParams.get("fundingSource") || "all";
+  const initialOpenLead = searchParams.get("openLead");
+  const arrivedWithUrlFilter = initialCounty !== "all" || initialCategory !== "all" || initialFundingSource !== "all";
+
+  const [activeCategory, setActiveCategory] = useState<string>(initialCategory);
   // The feed now returns the WHOLE market ranked, not just matches, so
   // this toggle is what lets someone go back to just their own.
   // Start on the user's own matches, not the whole market. The feed is a
@@ -56,12 +67,20 @@ function NewsletterContent() {
   // onboarding look like they had been ignored. `matchDefaultApplied`
   // makes this a one-time decision per load: once the user touches the
   // toggle, their choice stands and is never overridden by a refresh.
-  const [onlyMatches, setOnlyMatches] = useState(true);
-  const [matchDefaultApplied, setMatchDefaultApplied] = useState(false);
-  const [selectedCounty, setSelectedCounty] = useState("all");
+  //
+  // Arriving via a specific county/category/funding-source link is its own
+  // deliberate choice — the visitor clicked "Hunedoara" to see everything
+  // in Hunedoara, not their own matches narrowed further by county — so it
+  // starts on the full market (onlyMatches false) and is marked as already
+  // decided, so the no-matches fallback effect below never re-litigates it.
+  const [onlyMatches, setOnlyMatches] = useState(!arrivedWithUrlFilter);
+  const [matchDefaultApplied, setMatchDefaultApplied] = useState(arrivedWithUrlFilter);
+  const [selectedCounty, setSelectedCounty] = useState(initialCounty);
+  const [selectedFundingSource, setSelectedFundingSource] = useState(initialFundingSource);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<SortId>("score_desc");
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [openLeadHandled, setOpenLeadHandled] = useState(!initialOpenLead);
 
   const [toast, setToast] = useState<string | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
@@ -118,9 +137,26 @@ function NewsletterContent() {
     return () => window.removeEventListener("keydown", onKey);
   }, [selectedLead]);
 
+  // A click-through from a top-opportunity row (Analiza de Piață / Prima
+  // Pagina) names one specific lead by id rather than a filter — open its
+  // dossier directly once the feed has actually loaded, instead of making
+  // the visitor find it again in a list.
+  useEffect(() => {
+    if (openLeadHandled || loading || leads.length === 0) return;
+    const found = leads.find((l) => l.source_id === initialOpenLead);
+    if (found) setSelectedLead(found);
+    setOpenLeadHandled(true);
+  }, [openLeadHandled, loading, leads, initialOpenLead]);
+
   const counties = useMemo(() => {
     const set = new Set<string>();
     leads.forEach((l) => l.county && set.add(l.county));
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "ro"));
+  }, [leads]);
+
+  const fundingSources = useMemo(() => {
+    const set = new Set<string>();
+    leads.forEach((l) => l.funding_source && set.add(l.funding_source));
     return Array.from(set).sort((a, b) => a.localeCompare(b, "ro"));
   }, [leads]);
 
@@ -130,6 +166,11 @@ function NewsletterContent() {
     const filtered = leads.filter((l) => {
       if (onlyMatches && !l.match?.is_match) return false;
       if (selectedCounty !== "all" && (l.county || "").toLowerCase() !== selectedCounty.toLowerCase()) return false;
+      if (
+        selectedFundingSource !== "all" &&
+        (l.funding_source || "").toLowerCase() !== selectedFundingSource.toLowerCase()
+      )
+        return false;
       if (query) {
         const haystack = [l.project_title, l.entity_name, l.locality, l.sub_category, l.county]
           .filter(Boolean)
@@ -149,7 +190,7 @@ function NewsletterContent() {
       // was just built around.
       return 0;
     });
-  }, [leads, searchQuery, selectedCounty, onlyMatches, sortBy]);
+  }, [leads, searchQuery, selectedCounty, selectedFundingSource, onlyMatches, sortBy]);
 
   const totalValue = visibleLeads.reduce((sum, l) => sum + (l.financial_value_ron || 0), 0);
 
@@ -268,6 +309,17 @@ function NewsletterContent() {
         </Select>
       </Field>
 
+      <Field label="Sursă finanțare">
+        <Select value={selectedFundingSource} onChange={(e) => setSelectedFundingSource(e.target.value)}>
+          <option value="all">Toate sursele ({fundingSources.length})</option>
+          {fundingSources.map((fs) => (
+            <option key={fs} value={fs}>
+              {fs}
+            </option>
+          ))}
+        </Select>
+      </Field>
+
       <div className="neu-flat rounded-2xl bg-paper p-4">
         <Eyebrow>Volum filtrat</Eyebrow>
         <p className="tabular font-display mt-1 text-2xl font-semibold leading-none">{formatRon(totalValue)}</p>
@@ -281,7 +333,7 @@ function NewsletterContent() {
   return (
     <main className="mx-auto w-full max-w-screen-xl flex-1 px-4 py-6 sm:py-8">
       <header className="border-b border-divider pb-6">
-        <Eyebrow className="text-editorial">Registrul zilnic · {profile?.display_name ?? ""}</Eyebrow>
+        <Eyebrow className="text-editorial">Căutare avansată · {profile?.display_name ?? ""}</Eyebrow>
         <div className="mt-2 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <h1 className="font-display text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">
@@ -657,13 +709,15 @@ function NewsletterContent() {
   );
 }
 
-export default function NewsletterPage() {
+export default function CautareAvansataPage() {
   return (
     <AuthGate
-      title="Registrul este pentru abonați"
+      title="Căutarea avansată este pentru abonați"
       description="Fluxul de oportunități pre-SEAP și dosarele strategice sunt disponibile doar conturilor autentificate."
     >
-      <NewsletterContent />
+      <Suspense fallback={<Loading label="Se încarcă…" />}>
+        <CautareAvansataContent />
+      </Suspense>
     </AuthGate>
   );
 }
