@@ -146,6 +146,21 @@ export interface Lead {
     excluded: boolean;
     reasons: string[];
   } | null;
+  /**
+   * Present only on TED-sourced leads that got far enough to attempt a
+   * cross-reference against SEAP. See ted_scraper.py's
+   * find_seap_cross_reference — this is a best-effort heuristic (at least
+   * 2 of 3 independent signals must agree), never a verified identity, so
+   * it's surfaced for confirmation rather than treated as a real join.
+   */
+  metadata?: {
+    seap_cross_reference?: {
+      matched_source_id: string;
+      matched_entity_name: string;
+      basis: ("cpv_prefix" | "value_within_tolerance" | "buyer_name")[];
+    } | null;
+    [key: string]: unknown;
+  };
 }
 
 export interface FeedResponse {
@@ -537,10 +552,14 @@ export interface CaietAnalysis {
   coverage_note?: string;
 }
 
-export async function analyzeCaietSarcini(projectTitle: string, specificationText: string): Promise<CaietAnalysis> {
+export async function analyzeCaietSarcini(
+  projectTitle: string,
+  specificationText?: string,
+  docId?: string
+): Promise<CaietAnalysis> {
   return apiFetch("/api/v1/addons/analyze-caiet", {
     method: "POST",
-    body: { project_title: projectTitle, specification_text: specificationText },
+    body: { project_title: projectTitle, specification_text: specificationText, doc_id: docId },
   });
 }
 
@@ -549,6 +568,29 @@ export async function uploadCaietFile(file: File, projectTitle: string): Promise
   formData.append("file", file);
   formData.append("project_title", projectTitle);
   return apiFetch("/api/v1/addons/upload-caiet", { method: "POST", body: formData });
+}
+
+/**
+ * A scanned PDF (no digital text layer) can't go through the synchronous
+ * path above — /upload-caiet 422s and points here instead. This queues
+ * the real render->OCR pipeline; poll fetchDocumentExtraction(doc_id)
+ * until it's done, then call analyzeCaietSarcini(title, undefined, doc_id).
+ */
+export interface DocumentExtraction {
+  doc_id: string;
+  status: "queued" | "processing" | "done" | "failed";
+  ocr_applied: boolean;
+  error_message?: string | null;
+}
+
+export async function uploadCaietFileAsync(file: File): Promise<{ doc_id: string; status: string }> {
+  const formData = new FormData();
+  formData.append("file", file);
+  return apiFetch("/api/v1/addons/upload-caiet-async", { method: "POST", body: formData });
+}
+
+export async function fetchDocumentExtraction(docId: string): Promise<DocumentExtraction> {
+  return apiFetch(`/api/v1/addons/document-extractions/${docId}`);
 }
 
 /**

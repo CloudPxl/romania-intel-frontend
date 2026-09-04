@@ -256,6 +256,7 @@ function PublicHomePage() {
   const { user } = useAuth();
   const [stats, setStats] = useState<MarketTrends | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [dateline, setDateline] = useState("");
 
   useEffect(() => setDateline(formatDateline()), []);
@@ -264,7 +265,15 @@ function PublicHomePage() {
     let mounted = true;
     fetchMarketTrends()
       .then((d) => mounted && setStats(d))
-      .catch(() => mounted && setStats(null))
+      .catch((e) => {
+        if (!mounted) return;
+        // A hard backend outage used to be swallowed here and render as
+        // confident "0 Dosare / 0 RON / —" tiles — indistinguishable from
+        // a genuinely empty market. Mirrors PersonalizedHomePage's own
+        // pattern one component above in this file.
+        setError(e instanceof ApiError ? e.detail : "Nu s-au putut încărca cifrele registrului.");
+        setStats(null);
+      })
       .finally(() => mounted && setLoading(false));
     return () => {
       mounted = false;
@@ -289,6 +298,12 @@ function PublicHomePage() {
           {dateline || " "} · Ediție națională
         </p>
       </div>
+
+      {error && (
+        <div className="stagger mt-5">
+          <Notice tone="alert">{error}</Notice>
+        </div>
+      )}
 
       {/* Live figures ticker. Each figure counts up from zero, and each cell
           carries a second layer that appears only on hover — the resting grid

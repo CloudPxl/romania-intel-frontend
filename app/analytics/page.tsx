@@ -9,8 +9,10 @@ import {
   askCopilotChat,
   fetch72hMarketReport,
   fetchCompetitorAnalysis,
+  fetchDocumentExtraction,
   predictWinRate,
   uploadCaietFile,
+  uploadCaietFileAsync,
   type CaietAnalysis,
   type CompetitorAnalysis,
   type MacroReport,
@@ -352,11 +354,60 @@ function CaietTool({ initial }: { initial: { project_title: string } }) {
   const [result, setResult] = useState<CaietAnalysis | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [ocrStatus, setOcrStatus] = useState<"idle" | "queued" | "processing" | "done" | "failed">("idle");
+  const [ocrApplied, setOcrApplied] = useState<boolean | null>(null);
+  const cancelledRef = useRef(false);
+
+  useEffect(() => {
+    cancelledRef.current = false;
+    return () => {
+      cancelledRef.current = true;
+    };
+  }, []);
 
   // A clean document comes back as one sentinel entry with severity "OK",
   // not as an empty list — rendering it verbatim would report "Niciunul"
   // as though it were a restrictive clause.
   const realFlags = (result?.detected_red_flags ?? []).filter((f) => f.severity !== "OK");
+
+  // api.py's synchronous upload-caiet 422s a scanned PDF (no digital text
+  // layer) with a message naming this exact async path — matched here so
+  // that upload is routed into the real OCR pipeline instead of dead-ending
+  // on an API-path name the user can't act on. If that message is ever
+  // reworded in api.py, update this check alongside it.
+  const runAsyncOcrFlow = async (f: File, title: string) => {
+    setOcrStatus("queued");
+    setOcrApplied(null);
+    try {
+      const { doc_id } = await uploadCaietFileAsync(f);
+      setOcrStatus("processing");
+      for (let attempt = 0; attempt < 40; attempt++) {
+        if (cancelledRef.current) return;
+        const row = await fetchDocumentExtraction(doc_id);
+        if (row.status === "done") {
+          setOcrApplied(row.ocr_applied);
+          setResult(await analyzeCaietSarcini(title, undefined, doc_id));
+          setOcrStatus("done");
+          return;
+        }
+        if (row.status === "failed") {
+          setError(row.error_message || "Procesarea OCR a eșuat.");
+          setOcrStatus("failed");
+          return;
+        }
+        await new Promise((r) => setTimeout(r, 3000));
+      }
+      if (!cancelledRef.current) {
+        setError("Procesarea OCR durează mai mult decât de obicei — reveniți mai târziu.");
+        setOcrStatus("failed");
+      }
+    } catch (e) {
+      if (!cancelledRef.current) {
+        setError(e instanceof ApiError ? e.detail : "Procesarea OCR a eșuat.");
+        setOcrStatus("failed");
+      }
+    }
+  };
 
   const handleAnalyze = async () => {
     if (!projectTitle.trim()) {
@@ -369,10 +420,16 @@ function CaietTool({ initial }: { initial: { project_title: string } }) {
     }
     setLoading(true);
     setError(null);
+    setOcrStatus("idle");
+    setOcrApplied(null);
     try {
       setResult(file ? await uploadCaietFile(file, projectTitle) : await analyzeCaietSarcini(projectTitle, text));
     } catch (e) {
-      setError(e instanceof ApiError ? e.detail : "Analiza documentului a eșuat.");
+      if (file && e instanceof ApiError && e.status === 422 && e.detail.includes("upload-caiet-async")) {
+        await runAsyncOcrFlow(file, projectTitle);
+      } else {
+        setError(e instanceof ApiError ? e.detail : "Analiza documentului a eșuat.");
+      }
     } finally {
       setLoading(false);
     }
@@ -446,8 +503,23 @@ function CaietTool({ initial }: { initial: { project_title: string } }) {
         </div>
       )}
 
+      {!loading && (ocrStatus === "queued" || ocrStatus === "processing") && (
+        <div className="mt-6">
+          <Loading
+            label={
+              ocrStatus === "queued"
+                ? "Documentul scanat a fost pus în coadă pentru OCR…"
+                : "Se procesează OCR — poate dura până la câteva minute pentru documente lungi…"
+            }
+          />
+        </div>
+      )}
+
       {result && !loading && (
         <div className="mt-8 space-y-6">
+          {ocrApplied && (
+            <Badge tone="neutral">Document procesat prin OCR (scanare, fără strat de text digital)</Badge>
+          )}
           <div className="neu-flat rounded-3xl bg-paper p-5">
             <div className="flex flex-wrap items-baseline justify-between gap-3">
               <div>

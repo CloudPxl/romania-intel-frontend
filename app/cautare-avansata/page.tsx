@@ -453,6 +453,14 @@ function CautareAvansataContent() {
                               Potrivire · {lead.match?.reasons.join(", ")}
                             </Badge>
                           )}
+                          {lead.metadata?.seap_cross_reference && (
+                            // Deliberately a different tone than the match
+                            // badge above — this is a best-effort heuristic
+                            // (find_seap_cross_reference needs 2 of 3
+                            // signals to agree), never a verified identity,
+                            // so it must not read as the same kind of claim.
+                            <Badge tone="neutral">Potrivire SEAP: posibilă</Badge>
+                          )}
                           {lead.sub_category && (
                             <span className="label-eyebrow text-stock-500">{lead.sub_category}</span>
                           )}
@@ -594,6 +602,18 @@ function CautareAvansataContent() {
                   ))}
                 </tbody>
               </table>
+
+              {selectedLead.metadata?.seap_cross_reference && (
+                <p className="font-mono mt-2 text-[11px] uppercase tracking-widest text-stock-500">
+                  Posibilă corespondență SEAP · bază:{" "}
+                  {selectedLead.metadata.seap_cross_reference.basis
+                    .map(
+                      (b) =>
+                        ({ cpv_prefix: "CPV", value_within_tolerance: "valoare", buyer_name: "autoritate" }[b])
+                    )
+                    .join(", ")}
+                </p>
+              )}
 
               {selectedLead.sales_pitch_angle && (
                 <div className="neu-pressed mt-5 rounded-r-lg border-l-2 border-editorial bg-editorial-soft px-4 py-3">
