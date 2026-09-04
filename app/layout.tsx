@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans, DM_Sans, JetBrains_Mono } from "next/font/google";
 import { AuthProvider } from "@/context/AuthContext";
 import Sidebar from "@/components/Sidebar";
-import Topbar from "@/components/Topbar";
 import "./globals.css";
 
 const jakarta = Plus_Jakarta_Sans({
@@ -49,10 +48,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <div className="mesh-layer" aria-hidden="true" />
           <div className="relative z-10 flex min-h-svh">
             <Sidebar />
-            <div className="flex min-h-svh min-w-0 flex-1 flex-col">
-              <Topbar />
-              {children}
-            </div>
+            <div className="flex min-h-svh min-w-0 flex-1 flex-col">{children}</div>
           </div>
         </AuthProvider>
       </body>

@@ -124,7 +124,6 @@ function PersonalizedHomePage() {
       {stats?.degraded && <DegradedBanner detail={stats.detail} />}
 
       <div className="stagger pb-2">
-        <Eyebrow className="text-editorial">Profilul dvs. · România</Eyebrow>
         <h1 className="font-display mt-3 text-3xl font-semibold leading-[1.05] tracking-tight sm:text-5xl">
           {firstName ? `Bun venit, ${firstName}.` : "Bun venit."}
         </h1>
@@ -242,39 +241,6 @@ function PersonalizedHomePage() {
               <MarketTrendsView data={stats} variant="compact" />
             </div>
           )}
-
-          <Ornament />
-
-          <div className="mb-4 flex items-baseline justify-between gap-3 border-b border-divider pb-2">
-            <h2 className="font-display text-2xl font-bold tracking-tight">Instrumente</h2>
-          </div>
-          <div className="stagger grid grid-cols-1 gap-4 sm:grid-cols-3">
-            {[
-              { href: "/eligibility", kicker: "Eligibilitate", title: "Verificare finanțare & excludere" },
-              { href: "/drafting", kicker: "Redactare", title: "Propuneri și clarificări" },
-              { href: "/pipeline", kicker: "Ofertare", title: "Pipeline-ul dvs. de dosare" },
-            ].map((s) => (
-              <Link
-                key={s.href}
-                href={s.href}
-                className="group flex flex-col neu-flat rounded-3xl bg-paper p-5 transition-all duration-[var(--duration-base)] ease-[var(--ease-glide)] hover:neu-glow hover:-translate-y-1 active:scale-[0.99]"
-              >
-                <Eyebrow className="text-editorial">{s.kicker}</Eyebrow>
-                <h3 className="font-display mt-2 text-lg font-semibold leading-snug tracking-tight text-ink">
-                  {s.title}
-                </h3>
-                <span className="font-sans mt-4 inline-flex items-center gap-1 text-[13px] font-medium text-editorial">
-                  Deschide
-                  <span
-                    aria-hidden="true"
-                    className="transition-transform duration-[var(--duration-base)] ease-[var(--ease-spring)] group-hover:translate-x-1"
-                  >
-                    →
-                  </span>
-                </span>
-              </Link>
-            ))}
-          </div>
         </>
       )}
     </main>

@@ -1,5 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { ApiError, deleteOwnAccount, generateProformaInvoice, updateMyAlertSettings, type ProformaResult } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
@@ -37,7 +38,15 @@ function Modal({
 
   if (!isOpen) return null;
 
-  return (
+  // Portalled straight to <body>: every call site sits inside the desktop
+  // sidebar's `position: sticky` panel, which — per spec, sticky/fixed
+  // elements always open a new stacking context, regardless of z-index —
+  // traps this dialog's z-50 inside that panel's own stacking context.
+  // The panel itself is an earlier DOM sibling of the page's main content,
+  // so without the portal the whole dialog painted *underneath* the page
+  // (visible only through the gaps between page elements) no matter how
+  // high its own z-index was set.
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
       <div className="absolute inset-0 bg-black/60" onClick={onClose} aria-hidden="true" />
       <div
@@ -64,7 +73,8 @@ function Modal({
         </div>
         <div className="overflow-y-auto p-4 sm:p-6">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

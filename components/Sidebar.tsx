@@ -49,12 +49,6 @@ function domainLabel(domain: string): string {
   return DOMAIN_LABELS[domain] ?? domain;
 }
 
-export function pageTitleForPath(pathname: string | null): string {
-  if (!pathname) return "RO-INTEL";
-  const link = NAV_LINKS.find((l) => (l.href === "/" ? pathname === "/" : pathname.startsWith(l.href)));
-  return link?.label ?? "RO-INTEL";
-}
-
 function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const { user, profile, signOut } = useAuth();
