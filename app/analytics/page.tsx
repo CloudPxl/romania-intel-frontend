@@ -1,8 +1,10 @@
 "use client";
 import React, { Suspense, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import AuthGate from "@/components/AuthGate";
+import Explain from "@/components/Explain";
 import {
   ApiError,
   analyzeCaietSarcini,
@@ -229,6 +231,7 @@ function CompetitorTool({ initial }: { initial: { category: string; county: stri
 
   const market = data?.observed_market;
   const pricing = data?.pricing;
+  const awards = data?.award_intelligence;
   // Sorted so the ladder reads from the published estimate downwards
   // rather than in whatever order the object happened to serialise.
   const referencePoints = Object.entries(pricing?.reference_points_ron ?? {}).sort(
@@ -280,21 +283,41 @@ function CompetitorTool({ initial }: { initial: { category: string; county: stri
         <div className="mt-8 space-y-8">
           <section>
             <SectionTitle note={`${data.sector} · ${data.county}`}>Piața observată</SectionTitle>
+
+            {/* States which set every figure below was computed over. The
+                county used to be counted and then discarded — the median
+                and the authority list were national — so asking about Iași
+                returned Oradea's water utility and Bucharest's city hall.
+                Correct numbers answering a question nobody asked read, at
+                the point of use, exactly like invented ones. */}
+            {market?.scope_note && (
+              <div className="mb-4">
+                <Notice tone={market.scope === "county" ? "neutral" : "warning"}>
+                  {market.scope_note}
+                </Notice>
+              </div>
+            )}
+
             <div className="rule-grid grid grid-cols-2 sm:grid-cols-4">
               <div className="p-4">
                 <Eyebrow>Proceduri comparabile</Eyebrow>
                 <p className="tabular font-display mt-1.5 text-2xl font-semibold leading-none">
                   {formatNumber(market?.comparable_procedures_ingested)}
                 </p>
+                <p className="font-mono mt-1 text-[10px] text-stock-500">în toată țara</p>
               </div>
               <div className="p-4">
                 <Eyebrow>În județul cerut</Eyebrow>
                 <p className="tabular font-display mt-1.5 text-2xl font-semibold leading-none">
                   {formatNumber(market?.in_requested_county)}
                 </p>
+                <p className="font-mono mt-1 text-[10px] text-stock-500">{data.county}</p>
               </div>
               <div className="p-4">
-                <Eyebrow>Valoare mediană</Eyebrow>
+                <span className="inline-flex items-center gap-1.5">
+                  <Eyebrow>Valoare mediană</Eyebrow>
+                  <Explain k="medianValue" />
+                </span>
                 <p className="tabular font-display mt-1.5 text-2xl font-semibold leading-none">
                   {formatRon(market?.value_distribution_ron?.median)}
                 </p>
@@ -308,6 +331,118 @@ function CompetitorTool({ initial }: { initial: { category: string; county: stri
               </div>
             </div>
           </section>
+
+          {/* Real outcomes, where any exist. Rendered as its own section
+              rather than folded into the market view above, because it
+              answers a different question — what winners actually bid —
+              and rests on a different, much narrower dataset. */}
+          {awards && (
+            <section>
+              <SectionTitle note={awards.available ? `${awards.sample_size} atribuiri` : "indisponibil"}>
+                Rezultate reale de atribuire
+              </SectionTitle>
+              {!awards.available ? (
+                <Notice tone="warning">{awards.reason}</Notice>
+              ) : (
+                <div className="space-y-4">
+                  {awards.competitive_pressure && (
+                    <div className="neu-pressed rounded-2xl bg-paper p-4">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge tone="accent">{awards.competitive_pressure.label}</Badge>
+                        <Explain k="competitivePressure" />
+                      </div>
+                      <p className="font-body mt-2 text-sm leading-relaxed">
+                        {awards.competitive_pressure.detail}
+                      </p>
+                      <p className="font-mono mt-2 text-[10px] leading-relaxed text-stock-500">
+                        {awards.competitive_pressure.method_note}
+                      </p>
+                    </div>
+                  )}
+                  {awards.winning_discount_pct && (
+                    <div className="rule-grid grid grid-cols-2 sm:grid-cols-4">
+                      {(
+                        [
+                          ["Discount median", awards.winning_discount_pct.median],
+                          ["Discount mediu", awards.winning_discount_pct.average],
+                          ["Minim", awards.winning_discount_pct.min],
+                          ["Maxim", awards.winning_discount_pct.max],
+                        ] as [string, number][]
+                      ).map(([label, v]) => (
+                        <div key={label} className="p-4">
+                          <Eyebrow>{label}</Eyebrow>
+                          <p className="tabular font-display mt-1.5 text-xl font-semibold leading-none">
+                            {v.toFixed(1)}%
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {awards.recurring_winners?.length ? (
+                    <div>
+                      <Eyebrow className="mb-2">Câștigători recurenți (observați)</Eyebrow>
+                      <ul className="divide-y divide-divider">
+                        {awards.recurring_winners.map((w) => (
+                          <li key={w.name} className="flex items-baseline justify-between gap-3 py-2">
+                            <span className="font-body text-sm">{w.name}</span>
+                            <span className="tabular font-mono shrink-0 text-xs text-stock-500">
+                              {w.awards} atribuiri · {w.share_pct}%
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* The procedures the figures above were computed from, each
+              linking straight to its dossier. A number the reader cannot
+              trace back to the rows behind it is a number they have to
+              take on trust. */}
+          {market?.procedures?.length ? (
+            <section>
+              <SectionTitle note={`${market.procedures.length} dosare`}>
+                Procedurile din spatele cifrelor
+              </SectionTitle>
+              <ul className="divide-y divide-divider">
+                {market.procedures.map((p, i) => {
+                  const row = (
+                    <>
+                      <span className="min-w-0 flex-1">
+                        <span className="font-body block truncate text-sm font-medium">
+                          {p.project_title || "Fără titlu"}
+                        </span>
+                        <span className="font-mono block truncate text-[11px] text-stock-500">
+                          {p.entity_name}
+                          {p.county ? ` · ${p.county}` : ""}
+                        </span>
+                      </span>
+                      <span className="tabular font-mono shrink-0 text-xs text-stock-600">
+                        {formatRon(p.financial_value_ron ?? 0)}
+                      </span>
+                    </>
+                  );
+                  return (
+                    <li key={p.source_id || i}>
+                      {p.source_id ? (
+                        <Link
+                          href={`/cautare-avansata?openLead=${encodeURIComponent(p.source_id)}&matches=0`}
+                          className="flex items-baseline justify-between gap-3 py-2.5 transition-colors duration-[var(--duration-base)] hover:text-editorial"
+                        >
+                          {row}
+                        </Link>
+                      ) : (
+                        <span className="flex items-baseline justify-between gap-3 py-2.5">{row}</span>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          ) : null}
 
           {market?.contracting_authorities_observed?.length ? (
             <section>
@@ -326,7 +461,10 @@ function CompetitorTool({ initial }: { initial: { category: string; county: stri
 
           {pricing && (
             <section>
-              <SectionTitle note="raportate la estimare">Repere de preț</SectionTitle>
+              <span className="flex items-center gap-1.5">
+                <SectionTitle note="raportate la estimare">Repere de preț</SectionTitle>
+                <Explain k="priceReferences" className="mb-4" />
+              </span>
               <div className="rule-grid grid grid-cols-2 sm:grid-cols-4">
                 {referencePoints.map(([label, value], i) => (
                   <div

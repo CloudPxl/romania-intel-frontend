@@ -103,6 +103,25 @@ export const EXPLAINERS = {
       "Pur și simplu valoarea estimată minus 5%, 10% și 15% — o riglă pentru discuția internă despre marjă. " +
       "NU sunt prețuri câștigătoare și nu sunt prognoze. Sunt procente aplicate la o singură cifră, cea publicată de autoritate.",
   },
+  competitivePressure: {
+    title: "Presiunea concurențială",
+    body:
+      "O etichetă calculată din atribuirile reale pe care le-am colectat: cât de concentrat este câștigătorul și cât de mult a scăzut prețul față de estimare. " +
+      "„Monopolizat” înseamnă că o singură firmă ia majoritatea, cu discount mic. „Concurență agresivă” înseamnă marjă strânsă. " +
+      "Pragurile sunt fixe și declarate, iar dovezile sunt afișate — nu este un model statistic.",
+  },
+  winningDiscount: {
+    title: "Discountul câștigător",
+    body:
+      "Cu cât sub valoarea estimată a ofertat firma care a câștigat efectiv. Calculat din anunțuri de atribuire reale, nu estimat. " +
+      "Acoperim deocamdată doar achizițiile directe (anunțuri SEAP de tip CAN), deci eșantionul este mic — verificați câte atribuiri stau în spatele cifrei.",
+  },
+  analysisScope: {
+    title: "Ce acoperă cifrele",
+    body:
+      "Când există suficiente proceduri în județul cerut, toate cifrele sunt calculate doar din acelea. " +
+      "Când nu există, trecem pe date naționale și scriem asta explicit — ca să nu citiți o medie pe țară drept o realitate locală.",
+  },
   awardDataGap: {
     title: "De ce nu vedeți concurenții",
     body:

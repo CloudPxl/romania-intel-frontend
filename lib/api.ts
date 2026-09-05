@@ -543,6 +543,47 @@ export async function triggerEmailAlert(
  * read `benchmark.*` and `pricing_recommendations.*`, which this endpoint
  * has not returned for some time — every one of those cells rendered blank.
  */
+/** One of the procedures the market figures were actually computed over,
+ *  carried so the UI can link to the dossier instead of leaving the reader
+ *  to find a number back out of the register by hand. */
+export interface ObservedProcedure {
+  source_id?: string | null;
+  project_title?: string | null;
+  entity_name?: string | null;
+  county?: string | null;
+  financial_value_ron?: number | null;
+  published_date?: string | null;
+}
+
+/** Real outcomes, from ingested SEAP award notices (CAN). `available` is
+ *  false — with a `reason` — whenever the sample is too small to report,
+ *  which is the common case today: only direct acquisitions produce award
+ *  notices in this pipeline. */
+export interface AwardIntelligence {
+  available: boolean;
+  sample_size: number;
+  awards_seen?: number;
+  min_sample_required?: number;
+  reason?: string;
+  winning_discount_pct?: { average: number; median: number; min: number; max: number };
+  recurring_winners?: { name: string; awards: number; share_pct: number }[];
+  authority_profiles?: {
+    authority: string;
+    awards_observed: number;
+    distinct_winners: number;
+    top_winner: string;
+    top_winner_share_pct: number;
+  }[];
+  offers_per_procedure?: { average: number; sample: number } | null;
+  competitive_pressure?: {
+    label: string;
+    code: string;
+    detail: string;
+    evidence: Record<string, number | null>;
+    method_note: string;
+  };
+}
+
 export interface CompetitorAnalysis {
   sector: string;
   county: string;
@@ -550,7 +591,13 @@ export interface CompetitorAnalysis {
   observed_market: {
     comparable_procedures_ingested: number;
     in_requested_county: number;
+    analysed_procedures?: number;
+    /** Which set every figure below was computed over. A national
+     *  fallback must never be readable as a local finding. */
+    scope?: "county" | "national";
+    scope_note?: string;
     contracting_authorities_observed: string[];
+    procedures?: ObservedProcedure[];
     value_distribution_ron: { min: number; median: number; max: number; count: number };
   };
   pricing: {
@@ -558,7 +605,14 @@ export interface CompetitorAnalysis {
     sector_technical_note?: string;
     reference_points_ron: Record<string, number>;
     reference_points_note: string;
+    observed_winning_price_ron?: {
+      at_median_observed_discount: number;
+      median_discount_pct: number;
+      sample_size: number;
+    };
+    observed_winning_price_note?: string;
   };
+  award_intelligence?: AwardIntelligence;
   data_limitations: string;
 }
 
