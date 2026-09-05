@@ -563,6 +563,10 @@ export interface AwardIntelligence {
   available: boolean;
   sample_size: number;
   awards_seen?: number;
+  /** Awards whose notice published no separate estimate, so no discount
+   *  can be derived from them. The SEAP direct-acquisition feed publishes
+   *  only the awarded value, which makes this the common case. */
+  awards_without_estimate?: number;
   min_sample_required?: number;
   reason?: string;
   winning_discount_pct?: { average: number; median: number; min: number; max: number };

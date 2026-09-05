@@ -122,6 +122,13 @@ export const EXPLAINERS = {
       "Când există suficiente proceduri în județul cerut, toate cifrele sunt calculate doar din acelea. " +
       "Când nu există, trecem pe date naționale și scriem asta explicit — ca să nu citiți o medie pe țară drept o realitate locală.",
   },
+  recurringWinners: {
+    title: "Câștigători observați",
+    body:
+      "Cine a câștigat efectiv, numărat din anunțurile de atribuire colectate. Este o observație, nu o acuzație: " +
+      "o firmă poate câștiga repetat pur și simplu pentru că e singura calificată într-un județ mic. " +
+      "Vă spune însă pe cine veți întâlni și dacă merită să intrați.",
+  },
   awardDataGap: {
     title: "De ce nu vedeți concurenții",
     body:

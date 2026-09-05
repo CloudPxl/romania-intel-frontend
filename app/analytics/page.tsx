@@ -345,7 +345,30 @@ function CompetitorTool({ initial }: { initial: { category: string; county: stri
                 Rezultate reale de atribuire
               </SectionTitle>
               {!awards.available ? (
-                <Notice tone="warning">{awards.reason}</Notice>
+                <div className="space-y-4">
+                  <Notice tone="warning">{awards.reason}</Notice>
+                  {/* The winners are real observations that need no
+                      estimate behind them, so they survive the missing
+                      discount rather than being discarded with it. */}
+                  {awards.recurring_winners?.length ? (
+                    <div>
+                      <span className="flex items-center gap-1.5">
+                        <Eyebrow className="mb-2">Câștigători observați</Eyebrow>
+                        <Explain k="recurringWinners" className="mb-2" />
+                      </span>
+                      <ul className="divide-y divide-divider">
+                        {awards.recurring_winners.map((w) => (
+                          <li key={w.name} className="flex items-baseline justify-between gap-3 py-2">
+                            <span className="font-body text-sm">{w.name}</span>
+                            <span className="tabular font-mono shrink-0 text-xs text-stock-500">
+                              {w.awards} atribuiri · {w.share_pct}%
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                </div>
               ) : (
                 <div className="space-y-4">
                   {awards.competitive_pressure && (
