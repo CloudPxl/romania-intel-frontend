@@ -693,6 +693,46 @@ export async function fetchDocumentExtraction(docId: string): Promise<DocumentEx
  * `win_probability_score` in 6xl type — a field this endpoint does not
  * return, so the headline number was permanently "undefined".
  */
+export type AwardCriterion = "lowest_price" | "best_value";
+
+/** How the bid scores under the procedure's own award criterion. Under
+ *  lowest price a technical advantage buys nothing, so `undercut_scenarios`
+ *  is absent — the shape differs deliberately rather than sending zeros. */
+export interface PriceStrategy {
+  status: "success" | "error";
+  message?: string;
+  award_criterion?: AwardCriterion;
+  award_criterion_label?: string;
+  discount_pct?: number;
+  price_weight_pct?: number;
+  technical_weight_pct?: number;
+  scoring_model?: {
+    formula: string;
+    note: string;
+    undercut_scenarios?: {
+      competitor_undercuts_you_by_pct: number;
+      competitor_price_ron: number;
+      your_price_points: number;
+      price_points_lost: number;
+      technical_advantage_needed_pts: number;
+      technical_advantage_needed_pct_of_technical_weight: number | null;
+    }[];
+  };
+  abnormally_low_risk?: {
+    level: string;
+    code: string;
+    detail: string;
+    trigger_used: string;
+    observed_median_discount_pct: number | null;
+    /** States that no percentage threshold exists in force. Rendered
+     *  verbatim: the 80% rule is from the repealed OUG 34/2006 and is the
+     *  single most repeated piece of wrong pricing advice in the field. */
+    legal_position: string;
+    requires_justification_dossier: boolean;
+    legal_basis: { citation: string; text: string; source_url: string }[];
+  };
+}
+
 export interface WinOdds {
   estimated_budget_ron: number;
   proposed_price_ron: number;
@@ -701,13 +741,20 @@ export interface WinOdds {
   assessment: string;
   factors: string[];
   methodology_note: string;
+  strategy?: PriceStrategy;
+  award_intelligence?: AwardIntelligence;
 }
 
 export async function predictWinRate(
   estimatedBudget: number,
   proposedPrice: number,
   hasLocalPartner = false,
-  leadTimeDays = 30
+  leadTimeDays = 30,
+  opts: {
+    awardCriterion?: AwardCriterion;
+    priceWeightPct?: number;
+    county?: string;
+  } = {}
 ): Promise<WinOdds> {
   return apiFetch("/api/v1/addons/predict-win-rate", {
     method: "POST",
@@ -716,8 +763,115 @@ export async function predictWinRate(
       proposed_price_ron: proposedPrice,
       has_local_partnership: hasLocalPartner,
       lead_time_days: leadTimeDays,
+      award_criterion: opts.awardCriterion ?? "lowest_price",
+      price_weight_pct: opts.priceWeightPct ?? 100,
+      county: opts.county || undefined,
     },
   });
+}
+
+export interface JustificationDossier {
+  title: string;
+  subtitle: string;
+  company_name: string;
+  authority_name?: string | null;
+  project_title: string;
+  estimated_value_ron: number;
+  proposed_price_ron: number;
+  discount_pct: number;
+  chapters: {
+    letter: string;
+    title: string;
+    what_to_provide: string;
+    supporting_evidence: string;
+  }[];
+  legal_basis: { citation: string; text: string; source_url: string }[];
+  closing_note: string;
+  narrative: string | null;
+  narrative_available: boolean;
+  narrative_note: string | null;
+}
+
+/** The Art. 210 defence. The outline is complete on its own — `narrative`
+ *  is the AI draft and is null when no provider answers. */
+export async function generateJustificationDossier(body: {
+  company_name: string;
+  project_title: string;
+  estimated_value_ron: number;
+  proposed_price_ron: number;
+  authority_name?: string;
+  cost_notes?: string;
+  use_ai_expansion?: boolean;
+}): Promise<JustificationDossier> {
+  return apiFetch("/api/v1/addons/price-justification-dossier", { method: "POST", body });
+}
+
+/* ------------------------------------------------- qualification routes */
+
+export interface QualificationScenarios {
+  available: boolean;
+  reason?: string;
+  company?: {
+    cui: number;
+    name: string;
+    county: string | null;
+    caen_code: string | null;
+    turnover_ron: number | null;
+    employee_count: number | null;
+    fiscal_year: number | null;
+    is_inactive_taxpayer: boolean;
+    vat_registered: boolean;
+    cash_vat_scheme: boolean;
+  };
+  contract?: {
+    estimated_value_ron: number | null;
+    max_lawful_turnover_requirement_ron: number | null;
+    ceiling_basis: string | null;
+  };
+  scenario_a_leader?: {
+    status: "eligible" | "likely_eligible" | "at_risk" | "blocked" | "unknown";
+    label: string;
+    max_lawful_turnover_requirement_ron: number | null;
+    required_turnover_ron: number | null;
+    company_turnover_ron: number | null;
+    findings: string[];
+    blockers: string[];
+    legal_basis: { citation: string; text: string; source_url: string }[];
+  };
+  scenario_b_partnership?: {
+    label: string;
+    supportable_share_pct: number | null;
+    findings: string[];
+    routes: {
+      route: string;
+      label: string;
+      note: string;
+      legal_basis: { citation: string; text: string; source_url: string }[];
+    }[];
+  };
+  exclusion_review?: {
+    grounds: {
+      ground: string;
+      citation: string | null;
+      status: "pass" | "fail" | "unverified";
+      detail: string;
+      evidence_document: string;
+    }[];
+    verified_count: number;
+    unverified_count: number;
+    note: string;
+  };
+  recommendation?: string;
+  method_note?: string;
+}
+
+export async function fetchQualificationScenarios(body: {
+  cui_fiscal: string;
+  estimated_value_ron: number;
+  required_turnover_ron?: number;
+  company_name?: string;
+}): Promise<QualificationScenarios> {
+  return apiFetch("/api/v1/business-eligibility/qualification-scenarios", { method: "POST", body });
 }
 
 /* ---------------------------------------------------------- eligibility */

@@ -186,6 +186,28 @@ export const EXPLAINERS = {
       "în loc să vă bazăm raportul de eligibilitate pe ce ați declarat dvs.",
   },
 
+  qualificationRoutes: {
+    title: "Traseele de participare",
+    body:
+      "Pornind de la datele reale ale firmei de la ANAF și de la valoarea contractului, verificăm dacă puteți oferta singur. " +
+      "Legea limitează cifra de afaceri pe care autoritatea o poate cere la de două ori valoarea estimată (art. 175 alin. (2) lit. a)) — " +
+      "dacă documentația cere mai mult, aveți temei să cereți clarificări.",
+  },
+  partnershipRoutes: {
+    title: "Dacă nu puteți oferta singur",
+    body:
+      "Nu înseamnă că sunteți excluși. Ca subcontractant nu vi se poate impune niciun prag de cifră de afaceri (art. 172 alin. (4)). " +
+      "Într-o asociere, resursele membrilor se cumulează (art. 185), dar răspundeți solidar. " +
+      "Cu un terț susținător puteți împrumuta capacitatea altcuiva, indiferent de relația juridică (art. 182).",
+  },
+  exclusionGrounds: {
+    title: "Motive de excludere",
+    body:
+      "Situațiile care vă scot din procedură indiferent de ofertă: datorii fiscale, condamnări, insolvență, conflict de interese. " +
+      "Verificăm automat doar starea de contribuabil inactiv — singura publicată de ANAF. " +
+      "Restul apar ca „neverificabil”, nu ca „în regulă”: nu vă dăm o confirmare pe care nu o putem susține.",
+  },
+
   /* ---------------------------------------------------------- documents */
   ocr: {
     title: "OCR",

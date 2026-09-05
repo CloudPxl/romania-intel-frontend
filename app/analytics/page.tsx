@@ -12,12 +12,15 @@ import {
   fetch72hMarketReport,
   fetchCompetitorAnalysis,
   fetchDocumentExtraction,
+  generateJustificationDossier,
   predictWinRate,
   uploadCaietFile,
   uploadCaietFileAsync,
+  type AwardCriterion,
   type CaietAnalysis,
   type CompetitorAnalysis,
   type CopilotTurn,
+  type JustificationDossier,
   type MacroReport,
   type WinOdds,
 } from "@/lib/api";
@@ -771,9 +774,18 @@ function WinOddsTool({ initial }: { initial: { budget: string } }) {
   const [price, setPrice] = useState(Math.round(defaultBudget * 0.92));
   const [hasPartner, setHasPartner] = useState(true);
   const [leadTime, setLeadTime] = useState(30);
+  const [criterion, setCriterion] = useState<AwardCriterion>("lowest_price");
+  const [priceWeight, setPriceWeight] = useState(40);
+  const [county, setCounty] = useState("");
   const [result, setResult] = useState<WinOdds | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The Art. 210 defence, generated from the same numbers already on screen.
+  const [dossier, setDossier] = useState<JustificationDossier | null>(null);
+  const [dossierLoading, setDossierLoading] = useState(false);
+  const [companyName, setCompanyName] = useState("");
+  const [projectTitle, setProjectTitle] = useState("");
+  const [costNotes, setCostNotes] = useState("");
 
   const handleCalculate = async () => {
     if (budget <= 0 || price <= 0) {
@@ -782,8 +794,15 @@ function WinOddsTool({ initial }: { initial: { budget: string } }) {
     }
     setLoading(true);
     setError(null);
+    setDossier(null);
     try {
-      setResult(await predictWinRate(budget, price, hasPartner, leadTime));
+      setResult(
+        await predictWinRate(budget, price, hasPartner, leadTime, {
+          awardCriterion: criterion,
+          priceWeightPct: criterion === "best_value" ? priceWeight : 100,
+          county,
+        })
+      );
     } catch (e) {
       setError(e instanceof ApiError ? e.detail : "Calculul nu a putut fi finalizat.");
     } finally {
@@ -791,14 +810,36 @@ function WinOddsTool({ initial }: { initial: { budget: string } }) {
     }
   };
 
+  const handleGenerateDossier = async () => {
+    setDossierLoading(true);
+    setError(null);
+    try {
+      setDossier(
+        await generateJustificationDossier({
+          company_name: companyName.trim() || "[denumirea ofertantului]",
+          project_title: projectTitle.trim() || "[denumirea procedurii]",
+          estimated_value_ron: budget,
+          proposed_price_ron: price,
+          cost_notes: costNotes.trim() || undefined,
+        })
+      );
+    } catch (e) {
+      setError(e instanceof ApiError ? e.detail : "Fundamentarea nu a putut fi generată.");
+    } finally {
+      setDossierLoading(false);
+    }
+  };
+
   const discountPct = budget > 0 ? ((budget - price) / budget) * 100 : 0;
+  const strategy = result?.strategy;
+  const risk = strategy?.abnormally_low_risk;
 
   return (
     <Panel className="p-4 sm:p-6">
       <h2 className="font-display text-2xl font-bold leading-tight tracking-tight">Poziționare financiară</h2>
       <p className="font-body mt-1.5 text-sm leading-relaxed text-stock-600">
-        Evaluare calitativă a discountului ofertat față de intervalele uzuale din achizițiile publice din România.
-        Sistemul nu colectează rezultate de atribuire, deci nu produce o probabilitate statistică de câștig.
+        Calculat pe criteriul de atribuire al procedurii: sub „prețul cel mai scăzut” un avantaj tehnic nu compensează
+        nimic, iar la „cel mai bun raport calitate-preț” un discount valorează exact cât ponderea prețului.
       </p>
 
       <div className="mt-6 space-y-5">
@@ -807,6 +848,29 @@ function WinOddsTool({ initial }: { initial: { budget: string } }) {
         </Field>
         <Field label="Preț ofertat propus (RON)" hint={`Discount curent: ${discountPct.toFixed(1)}%`}>
           <Input type="number" min={0} value={price} onChange={(e) => setPrice(Number(e.target.value))} />
+        </Field>
+        <Field label="Criteriu de atribuire">
+          <Select value={criterion} onChange={(e) => setCriterion(e.target.value as AwardCriterion)}>
+            <option value="lowest_price">Prețul cel mai scăzut</option>
+            <option value="best_value">Cel mai bun raport calitate-preț</option>
+          </Select>
+        </Field>
+        {criterion === "best_value" && (
+          <Field
+            label="Ponderea prețului (%)"
+            hint={`Tehnic: ${100 - priceWeight}% — din fișa de date a procedurii.`}
+          >
+            <Input
+              type="number"
+              min={1}
+              max={100}
+              value={priceWeight}
+              onChange={(e) => setPriceWeight(Math.max(1, Math.min(100, Number(e.target.value))))}
+            />
+          </Field>
+        )}
+        <Field label="Județ (opțional)" hint="Aduce discounturile câștigătoare reale, dacă avem atribuiri ingerate.">
+          <Input value={county} onChange={(e) => setCounty(e.target.value)} placeholder="ex. Brașov" />
         </Field>
         <Field label="Timp până la depunere (zile)">
           <Input type="number" min={0} value={leadTime} onChange={(e) => setLeadTime(Number(e.target.value))} />
@@ -845,6 +909,156 @@ function WinOddsTool({ initial }: { initial: { budget: string } }) {
               </span>
             </div>
           </div>
+
+          {/* What the award criterion actually costs you. Under best value
+              a competitor's undercut converts into a number of technical
+              points you must make up — which is the decision, not an
+              adjective about competitiveness. */}
+          {strategy?.scoring_model && (
+            <section>
+              <SectionTitle note={strategy.award_criterion_label}>Modelul de punctaj</SectionTitle>
+              <div className="neu-pressed rounded-2xl bg-paper p-4">
+                <p className="font-mono text-xs leading-relaxed text-stock-600">
+                  {strategy.scoring_model.formula}
+                </p>
+                <p className="font-body mt-2 text-sm leading-relaxed">{strategy.scoring_model.note}</p>
+              </div>
+              {strategy.scoring_model.undercut_scenarios && (
+                <div className="scroll-x mt-4 overflow-x-auto">
+                  <table className="w-full min-w-[34rem] neu-pressed overflow-hidden rounded-2xl bg-paper text-left font-mono text-xs">
+                    <thead>
+                      <tr className="border-b border-divider">
+                        {["Dacă vă subcotează cu", "Prețul lui", "Punctajul dvs. pe preț", "Trebuie recuperat tehnic"].map(
+                          (h) => (
+                            <th key={h} className="px-3 py-2.5 font-sans text-[10px] font-semibold uppercase tracking-widest text-stock-500">
+                              {h}
+                            </th>
+                          )
+                        )}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {strategy.scoring_model.undercut_scenarios.map((s) => (
+                        <tr key={s.competitor_undercuts_you_by_pct} className="border-b border-divider last:border-b-0">
+                          <td className="px-3 py-2.5">{s.competitor_undercuts_you_by_pct}%</td>
+                          <td className="px-3 py-2.5">{formatRon(s.competitor_price_ron)}</td>
+                          <td className="px-3 py-2.5">
+                            {s.your_price_points} / {strategy.price_weight_pct}
+                          </td>
+                          <td className="px-3 py-2.5 text-editorial">
+                            {s.price_points_lost} pct
+                            {s.technical_advantage_needed_pct_of_technical_weight != null &&
+                              ` (${s.technical_advantage_needed_pct_of_technical_weight}% din tehnic)`}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* Art. 210 exposure. The legal position is rendered verbatim
+              because the 80% rule people act on is from the repealed OUG
+              34/2006, and a paraphrase is how it creeps back. */}
+          {risk && (
+            <section>
+              <span className="flex items-center gap-1.5">
+                <SectionTitle note={risk.level}>Expunere la prețul neobișnuit de scăzut</SectionTitle>
+                <Explain k="abnormallyLowPrice" className="mb-4" />
+              </span>
+              <div
+                className={
+                  "neu-pressed rounded-2xl bg-paper p-4 border-l-[3px] " +
+                  (risk.code === "low" ? "border-positive" : risk.code === "moderate" ? "border-warning" : "border-negative")
+                }
+              >
+                <p className="font-body text-sm leading-relaxed">{risk.detail}</p>
+                <p className="font-mono mt-2 text-[10px] uppercase tracking-widest text-stock-500">
+                  Declanșator: {risk.trigger_used}
+                </p>
+              </div>
+
+              <div className="mt-3 flex items-start gap-1.5">
+                <Notice tone="neutral" title="Poziția legală">
+                  {risk.legal_position}
+                </Notice>
+                <Explain k="eightyPercentMyth" className="mt-3" />
+              </div>
+
+              {risk.legal_basis?.length > 0 && (
+                <details className="mt-3">
+                  <summary className="label-eyebrow cursor-pointer text-stock-500 hover:text-ink">
+                    Textul articolelor ({risk.legal_basis.length})
+                  </summary>
+                  <div className="mt-2 space-y-3">
+                    {risk.legal_basis.map((a) => (
+                      <div key={a.citation} className="neu-pressed rounded-2xl bg-paper p-3">
+                        <p className="font-mono text-[11px] font-semibold text-editorial">{a.citation}</p>
+                        <p className="font-body mt-1.5 text-xs leading-relaxed text-stock-600">„{a.text}”</p>
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              )}
+
+              {risk.requires_justification_dossier && (
+                <div className="neu-pressed mt-4 rounded-2xl bg-paper p-4">
+                  <Eyebrow className="text-editorial">Pregătiți fundamentarea acum</Eyebrow>
+                  <p className="font-body mt-1.5 text-sm leading-relaxed text-stock-600">
+                    Generăm structura oficială pe capitolele a)–f) din art. 210 alin. (2), cu dovezile cerute de
+                    art. 136 alin. (2) din norme. O fundamentare pregătită și necerută nu costă nimic; una cerută și
+                    nepregătită pierde procedura.
+                  </p>
+                  <div className="mt-4 space-y-3">
+                    <Field label="Denumirea ofertantului">
+                      <Input value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="SC Exemplu SRL" />
+                    </Field>
+                    <Field label="Denumirea procedurii">
+                      <Input value={projectTitle} onChange={(e) => setProjectTitle(e.target.value)} placeholder="Modernizare DJ 103" />
+                    </Field>
+                    <Field label="Note despre structura costurilor (opțional)" hint="Utilaje proprii, distanțe, contracte-cadru cu furnizorii.">
+                      <Textarea rows={3} value={costNotes} onChange={(e) => setCostNotes(e.target.value)} />
+                    </Field>
+                  </div>
+                  <Button onClick={handleGenerateDossier} disabled={dossierLoading} fullWidth className="mt-4">
+                    {dossierLoading ? "Se redactează…" : "Generează fundamentarea economică"}
+                  </Button>
+                </div>
+              )}
+            </section>
+          )}
+
+          {dossier && (
+            <section>
+              <SectionTitle note={`${dossier.chapters.length} capitole`}>{dossier.title}</SectionTitle>
+              {!dossier.narrative_available && dossier.narrative_note && (
+                <div className="mb-3">
+                  <Notice tone="warning">{dossier.narrative_note}</Notice>
+                </div>
+              )}
+              {dossier.narrative && (
+                <div className="neu-pressed mb-4 rounded-2xl bg-paper p-4">
+                  <p className="font-body whitespace-pre-wrap text-sm leading-relaxed">{dossier.narrative}</p>
+                </div>
+              )}
+              <ol className="divide-y divide-divider">
+                {dossier.chapters.map((c) => (
+                  <li key={c.letter} className="py-3">
+                    <p className="font-body text-sm font-semibold">
+                      {c.letter}) {c.title}
+                    </p>
+                    <p className="font-body mt-1 text-sm leading-relaxed text-stock-600">{c.what_to_provide}</p>
+                    <p className="font-mono mt-1.5 text-[11px] leading-relaxed text-stock-500">
+                      Dovezi: {c.supporting_evidence}
+                    </p>
+                  </li>
+                ))}
+              </ol>
+              <p className="font-body mt-4 text-sm leading-relaxed text-stock-600">{dossier.closing_note}</p>
+            </section>
+          )}
 
           {result.factors?.length > 0 && (
             <section>

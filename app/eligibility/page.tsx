@@ -2,11 +2,14 @@
 import React, { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import AuthGate from "@/components/AuthGate";
+import Explain from "@/components/Explain";
 import {
   ApiError,
   evaluateBusinessEligibility,
+  fetchQualificationScenarios,
   verifyCompany,
   type CompanyVerification,
+  type QualificationScenarios,
   type EligibilityResult,
 } from "@/lib/api";
 import { formatNumber, formatRon } from "@/lib/format";
@@ -59,6 +62,39 @@ function EligibilityContent() {
   const [error, setError] = useState<string | null>(null);
   const [verification, setVerification] = useState<CompanyVerification | null>(null);
   const [verifying, setVerifying] = useState(false);
+  const [contractValue, setContractValue] = useState(10_000_000);
+  const [requiredTurnover, setRequiredTurnover] = useState("");
+  const [qualification, setQualification] = useState<QualificationScenarios | null>(null);
+  const [qualLoading, setQualLoading] = useState(false);
+
+  const handleQualification = async () => {
+    if (!cui.trim()) {
+      setError("Introduceți CUI-ul — analiza pornește de la datele reale ale firmei, nu de la cele completate manual.");
+      return;
+    }
+    if (contractValue <= 0) {
+      setError("Introduceți valoarea estimată a contractului.");
+      return;
+    }
+    setQualLoading(true);
+    setError(null);
+    try {
+      const parsed = requiredTurnover.trim() === "" ? undefined : Number(requiredTurnover);
+      setQualification(
+        await fetchQualificationScenarios({
+          cui_fiscal: cui.trim(),
+          estimated_value_ron: contractValue,
+          required_turnover_ron: Number.isFinite(parsed as number) ? (parsed as number) : undefined,
+          company_name: companyName.trim() || undefined,
+        })
+      );
+    } catch (e) {
+      setError(e instanceof ApiError ? e.detail : "Analiza traseelor de participare a eșuat.");
+      setQualification(null);
+    } finally {
+      setQualLoading(false);
+    }
+  };
 
   /**
    * Pulls the company out of ANAF's own registers and fills the form from
@@ -187,6 +223,41 @@ function EligibilityContent() {
               </Field>
             </div>
 
+            {/* The procurement question, distinct from the grant scoring
+                below it: for a contract of THIS value, can this company
+                bid alone — and if not, what does the law leave open. */}
+            <div className="mt-6 border-t border-divider pt-5">
+              <span className="flex items-center gap-1.5">
+                <Eyebrow className="mb-2">Participare la o procedură</Eyebrow>
+                <Explain k="qualificationRoutes" className="mb-2" />
+              </span>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Field label="Valoarea estimată a contractului (RON)">
+                  <Input
+                    type="number"
+                    min={0}
+                    value={contractValue}
+                    onChange={(e) => setContractValue(Number(e.target.value))}
+                  />
+                </Field>
+                <Field
+                  label="Cifra de afaceri cerută (opțional)"
+                  hint="Din fișa de date, dacă o cunoașteți."
+                >
+                  <Input
+                    type="number"
+                    min={0}
+                    value={requiredTurnover}
+                    onChange={(e) => setRequiredTurnover(e.target.value)}
+                    placeholder="ex. 20000000"
+                  />
+                </Field>
+              </div>
+              <Button onClick={handleQualification} variant="outline" fullWidth disabled={qualLoading} className="mt-4">
+                {qualLoading ? "Se analizează…" : "Verifică traseele de participare"}
+              </Button>
+            </div>
+
             <div className="mt-5">
               <Button onClick={handleVerify} variant="outline" fullWidth disabled={verifying}>
                 {verifying ? "Se caută în registre…" : "Caută firma în registrele oficiale (ANAF)"}
@@ -283,7 +354,143 @@ function EligibilityContent() {
           </Panel>
         </section>
 
-        <section className="lg:col-span-7">
+        <section className="lg:col-span-7 space-y-6">
+          {qualification && (
+            <Panel className="p-4 sm:p-6">
+              {!qualification.available ? (
+                <Notice tone="alert" title="Compania nu a putut fi identificată">
+                  {qualification.reason}
+                </Notice>
+              ) : (
+                <>
+                  <SectionTitle note={qualification.company?.name}>Trasee de participare</SectionTitle>
+
+                  {/* Scenario A — can they lead. Status drives the tone, so
+                      "blocked" and "eligible" are never mistakable. */}
+                  {qualification.scenario_a_leader && (
+                    <div
+                      className={
+                        "neu-pressed rounded-2xl bg-paper p-4 border-l-[3px] " +
+                        (qualification.scenario_a_leader.status === "eligible"
+                          ? "border-positive"
+                          : qualification.scenario_a_leader.status === "blocked"
+                            ? "border-negative"
+                            : "border-warning")
+                      }
+                    >
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge
+                          tone={
+                            qualification.scenario_a_leader.status === "eligible"
+                              ? "positive"
+                              : qualification.scenario_a_leader.status === "blocked"
+                                ? "negative"
+                                : "neutral"
+                          }
+                        >
+                          {qualification.scenario_a_leader.label}
+                        </Badge>
+                        <span className="font-mono text-[11px] uppercase tracking-widest text-stock-500">
+                          {qualification.scenario_a_leader.status.replace(/_/g, " ")}
+                        </span>
+                      </div>
+                      {qualification.scenario_a_leader.blockers.map((b, i) => (
+                        <p key={i} className="font-body mt-2 text-sm font-medium leading-relaxed text-negative">
+                          {b}
+                        </p>
+                      ))}
+                      {qualification.scenario_a_leader.findings.map((f, i) => (
+                        <p key={i} className="font-body mt-2 text-sm leading-relaxed text-stock-600">
+                          {f}
+                        </p>
+                      ))}
+                      {qualification.contract?.max_lawful_turnover_requirement_ron != null && (
+                        <p className="font-mono mt-3 border-t border-divider pt-2 text-[11px] leading-relaxed text-stock-500">
+                          Plafon legal maxim al cerinței de cifră de afaceri:{" "}
+                          {formatRon(qualification.contract.max_lawful_turnover_requirement_ron)} —{" "}
+                          {qualification.contract.ceiling_basis}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Scenario B — what the law leaves open. Shown always,
+                      because "ineligible as leader" is not "ineligible". */}
+                  {qualification.scenario_b_partnership && (
+                    <div className="mt-5">
+                      <span className="flex items-center gap-1.5">
+                        <Eyebrow className="mb-2">{qualification.scenario_b_partnership.label}</Eyebrow>
+                        <Explain k="partnershipRoutes" className="mb-2" />
+                      </span>
+                      {qualification.scenario_b_partnership.findings.map((f, i) => (
+                        <p key={i} className="font-body mb-2 text-sm leading-relaxed text-stock-600">
+                          {f}
+                        </p>
+                      ))}
+                      <ul className="divide-y divide-divider">
+                        {qualification.scenario_b_partnership.routes.map((r) => (
+                          <li key={r.route} className="py-3">
+                            <p className="font-body text-sm font-semibold">{r.label}</p>
+                            <p className="font-body mt-1 text-sm leading-relaxed text-stock-600">{r.note}</p>
+                            {r.legal_basis?.length > 0 && (
+                              <p className="font-mono mt-1.5 text-[10px] text-stock-500">
+                                {r.legal_basis.map((a) => a.citation).join(" · ")}
+                              </p>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* The honest half: what was checked vs what cannot be. */}
+                  {qualification.exclusion_review && (
+                    <div className="mt-5 border-t border-divider pt-4">
+                      <span className="flex items-center gap-1.5">
+                        <Eyebrow className="mb-2">Motive de excludere</Eyebrow>
+                        <Explain k="exclusionGrounds" className="mb-2" />
+                      </span>
+                      <ul className="divide-y divide-divider">
+                        {qualification.exclusion_review.grounds.map((g) => (
+                          <li key={g.ground} className="flex items-start gap-3 py-2.5">
+                            <Badge
+                              tone={
+                                g.status === "pass" ? "positive" : g.status === "fail" ? "negative" : "neutral"
+                              }
+                            >
+                              {g.status === "pass" ? "Verificat" : g.status === "fail" ? "Blocant" : "Neverificabil"}
+                            </Badge>
+                            <span className="min-w-0 flex-1">
+                              <span className="font-body block text-sm">{g.ground}</span>
+                              <span className="font-mono block text-[10px] leading-relaxed text-stock-500">
+                                {g.detail} · {g.evidence_document}
+                              </span>
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                      <p className="font-mono mt-3 text-[10px] leading-relaxed text-stock-500">
+                        {qualification.exclusion_review.note}
+                      </p>
+                    </div>
+                  )}
+
+                  {qualification.recommendation && (
+                    <div className="neu-pressed mt-5 rounded-r-lg border-l-2 border-editorial bg-editorial-soft px-4 py-3">
+                      <Eyebrow className="text-editorial">Recomandare</Eyebrow>
+                      <p className="font-body mt-1.5 text-sm leading-relaxed">{qualification.recommendation}</p>
+                    </div>
+                  )}
+                  {qualification.method_note && (
+                    <p className="font-mono mt-4 text-[10px] leading-relaxed text-stock-500">
+                      {qualification.method_note}
+                    </p>
+                  )}
+                </>
+              )}
+            </Panel>
+          )}
+
           {loading ? (
             <Loading label="Se verifică criteriile de eligibilitate" />
           ) : !result ? (
