@@ -1,6 +1,5 @@
 "use client";
 import React, { Suspense, useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import AuthGate from "@/components/AuthGate";
@@ -16,6 +15,7 @@ import {
   uploadCaietFileAsync,
   type CaietAnalysis,
   type CompetitorAnalysis,
+  type CopilotTurn,
   type MacroReport,
   type WinOdds,
 } from "@/lib/api";
@@ -80,10 +80,18 @@ function CopilotTool() {
     const question = input.trim();
     if (!question || loading) return;
     setInput("");
+    // Snapshot the transcript *before* appending this turn — the backend
+    // takes the question separately, and sending it twice would have the
+    // model answer a message it can already see as the newest turn.
+    // The opening canned greeting is dropped: it is UI copy, not
+    // something the model said.
+    const history: CopilotTurn[] = messages
+      .slice(1)
+      .map((m) => ({ role: m.sender === "user" ? ("user" as const) : ("assistant" as const), content: m.text }));
     setMessages((prev) => [...prev, { sender: "user", text: question }]);
     setLoading(true);
     try {
-      const data = await askCopilotChat(question);
+      const data = await askCopilotChat(question, history);
       setMessages((prev) => [...prev, { sender: "ai", text: data.reply, degraded: data.degraded }]);
     } catch (e) {
       setMessages((prev) => [
@@ -97,8 +105,11 @@ function CopilotTool() {
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+      {/* Deliberately quiet: the copilot is the page, and this rail is a
+          short read-only digest beside it — not a dashboard competing with
+          it for attention. The market figures it used to headline live on
+          /analysis, which is the page for them. */}
       <aside className="lg:col-span-4">
-        <SectionTitle note={report?.period || "72h"}>Sinteză macro</SectionTitle>
         {reportError ? (
           <Notice tone="alert">{reportError}</Notice>
         ) : !report ? (
@@ -107,69 +118,23 @@ function CopilotTool() {
           </Panel>
         ) : (
           <Panel className="p-4 sm:p-5">
-            {/* The telemetry was computed server-side and then thrown
-                away by the UI, leaving a bare list of sentences floating
-                under a heading. These are the deterministic figures the
-                takeaways below are drawn from, so they lead. */}
-            {report.telemetry && (
-              <div className="grid grid-cols-2 gap-3">
-                <div className="neu-pressed rounded-2xl bg-paper px-3 py-2.5">
-                  <Eyebrow className="text-stock-500">Semnale analizate</Eyebrow>
-                  <p className="tabular font-display mt-1 text-xl font-bold leading-none">
-                    {formatNumber(report.telemetry.signals_processed ?? 0)}
-                  </p>
-                </div>
-                <div className="neu-pressed rounded-2xl bg-paper px-3 py-2.5">
-                  <Eyebrow className="text-stock-500">Valoare publicată</Eyebrow>
-                  <p className="tabular font-display mt-1 text-xl font-bold leading-none">
-                    {formatRon(report.telemetry.published_pipeline_ron ?? 0)}
-                  </p>
-                  {/* Says what the total covers, so it is not mistaken
-                      for the whole pipeline — most signals carry no
-                      published value at all. */}
-                  <p className="font-mono mt-1 text-[10px] leading-tight text-stock-500">
-                    din {formatNumber(report.telemetry.signals_with_published_value ?? 0)} semnale cu valoare
-                  </p>
-                </div>
-              </div>
+            <Eyebrow className="text-stock-500">Puncte cheie</Eyebrow>
+            {report.executive_takeaways?.length ? (
+              <ol className="mt-2 divide-y divide-divider">
+                {report.executive_takeaways.map((t, i) => (
+                  <li key={i} className="flex gap-3 py-2.5 first:pt-0">
+                    <span className="tabular font-mono w-5 shrink-0 pt-0.5 text-xs text-stock-400">
+                      {String(i + 1).padStart(2, "0")}
+                    </span>
+                    <p className="font-body flex-1 text-sm leading-relaxed">{t}</p>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p className="font-body mt-2 text-sm leading-relaxed text-stock-600">
+                Nu există suficiente semnale noi în ultimele 72 de ore pentru o sinteză.
+              </p>
             )}
-
-            {report.telemetry?.top_active_counties?.length ? (
-              <div className="mt-4 border-t border-divider pt-3">
-                <Eyebrow className="text-stock-500">Județe active</Eyebrow>
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {report.telemetry.top_active_counties.map((c) => (
-                    <Link
-                      key={c}
-                      href={`/cautare-avansata?county=${encodeURIComponent(c)}`}
-                      className="neu-flat-sm rounded-full bg-paper px-2.5 py-1 font-sans text-[11px] font-semibold text-stock-600 transition-all duration-[var(--duration-base)] hover:neu-glow hover:-translate-y-0.5 hover:text-editorial"
-                    >
-                      {c}
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-
-            <div className="mt-4 border-t border-divider pt-3">
-              <Eyebrow className="text-stock-500">Concluzii</Eyebrow>
-              {report.executive_takeaways?.length ? (
-                <ol className="mt-1 divide-y divide-divider">
-                  {report.executive_takeaways.map((t, i) => (
-                    <li key={i} className="flex gap-3 py-2.5">
-                      <span className="tabular font-mono w-5 shrink-0 pt-0.5 text-xs text-stock-400">
-                        {String(i + 1).padStart(2, "0")}
-                      </span>
-                      <p className="font-body flex-1 text-sm leading-relaxed">{t}</p>
-                    </li>
-                  ))}
-                </ol>
-              ) : (
-                <p className="font-body mt-1.5 text-sm leading-relaxed text-stock-600">
-                  Nu există suficiente semnale noi în ultimele 72 de ore pentru o sinteză.
-                </p>
-              )}
-            </div>
 
             {report.strategic_recommendation && (
               <div className="neu-pressed mt-4 rounded-r-lg border-l-2 border-editorial bg-editorial-soft px-4 py-3">
@@ -182,7 +147,6 @@ function CopilotTool() {
       </aside>
 
       <div className="lg:col-span-8">
-        <SectionTitle>Copilot ofertare</SectionTitle>
         <Panel className="flex h-[60vh] min-h-[26rem] flex-col">
           <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto p-4">
             {messages.map((m, i) => (
@@ -787,11 +751,7 @@ function AnalyticsContent() {
 
   return (
     <main className="mx-auto w-full max-w-screen-xl flex-1 px-4 py-6 sm:py-8">
-      <PageHeader
-        eyebrow="Strategie & analiză"
-        title="Instrumente de ofertare"
-        standfirst="Copilot conversațional peste registrul curent, profil de concurență, scanner de clauze restrictive și simulator de poziționare financiară."
-      />
+      <PageHeader title="Copilot AI" />
 
       <TabBar tabs={TOOLS} active={activeTool} onChange={setActiveTool} label="Instrument de analiză" />
 

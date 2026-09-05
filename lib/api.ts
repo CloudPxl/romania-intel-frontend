@@ -463,8 +463,25 @@ export async function fetch72hMarketReport(): Promise<MacroReport> {
   return apiFetch("/api/v1/analytics/market-report-72h");
 }
 
-export async function askCopilotChat(query: string): Promise<{ reply: string; degraded?: boolean }> {
-  return apiFetch("/api/v1/copilot/chat", { method: "POST", body: { query } });
+export interface CopilotTurn {
+  role: "user" | "assistant";
+  content: string;
+}
+
+/**
+ * `history` is the prior turns, oldest first. The transcript used to live
+ * only in component state, so the model answered every message as if it
+ * were the first one and a follow-up ("și în Cluj?") had nothing to
+ * resolve against. The backend caps it at 12 turns.
+ */
+export async function askCopilotChat(
+  query: string,
+  history: CopilotTurn[] = []
+): Promise<{ reply: string; degraded?: boolean }> {
+  return apiFetch("/api/v1/copilot/chat", {
+    method: "POST",
+    body: { query, history: history.slice(-12) },
+  });
 }
 
 /* ------------------------------------------------------------- pipeline */

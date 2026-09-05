@@ -210,15 +210,17 @@ export function PageHeader({
   standfirst,
   action,
 }: {
-  eyebrow: string;
+  /** Optional: a page whose title stands on its own renders no kicker
+   *  rather than an empty one, which would still occupy its line. */
+  eyebrow?: string;
   title: string;
   standfirst?: string;
   action?: React.ReactNode;
 }) {
   return (
     <header className="mb-8">
-      <Eyebrow className="text-editorial">{eyebrow}</Eyebrow>
-      <div className="mt-2 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      {eyebrow && <Eyebrow className="text-editorial">{eyebrow}</Eyebrow>}
+      <div className={(eyebrow ? "mt-2 " : "") + "flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"}>
         <div className="min-w-0">
           <h1 className="font-display text-3xl leading-tight tracking-tight text-ink sm:text-4xl">{title}</h1>
           {standfirst && (
