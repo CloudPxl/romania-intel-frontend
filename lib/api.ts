@@ -251,10 +251,15 @@ export interface PipelineMetrics {
 }
 
 export interface DealMutationResult {
-  status: "success" | "error";
+  /** `already_saved` means this opportunity was already in the pipeline;
+   *  the existing deal is returned rather than a second copy created. */
+  status: "success" | "error" | "already_saved";
   deal?: Deal;
   message?: string;
   valid_stages?: string[];
+  /** false when the deal landed in the in-process fallback because
+   *  Postgres was unreachable — it will not survive a restart. */
+  persisted?: boolean;
 }
 
 /* --------------------------------------------------------------- system */
@@ -509,6 +514,10 @@ export async function updatePipelineDeal(
     method: "PATCH",
     body: payload,
   });
+}
+
+export async function deletePipelineDeal(dealId: string): Promise<{ status: string; deal_id: string }> {
+  return apiFetch(`/api/v1/me/pipeline/deals/${encodeURIComponent(dealId)}`, { method: "DELETE" });
 }
 
 /* --------------------------------------------------------- notification */

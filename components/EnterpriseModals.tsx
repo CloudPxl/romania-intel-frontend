@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { ApiError, deleteOwnAccount, generateProformaInvoice, updateMyAlertSettings, type ProformaResult } from "@/lib/api";
@@ -574,6 +574,13 @@ export function ProfileCriteriaModal({ isOpen, onClose }: { isOpen: boolean; onC
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Cancel the pending auto-close if the dialog goes away first, so it
+  // cannot fire onClose against an already-closed modal.
+  useEffect(() => () => {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+  }, []);
 
   useEffect(() => {
     if (!isOpen || !profile) return;
@@ -614,8 +621,20 @@ export function ProfileCriteriaModal({ isOpen, onClose }: { isOpen: boolean; onC
       cui: cui.trim() || undefined,
     });
     setSaving(false);
-    if (apiError) setError(apiError);
-    else setSaved(true);
+    if (apiError) {
+      setError(apiError);
+      return;
+    }
+    // Confirm, then close on its own. Leaving the dialog open after a
+    // successful save reads as "nothing happened" — people press the
+    // button again, and the only signal that it worked was a small inline
+    // notice below the fold of a long form. The short delay is so the
+    // confirmation is actually seen rather than flashing past.
+    setSaved(true);
+    closeTimer.current = setTimeout(() => {
+      setSaved(false);
+      onClose();
+    }, 900);
   };
 
   return (

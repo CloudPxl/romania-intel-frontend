@@ -1,5 +1,6 @@
 "use client";
 import React, { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
@@ -195,6 +196,105 @@ export function Tooltip({
         {label}
       </span>
     </span>
+  );
+}
+
+/**
+ * The small `?` beside anything technical — a score, a legal article, a
+ * derived metric — opening a plain-language explanation of what it
+ * actually measures and where the number comes from.
+ *
+ * Deliberately not the `Tooltip` above. That one is hover-only, so it is
+ * unreachable on touch, and capped at 16rem, which is a hint rather than
+ * an explanation. This opens on click (and on Enter/Space), stays open
+ * until dismissed, and is wide enough for two or three real sentences.
+ *
+ * It renders through a portal to `document.body` for the same reason the
+ * modals do: several of the places that need one sit inside a `Panel` or
+ * a sticky sidebar, and a popover positioned inside those gets clipped by
+ * the ancestor's overflow or trapped under it by a stacking context. A
+ * fixed-position node on `body` is subject to neither.
+ */
+export function Explainer({
+  title,
+  children,
+  className,
+}: {
+  title?: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  const [open, setOpen] = React.useState(false);
+  const [pos, setPos] = React.useState<{ top: number; left: number } | null>(null);
+  const btnRef = React.useRef<HTMLButtonElement>(null);
+  const popRef = React.useRef<HTMLDivElement>(null);
+
+  const place = React.useCallback(() => {
+    const el = btnRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const width = Math.min(320, window.innerWidth - 24);
+    // Keep it on screen on a narrow viewport rather than centring blindly
+    // on the trigger and letting half of it hang off the edge.
+    const left = Math.min(Math.max(12, r.left + r.width / 2 - width / 2), window.innerWidth - width - 12);
+    setPos({ top: r.bottom + 8, left });
+  }, []);
+
+  React.useEffect(() => {
+    if (!open) return;
+    place();
+    const onDocClick = (e: MouseEvent) => {
+      if (popRef.current?.contains(e.target as Node) || btnRef.current?.contains(e.target as Node)) return;
+      setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    // Reposition rather than drift: the trigger moves with the page.
+    document.addEventListener("mousedown", onDocClick);
+    document.addEventListener("keydown", onKey);
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      document.removeEventListener("keydown", onKey);
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
+    };
+  }, [open, place]);
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-label={title ? `Explicație: ${title}` : "Explicație"}
+        className={cn(
+          "neu-flat-sm inline-flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full bg-paper align-middle font-sans text-[11px] font-bold leading-none text-stock-500 transition-all duration-[var(--duration-base)] hover:neu-glow hover:text-editorial focus-visible:text-editorial",
+          open && "neu-pressed-sm text-editorial",
+          className
+        )}
+      >
+        ?
+      </button>
+      {open && pos && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              ref={popRef}
+              role="dialog"
+              aria-label={title || "Explicație"}
+              style={{ top: pos.top, left: pos.left, width: Math.min(320, window.innerWidth - 24) }}
+              className="neu-flat fixed z-[60] rounded-2xl bg-paper p-3.5"
+            >
+              {title && <p className="font-display text-sm font-bold leading-snug text-ink">{title}</p>}
+              <div className={cn("font-body text-[13px] leading-relaxed text-stock-600", title && "mt-1.5")}>
+                {children}
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
+    </>
   );
 }
 

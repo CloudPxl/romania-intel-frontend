@@ -2,8 +2,10 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import AuthGate from "@/components/AuthGate";
+import Explain from "@/components/Explain";
 import {
   ApiError,
+  deletePipelineDeal,
   fetchPipelineMetrics,
   fetchMyPipeline,
   updatePipelineDeal,
@@ -11,12 +13,15 @@ import {
   type PipelineMetrics,
 } from "@/lib/api";
 import { formatDate, formatLeadValue, formatNumber, formatPercent, formatRon, stageLabel } from "@/lib/format";
+import { EXPLAINERS } from "@/lib/explainers";
 import {
   Badge,
   Button,
   ButtonLink,
   EmptyState,
   Eyebrow,
+  Field,
+  Input,
   Loading,
   Notice,
   PageHeader,
@@ -24,6 +29,7 @@ import {
   SectionTitle,
   Select,
   StatCell,
+  Textarea,
 } from "@/components/newsprint";
 
 const TERMINAL = new Set(["won", "lost"]);
@@ -32,15 +38,39 @@ function DealCard({
   deal,
   stages,
   onMove,
+  onSaveDetails,
+  onDelete,
   busy,
 }: {
   deal: Deal;
   stages: string[];
   onMove: (dealId: string, stage: string) => void;
+  onSaveDetails: (dealId: string, price: number | undefined, notes: string) => Promise<void>;
+  onDelete: (dealId: string) => void;
   busy: boolean;
 }) {
   const value = deal.proposed_price || deal.estimated_value_ron || 0;
   const history = deal.stage_history ?? [];
+  // The card displayed "Preț ofertat" and the backend accepted one, but
+  // nothing in the UI could ever set it — so every deal was weighted on
+  // the authority's estimate rather than the bid actually submitted.
+  const [editing, setEditing] = useState(false);
+  const [price, setPrice] = useState(deal.proposed_price != null ? String(deal.proposed_price) : "");
+  const [notes, setNotes] = useState(deal.notes ?? "");
+  const [saving, setSaving] = useState(false);
+
+  const submitDetails = async () => {
+    const trimmed = price.trim();
+    const parsed = trimmed === "" ? undefined : Number(trimmed);
+    if (parsed !== undefined && (Number.isNaN(parsed) || parsed < 0)) return;
+    setSaving(true);
+    try {
+      await onSaveDetails(deal.deal_id, parsed, notes);
+      setEditing(false);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <article className="p-4 sm:p-5">
@@ -63,10 +93,45 @@ function DealCard({
             {deal.target_margin_pct != null && <span>Marjă țintă: {deal.target_margin_pct}%</span>}
           </div>
 
-          {deal.notes && (
-            <p className="font-body mt-3 border-l-2 border-divider pl-3 text-sm leading-relaxed text-stock-700">
-              {deal.notes}
-            </p>
+          {editing ? (
+            <div className="neu-pressed mt-3 rounded-2xl bg-paper p-3">
+              <Field label="Preț ofertat (RON)" hint="Înlocuiește valoarea estimată în calculul pipeline-ului.">
+                <Input
+                  type="number"
+                  min={0}
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                  placeholder="Lăsați gol dacă nu ați ofertat încă"
+                />
+              </Field>
+              <div className="mt-3">
+                <Field label="Note interne">
+                  <Textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
+                </Field>
+              </div>
+              <div className="mt-3 flex gap-2">
+                <Button onClick={submitDetails} disabled={saving}>
+                  {saving ? "Se salvează…" : "Salvează"}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setPrice(deal.proposed_price != null ? String(deal.proposed_price) : "");
+                    setNotes(deal.notes ?? "");
+                    setEditing(false);
+                  }}
+                  disabled={saving}
+                >
+                  Renunță
+                </Button>
+              </div>
+            </div>
+          ) : (
+            deal.notes && (
+              <p className="font-body mt-3 border-l-2 border-divider pl-3 text-sm leading-relaxed text-stock-700">
+                {deal.notes}
+              </p>
+            )
           )}
 
           {history.length > 0 && (
@@ -87,7 +152,10 @@ function DealCard({
 
         <div className="flex shrink-0 flex-col gap-3 border-t border-divider pt-3 sm:w-56 sm:border-l sm:border-t-0 sm:pl-5 sm:pt-0">
           <div className="sm:text-right">
-            <Eyebrow>{deal.proposed_price ? "Preț ofertat" : "Valoare estimată"}</Eyebrow>
+            <span className="inline-flex items-center gap-1.5 sm:justify-end">
+              <Eyebrow>{deal.proposed_price ? "Preț ofertat" : "Valoare estimată"}</Eyebrow>
+              <Explain k={deal.proposed_price ? "proposedPrice" : "estimatedValue"} />
+            </span>
             <p
               className={
                 "mt-1 " + (value ? "tabular font-display text-2xl font-semibold leading-none" : "font-body text-sm italic text-stock-400")
@@ -111,6 +179,16 @@ function DealCard({
               ))}
             </Select>
           </label>
+          {!editing && (
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={() => setEditing(true)}>
+                Editează
+              </Button>
+              <Button variant="outline" onClick={() => onDelete(deal.deal_id)} aria-label="Șterge dosarul">
+                Șterge
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </article>
@@ -134,17 +212,36 @@ function PipelineContent() {
     try {
       // Neither read depends on the other's result — serialising them
       // would double the time the page spends on its loading state for no
-      // benefit.
-      const [pipeline, pipelineMetrics] = await Promise.all([
+      // benefit. allSettled rather than all: the metrics endpoint is the
+      // more fragile of the two (it does date arithmetic over every deal),
+      // and a failure there used to blank the deal list as well, so a
+      // working pipeline rendered as "Niciun dosar salvat" under an error
+      // banner. The deals are the page; the metrics are a header.
+      const [pipeline, pipelineMetrics] = await Promise.allSettled([
         fetchMyPipeline(),
         fetchPipelineMetrics(),
       ]);
-      setDeals(pipeline.deals || []);
-      setStages(pipeline.stages || []);
-      setMetrics(pipelineMetrics);
-    } catch (e) {
-      setError(e instanceof ApiError ? e.detail : "Nu s-a putut încărca pipeline-ul.");
-      setDeals([]);
+
+      if (pipeline.status === "fulfilled") {
+        setDeals(pipeline.value.deals || []);
+        setStages(pipeline.value.stages || []);
+      } else {
+        setDeals([]);
+        setError(
+          pipeline.reason instanceof ApiError
+            ? pipeline.reason.detail
+            : "Nu s-a putut încărca pipeline-ul."
+        );
+      }
+
+      if (pipelineMetrics.status === "fulfilled") {
+        setMetrics(pipelineMetrics.value);
+      } else {
+        setMetrics(null);
+        if (pipeline.status === "fulfilled") {
+          setError("Dosarele sunt afișate, dar indicatorii de pipeline nu au putut fi calculați.");
+        }
+      }
     } finally {
       setLoading(false);
     }
@@ -172,6 +269,44 @@ function PipelineContent() {
       }
     } catch (e) {
       setToast(e instanceof ApiError ? e.detail : "Etapa nu a putut fi actualizată.");
+    } finally {
+      setMovingDeal(null);
+    }
+  };
+
+  const handleSaveDetails = async (dealId: string, proposed_price: number | undefined, notes: string) => {
+    const current = deals.find((d) => d.deal_id === dealId);
+    if (!current) return;
+    try {
+      // The stage is sent unchanged; the backend records a transition only
+      // when it actually differs, so editing a price does not pollute the
+      // stage history or reset time-in-stage.
+      const res = await updatePipelineDeal(dealId, {
+        new_stage: current.stage,
+        notes,
+        ...(proposed_price !== undefined ? { proposed_price } : {}),
+      });
+      if (res.status === "success") {
+        setToast("Dosar actualizat.");
+        await load();
+      } else {
+        setToast(res.message || "Dosarul nu a putut fi actualizat.");
+      }
+    } catch (e) {
+      setToast(e instanceof ApiError ? e.detail : "Dosarul nu a putut fi actualizat.");
+    }
+  };
+
+  const handleDelete = async (dealId: string) => {
+    const deal = deals.find((d) => d.deal_id === dealId);
+    if (!window.confirm(`Ștergeți definitiv „${deal?.project_title || dealId}” din pipeline?`)) return;
+    setMovingDeal(dealId);
+    try {
+      await deletePipelineDeal(dealId);
+      setToast("Dosar șters din pipeline.");
+      await load();
+    } catch (e) {
+      setToast(e instanceof ApiError ? e.detail : "Dosarul nu a putut fi șters.");
     } finally {
       setMovingDeal(null);
     }
@@ -231,11 +366,13 @@ function PipelineContent() {
                   label="Valoare ponderată"
                   value={formatRon(metrics.weighted_pipeline_value_ron)}
                   hint="Ponderată cu probabilitatea pe etapă"
+                  tooltip={EXPLAINERS.weightedPipeline.body}
                 />
                 <StatCell
                   label="Rată de câștig"
                   value={formatPercent(metrics.conversion_rates_pct.overall_win_rate)}
                   hint={`${metrics.won_deals} câștigate · ${metrics.lost_deals} pierdute`}
+                  tooltip={EXPLAINERS.conversionRate.body}
                 />
               </div>
 
@@ -332,6 +469,8 @@ function PipelineContent() {
                     deal={deal}
                     stages={stages}
                     onMove={handleMove}
+                    onSaveDetails={handleSaveDetails}
+                    onDelete={handleDelete}
                     busy={movingDeal === deal.deal_id}
                   />
                 ))}

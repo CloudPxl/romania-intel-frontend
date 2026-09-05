@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import AuthGate from "@/components/AuthGate";
+import Explain from "@/components/Explain";
 import {
   ApiError,
   addLeadToPipeline,
@@ -217,7 +218,20 @@ function CautareAvansataContent() {
     setBusyAction("pipeline");
     try {
       const res = await addLeadToPipeline(lead);
-      setToast(res.status === "success" ? "Dosar salvat în pipeline." : res.message || "Nu s-a putut salva dosarul.");
+      if (res.status === "success") {
+        // Saying so matters: without a database the deal lives in process
+        // memory and disappears on the next restart, and the user would
+        // otherwise find an empty pipeline with no explanation.
+        setToast(
+          res.persisted === false
+            ? "Dosar salvat temporar — baza de date nu răspunde, dosarul nu va fi păstrat."
+            : "Dosar salvat în pipeline."
+        );
+      } else if (res.status === "already_saved") {
+        setToast("Acest dosar este deja în pipeline.");
+      } else {
+        setToast(res.message || "Nu s-a putut salva dosarul.");
+      }
     } catch (e) {
       setToast(e instanceof ApiError ? e.detail : "Nu s-a putut salva dosarul.");
     } finally {
@@ -463,11 +477,14 @@ function CautareAvansataContent() {
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                           <span className="label-eyebrow text-editorial">{categoryLabel(lead.category)}</span>
                           {matched && (
-                            <Badge tone="accent">
-                              {/* Names WHY it matched, so the ranking is
-                                  explainable rather than magic. */}
-                              Potrivire · {lead.match?.reasons.join(", ")}
-                            </Badge>
+                            <span className="inline-flex items-center gap-1">
+                              <Badge tone="accent">
+                                {/* Names WHY it matched, so the ranking is
+                                    explainable rather than magic. */}
+                                Potrivire · {lead.match?.reasons.join(", ")}
+                              </Badge>
+                              <Explain k="matchReasons" />
+                            </span>
                           )}
                           {lead.metadata?.seap_cross_reference && (
                             // Deliberately a different tone than the match
@@ -475,7 +492,10 @@ function CautareAvansataContent() {
                             // (find_seap_cross_reference needs 2 of 3
                             // signals to agree), never a verified identity,
                             // so it must not read as the same kind of claim.
-                            <Badge tone="neutral">Potrivire SEAP: posibilă</Badge>
+                            <span className="inline-flex items-center gap-1">
+                              <Badge tone="neutral">Potrivire SEAP: posibilă</Badge>
+                              <Explain k="seapCrossReference" />
+                            </span>
                           )}
                           {lead.sub_category && (
                             <span className="label-eyebrow text-stock-500">{lead.sub_category}</span>
@@ -529,8 +549,9 @@ function CautareAvansataContent() {
                           </span>
                         )}
                         {lead.opportunity_score != null && (
-                          <span className="label-eyebrow whitespace-nowrap text-stock-600">
+                          <span className="label-eyebrow inline-flex items-center gap-1 whitespace-nowrap text-stock-600">
                             Scor {lead.opportunity_score}/10
+                            <Explain k="opportunityScore" />
                           </span>
                         )}
                         <span className="label-eyebrow whitespace-nowrap text-editorial">
