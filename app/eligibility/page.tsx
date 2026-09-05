@@ -2,9 +2,16 @@
 import React, { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import AuthGate from "@/components/AuthGate";
-import { ApiError, evaluateBusinessEligibility, type EligibilityResult } from "@/lib/api";
+import {
+  ApiError,
+  evaluateBusinessEligibility,
+  verifyCompany,
+  type CompanyVerification,
+  type EligibilityResult,
+} from "@/lib/api";
 import { formatNumber, formatRon } from "@/lib/format";
 import {
+  Badge,
   Button,
   Checkbox,
   Eyebrow,
@@ -50,6 +57,51 @@ function EligibilityContent() {
   const [result, setResult] = useState<EligibilityResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [verification, setVerification] = useState<CompanyVerification | null>(null);
+  const [verifying, setVerifying] = useState(false);
+
+  /**
+   * Pulls the company out of ANAF's own registers and fills the form from
+   * it. Everything below the CUI used to be typed in and trusted — CAEN
+   * code, county, turnover, headcount — which are exactly the four figures
+   * the eligibility verdict is computed from, and the ones an applicant is
+   * most likely to get wrong about themselves.
+   */
+  const handleVerify = async () => {
+    if (!cui.trim()) {
+      setError("Introduceți CUI-ul pentru a căuta firma în registrele oficiale.");
+      return;
+    }
+    setVerifying(true);
+    setError(null);
+    try {
+      const found = await verifyCompany(cui.trim(), companyName.trim() || undefined);
+      setVerification(found);
+      if (found.verified && found.company) {
+        // The register is authoritative, so it overwrites the form rather
+        // than only filling the blanks — seeing your own typed CAEN
+        // replaced by the one ANAF has on file is the point of the button.
+        if (found.company.company_name) setCompanyName(found.company.company_name);
+        if (found.company.caen_code) setCaen(found.company.caen_code);
+        if (found.company.county) setCounty(found.company.county);
+        if (found.financials?.found) {
+          if (typeof found.financials.turnover_ron === "number") setTurnover(found.financials.turnover_ron);
+          if (typeof found.financials.employee_count === "number") setEmployees(found.financials.employee_count);
+        }
+        // ANAF declaring the taxpayer inactive is itself an Art. 165
+        // exclusion ground, so it ticks the box rather than leaving the
+        // user to self-declare something the state already published.
+        if (found.company.is_inactive_taxpayer) {
+          setExclusions((prev) => ({ ...prev, has_unpaid_taxes: true }));
+        }
+      }
+    } catch (e) {
+      setError(e instanceof ApiError ? e.detail : "Căutarea în registre nu a putut fi finalizată.");
+      setVerification(null);
+    } finally {
+      setVerifying(false);
+    }
+  };
 
   // Prefills from the profile's own billing identity. Both are optional —
   // an individual monitoring the market has no CUI — so the fields stay
@@ -134,6 +186,67 @@ function EligibilityContent() {
                 <Input value={county} onChange={(e) => setCounty(e.target.value)} placeholder="ex. Cluj" />
               </Field>
             </div>
+
+            <div className="mt-5">
+              <Button onClick={handleVerify} variant="outline" fullWidth disabled={verifying}>
+                {verifying ? "Se caută în registre…" : "Caută firma în registrele oficiale (ANAF)"}
+              </Button>
+              <p className="font-body mt-2 text-xs leading-relaxed text-stock-500">
+                Completează automat denumirea, codul CAEN, județul, cifra de afaceri și numărul de angajați din
+                registrul ANAF și din bilanțul depus de firmă — în locul valorilor introduse manual.
+              </p>
+            </div>
+
+            {verification && (
+              <div className="mt-4">
+                {verification.verified && verification.company ? (
+                  <div className="neu-pressed rounded-2xl bg-paper p-4">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge tone="positive">Verificat ANAF</Badge>
+                      {verification.company.vat_registered && <Badge tone="neutral">Plătitor TVA</Badge>}
+                      {verification.company.is_inactive_taxpayer && <Badge tone="negative">Inactiv fiscal</Badge>}
+                      {verification.financials?.found && (
+                        <Badge tone="neutral">Bilanț {verification.financials.fiscal_year}</Badge>
+                      )}
+                    </div>
+                    <p className="font-display mt-3 text-base font-semibold leading-snug">
+                      {verification.company.company_name}
+                    </p>
+                    <dl className="mt-2 grid grid-cols-1 gap-x-4 gap-y-1 font-mono text-[11px] text-stock-600 sm:grid-cols-2">
+                      <div>Nr. reg. com.: {verification.company.trade_registry_number || "—"}</div>
+                      <div>CAEN: {verification.company.caen_code || "—"}</div>
+                      <div>Sediu: {verification.company.locality || verification.company.county || "—"}</div>
+                      <div>Înregistrată: {verification.company.registration_date || "—"}</div>
+                      {verification.financials?.found && (
+                        <>
+                          <div>
+                            Cifră afaceri:{" "}
+                            {typeof verification.financials.turnover_ron === "number"
+                              ? formatRon(verification.financials.turnover_ron)
+                              : "—"}
+                          </div>
+                          <div>Angajați: {verification.financials.employee_count ?? "—"}</div>
+                        </>
+                      )}
+                    </dl>
+                    {!verification.financials?.found && verification.financials?.error && (
+                      <p className="font-body mt-2 text-xs leading-relaxed text-stock-500">
+                        {verification.financials.error} Completați manual cifra de afaceri și numărul de angajați.
+                      </p>
+                    )}
+                    {verification.registry_warnings?.map((w) => (
+                      <div key={w} className="mt-3">
+                        <Notice tone="warning">{w}</Notice>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <Notice tone="alert" title="Firma nu a putut fi verificată">
+                    {verification.error || "ANAF nu a returnat nicio firmă pentru acest CUI."}
+                  </Notice>
+                )}
+              </div>
+            )}
 
             <div className="mt-7 border-t border-divider pt-5">
               <Eyebrow className="text-editorial">Motive de excludere · Legea 98/2016</Eyebrow>

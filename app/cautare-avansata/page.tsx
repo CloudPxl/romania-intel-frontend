@@ -57,6 +57,14 @@ function CautareAvansataContent() {
   const initialFundingSource = searchParams.get("fundingSource") || "all";
   const initialOpenLead = searchParams.get("openLead");
   const arrivedWithUrlFilter = initialCounty !== "all" || initialCategory !== "all" || initialFundingSource !== "all";
+  // `?matches=1` states explicitly which side of the soft filter the link
+  // meant, instead of leaving it to the heuristic below. Prima Pagina's KPI
+  // tiles count the signed-in user's OWN matches, so "Brașov · 145 mil RON"
+  // has to land on the user's matches in Brașov — landing on the whole
+  // Brașov market would show a different, larger set than the number the
+  // user just clicked, which is worse than not linking at all.
+  const initialMatchesParam = searchParams.get("matches");
+  const initialSort = searchParams.get("sort");
 
   const [activeCategory, setActiveCategory] = useState<string>(initialCategory);
   // The feed now returns the WHOLE market ranked, not just matches, so
@@ -73,12 +81,20 @@ function CautareAvansataContent() {
   // in Hunedoara, not their own matches narrowed further by county — so it
   // starts on the full market (onlyMatches false) and is marked as already
   // decided, so the no-matches fallback effect below never re-litigates it.
-  const [onlyMatches, setOnlyMatches] = useState(!arrivedWithUrlFilter);
-  const [matchDefaultApplied, setMatchDefaultApplied] = useState(arrivedWithUrlFilter);
+  // An explicit ?matches= wins over both the default and the arrived-with-
+  // a-filter rule, since it is the link stating what it meant.
+  const [onlyMatches, setOnlyMatches] = useState(
+    initialMatchesParam !== null ? initialMatchesParam === "1" : !arrivedWithUrlFilter
+  );
+  const [matchDefaultApplied, setMatchDefaultApplied] = useState(
+    arrivedWithUrlFilter || initialMatchesParam !== null
+  );
   const [selectedCounty, setSelectedCounty] = useState(initialCounty);
   const [selectedFundingSource, setSelectedFundingSource] = useState(initialFundingSource);
   const [searchQuery, setSearchQuery] = useState("");
-  const [sortBy, setSortBy] = useState<SortId>("score_desc");
+  const [sortBy, setSortBy] = useState<SortId>(
+    SORTS.some((s) => s.id === initialSort) ? (initialSort as SortId) : "score_desc"
+  );
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [openLeadHandled, setOpenLeadHandled] = useState(!initialOpenLead);
 

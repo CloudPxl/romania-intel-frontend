@@ -289,6 +289,8 @@ export function StatCell({
   loading,
   detail,
   tooltip,
+  href,
+  linkLabel,
 }: {
   label: string;
   value: React.ReactNode;
@@ -299,6 +301,16 @@ export function StatCell({
   detail?: React.ReactNode;
   /** Explains what the metric actually measures. */
   tooltip?: string;
+  /**
+   * Turns the tile into a click-through to the rows behind the number.
+   * The destination must show *exactly* the set this figure counts — a
+   * tile reading "135 matched files" that lands on the whole market is
+   * worse than one that does not link at all, because the number the user
+   * just read no longer reconciles with what they are looking at.
+   */
+  href?: string;
+  /** Affordance text shown on hover when `href` is set. */
+  linkLabel?: string;
 }) {
   const labelNode = tooltip ? (
     <Tooltip label={tooltip}>
@@ -310,8 +322,8 @@ export function StatCell({
     <Eyebrow>{label}</Eyebrow>
   );
 
-  return (
-    <div className="group neu-flat rounded-3xl bg-paper p-4 transition-all duration-[var(--duration-base)] ease-[var(--ease-glide)] hover:neu-glow hover:-translate-y-1 sm:p-5">
+  const body = (
+    <>
       {labelNode}
       <p className="tabular font-display mt-2 text-2xl font-extrabold leading-none text-ink sm:text-3xl">
         {loading ? <span className="animate-pulse text-stock-400">···</span> : value}
@@ -326,7 +338,34 @@ export function StatCell({
           </div>
         </div>
       )}
-    </div>
+    </>
+  );
+
+  const shell =
+    "group neu-flat rounded-3xl bg-paper p-4 transition-all duration-[var(--duration-base)] ease-[var(--ease-glide)] hover:neu-glow hover:-translate-y-1 sm:p-5";
+
+  if (!href) return <div className={shell}>{body}</div>;
+
+  return (
+    <Link href={href} className={cn(shell, "block active:scale-[0.99]")}>
+      {body}
+      {/* The lift alone reads as decoration on a tile that was static
+          until now, so a clickable one also says where it goes — and only
+          on hover, keeping the resting grid as quiet as it was. */}
+      <span className="reveal">
+        <span>
+          <span className="font-sans mt-3 inline-flex items-center gap-1 text-[12px] font-medium text-editorial">
+            {linkLabel || "Vezi dosarele"}
+            <span
+              aria-hidden="true"
+              className="transition-transform duration-[var(--duration-base)] ease-[var(--ease-spring)] group-hover:translate-x-1"
+            >
+              →
+            </span>
+          </span>
+        </span>
+      </span>
+    </Link>
   );
 }
 

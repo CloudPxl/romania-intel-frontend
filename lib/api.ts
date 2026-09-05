@@ -632,15 +632,78 @@ export async function predictWinRate(
 export interface EligibilityRequest {
   company_name: string;
   cui_fiscal: string;
-  caen_code: string;
-  turnover_ron: number;
-  employee_count: number;
-  county: string;
+  /**
+   * Optional since the backend now fills these from ANAF's own registers
+   * whenever the CUI resolves. What is sent here is only the fallback for
+   * a company the registry cannot answer for (too new to have filed, or a
+   * legal form with no filing obligation).
+   */
+  caen_code?: string;
+  turnover_ron?: number;
+  employee_count?: number;
+  county?: string;
+  verify_with_registry?: boolean;
   /** Mandatory exclusion grounds under Legea 98/2016 Art. 164/165/167. */
   has_criminal_conviction?: boolean;
   has_unpaid_taxes?: boolean;
   is_insolvent?: boolean;
   has_professional_misconduct?: boolean;
+}
+
+/**
+ * What ANAF's taxpayer register and the company's own filed balance sheet
+ * say about a CUI. `verified: false` carries `error` and never a
+ * fabricated company — an unreachable ANAF and an unknown code are both
+ * reported as such rather than guessed at.
+ */
+export interface CompanyVerification {
+  verified: boolean;
+  found: boolean;
+  cui?: number;
+  cui_checksum_valid?: boolean;
+  error?: string;
+  checked_at?: string;
+  sources?: string[];
+  company?: {
+    cui: number;
+    company_name: string | null;
+    trade_registry_number: string | null;
+    caen_code: string | null;
+    legal_form: string | null;
+    registration_date: string | null;
+    registration_status: string | null;
+    address: string | null;
+    county: string | null;
+    locality: string | null;
+    vat_registered: boolean;
+    is_inactive_taxpayer: boolean;
+    einvoice_registered: boolean;
+  };
+  financials?: {
+    found: boolean;
+    fiscal_year?: number;
+    turnover_ron?: number | null;
+    employee_count?: number | null;
+    caen_description?: string | null;
+    source?: string;
+    error?: string;
+  };
+  name_match?: {
+    compared: boolean;
+    matches: boolean | null;
+    confidence: number | null;
+    official_name?: string;
+    declared_name?: string;
+  };
+  /** Registry facts that bar participation, e.g. an inactive taxpayer. */
+  registry_warnings?: string[];
+}
+
+export async function verifyCompany(cuiFiscal: string, companyName?: string): Promise<CompanyVerification> {
+  return apiFetch("/api/v1/business-eligibility/verify-company", {
+    method: "POST",
+    body: { cui_fiscal: cuiFiscal, company_name: companyName },
+  });
 }
 
 export interface EligibilityGrant {
@@ -687,6 +750,11 @@ export interface EligibilityResult {
     size_class?: string;
     is_imm?: boolean;
   };
+  /** The registry lookup the verdict was computed from, when one ran. */
+  registry_verification?: CompanyVerification & { skipped?: boolean; note?: string };
+  /** Fields where what was typed disagreed with the official register. */
+  declared_vs_registry?: { field: string; declared: unknown; registry: unknown; note: string }[];
+  data_provenance?: string;
   [key: string]: unknown;
 }
 

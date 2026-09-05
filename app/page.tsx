@@ -120,6 +120,13 @@ function PersonalizedHomePage() {
   const leadStory = stats?.top_opportunities?.[0];
   const topCounty = stats?.by_county?.[0];
   const isPersonalized = stats?.is_personalized !== false;
+  // Each tile links to exactly the set it counts. When these figures are
+  // the user's own matches, the destination has to stay filtered to those
+  // matches too — otherwise clicking "135 dosare potrivite" lands on the
+  // full market and the number the user just read no longer reconciles
+  // with what is on screen. When the profile matches nothing and these
+  // fell back to whole-market figures, the links follow them there.
+  const matchesParam = isPersonalized ? "1" : "0";
 
   return (
     <main className="mx-auto w-full max-w-screen-xl flex-1 px-4 py-6 sm:py-10">
@@ -160,11 +167,15 @@ function PersonalizedHomePage() {
               label={isPersonalized ? "Dosare potrivite" : "Dosare în registru"}
               tooltip="Numărul de oportunități care corespund criteriilor dvs. de monitorizare."
               value={<CountUp value={stats?.total_leads ?? 0} format={(n) => formatNumber(Math.round(n))} />}
+              href={`/cautare-avansata?matches=${matchesParam}`}
+              linkLabel="Vezi dosarele"
             />
             <StatCell
               label={isPersonalized ? "Valoare potriviri" : "Valoare totală piață"}
               tooltip="Suma valorilor estimate ale dosarelor de mai sus."
               value={<CountUp value={stats?.total_market_value_ron ?? 0} format={(n) => formatRon(n)} />}
+              href={`/cautare-avansata?matches=${matchesParam}&sort=budget_desc`}
+              linkLabel="Vezi după valoare"
             />
             <StatCell
               label="Scor mediu oportunitate"
@@ -181,11 +192,19 @@ function PersonalizedHomePage() {
                   <ProgressBar value={stats.average_opportunity_score} max={10} label="Scor mediu" />
                 ) : undefined
               }
+              href={`/cautare-avansata?matches=${matchesParam}&sort=score_desc`}
+              linkLabel="Vezi după scor"
             />
             <StatCell
               label={isPersonalized ? "Județ cu volum maxim (potriviri)" : "Județ cu volum maxim"}
               value={topCounty?.county ?? "—"}
               hint={topCounty ? formatRon(topCounty.value_ron) : undefined}
+              href={
+                topCounty
+                  ? `/cautare-avansata?county=${encodeURIComponent(topCounty.county)}&matches=${matchesParam}`
+                  : undefined
+              }
+              linkLabel={topCounty ? `Vezi dosarele din ${topCounty.county}` : undefined}
             />
           </div>
 
