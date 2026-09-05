@@ -1,5 +1,6 @@
 "use client";
 import React, { Suspense, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import AuthGate from "@/components/AuthGate";
@@ -101,29 +102,82 @@ function CopilotTool() {
         {reportError ? (
           <Notice tone="alert">{reportError}</Notice>
         ) : !report ? (
-          <p className="font-mono text-xs uppercase tracking-widest text-stock-500">Se încarcă…</p>
-        ) : report.executive_takeaways?.length ? (
-          <ol className="divide-y divide-divider">
-            {report.executive_takeaways.map((t, i) => (
-              <li key={i} className="flex gap-3 py-3">
-                <span className="tabular font-mono w-6 shrink-0 pt-0.5 text-xs text-stock-400">
-                  {String(i + 1).padStart(2, "0")}
-                </span>
-                <p className="font-body flex-1 text-sm leading-relaxed">{t}</p>
-              </li>
-            ))}
-          </ol>
+          <Panel className="p-4">
+            <p className="font-mono text-xs uppercase tracking-widest text-stock-500">Se încarcă…</p>
+          </Panel>
         ) : (
-          <p className="font-body text-sm text-stock-600">
-            Nu există suficiente semnale noi în ultimele 72 de ore pentru o sinteză.
-          </p>
-        )}
+          <Panel className="p-4 sm:p-5">
+            {/* The telemetry was computed server-side and then thrown
+                away by the UI, leaving a bare list of sentences floating
+                under a heading. These are the deterministic figures the
+                takeaways below are drawn from, so they lead. */}
+            {report.telemetry && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="neu-pressed rounded-2xl bg-paper px-3 py-2.5">
+                  <Eyebrow className="text-stock-500">Semnale analizate</Eyebrow>
+                  <p className="tabular font-display mt-1 text-xl font-bold leading-none">
+                    {formatNumber(report.telemetry.signals_processed ?? 0)}
+                  </p>
+                </div>
+                <div className="neu-pressed rounded-2xl bg-paper px-3 py-2.5">
+                  <Eyebrow className="text-stock-500">Valoare publicată</Eyebrow>
+                  <p className="tabular font-display mt-1 text-xl font-bold leading-none">
+                    {formatRon(report.telemetry.published_pipeline_ron ?? 0)}
+                  </p>
+                  {/* Says what the total covers, so it is not mistaken
+                      for the whole pipeline — most signals carry no
+                      published value at all. */}
+                  <p className="font-mono mt-1 text-[10px] leading-tight text-stock-500">
+                    din {formatNumber(report.telemetry.signals_with_published_value ?? 0)} semnale cu valoare
+                  </p>
+                </div>
+              </div>
+            )}
 
-        {report?.strategic_recommendation && (
-          <div className="neu-pressed mt-5 rounded-r-lg border-l-2 border-editorial bg-editorial-soft px-4 py-3">
-            <Eyebrow className="text-editorial">Recomandare strategică</Eyebrow>
-            <p className="font-body mt-1.5 text-sm leading-relaxed">{report.strategic_recommendation}</p>
-          </div>
+            {report.telemetry?.top_active_counties?.length ? (
+              <div className="mt-4 border-t border-divider pt-3">
+                <Eyebrow className="text-stock-500">Județe active</Eyebrow>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {report.telemetry.top_active_counties.map((c) => (
+                    <Link
+                      key={c}
+                      href={`/cautare-avansata?county=${encodeURIComponent(c)}`}
+                      className="neu-flat-sm rounded-full bg-paper px-2.5 py-1 font-sans text-[11px] font-semibold text-stock-600 transition-all duration-[var(--duration-base)] hover:neu-glow hover:-translate-y-0.5 hover:text-editorial"
+                    >
+                      {c}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            <div className="mt-4 border-t border-divider pt-3">
+              <Eyebrow className="text-stock-500">Concluzii</Eyebrow>
+              {report.executive_takeaways?.length ? (
+                <ol className="mt-1 divide-y divide-divider">
+                  {report.executive_takeaways.map((t, i) => (
+                    <li key={i} className="flex gap-3 py-2.5">
+                      <span className="tabular font-mono w-5 shrink-0 pt-0.5 text-xs text-stock-400">
+                        {String(i + 1).padStart(2, "0")}
+                      </span>
+                      <p className="font-body flex-1 text-sm leading-relaxed">{t}</p>
+                    </li>
+                  ))}
+                </ol>
+              ) : (
+                <p className="font-body mt-1.5 text-sm leading-relaxed text-stock-600">
+                  Nu există suficiente semnale noi în ultimele 72 de ore pentru o sinteză.
+                </p>
+              )}
+            </div>
+
+            {report.strategic_recommendation && (
+              <div className="neu-pressed mt-4 rounded-r-lg border-l-2 border-editorial bg-editorial-soft px-4 py-3">
+                <Eyebrow className="text-editorial">Recomandare strategică</Eyebrow>
+                <p className="font-body mt-1.5 text-sm leading-relaxed">{report.strategic_recommendation}</p>
+              </div>
+            )}
+          </Panel>
         )}
       </aside>
 

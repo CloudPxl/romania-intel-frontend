@@ -441,7 +441,20 @@ export async function fetchMyMarketTrends(): Promise<MarketTrends> {
 
 export interface MacroReport {
   period?: string;
-  telemetry?: Record<string, unknown>;
+  /**
+   * Deterministic market figures, computed in Python over the same slice
+   * the takeaways describe. Typed rather than left as `unknown` because
+   * the panel renders them — they were being fetched and discarded.
+   */
+  telemetry?: {
+    /** Only sums values the sources actually published. */
+    published_pipeline_ron?: number;
+    signals_with_published_value?: number;
+    signals_processed?: number;
+    top_active_counties?: string[];
+    sector_breakdown?: Record<string, number>;
+    stage_breakdown?: Record<string, number>;
+  };
   executive_takeaways?: string[];
   strategic_recommendation?: string;
 }
