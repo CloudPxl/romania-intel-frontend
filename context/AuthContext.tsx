@@ -1,6 +1,7 @@
 "use client";
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { translateAuthError } from "@/lib/authErrors";
 import {
   syncBackendAuth,
   completeOnboarding as apiCompleteOnboarding,
@@ -59,7 +60,7 @@ interface AuthContextType {
   updateProfile: (profile: OnboardingProfile) => Promise<{ error: string | null }>;
   preferences: UserPreferences;
   updatePreferences: (newPrefs: Partial<UserPreferences>) => void;
-  signInWithGoogle: () => Promise<void>;
+  signInWithGoogle: () => Promise<{ error: string | null }>;
   signInWithEmail: (email: string) => Promise<{ error: string | null }>;
   signUpWithPassword: (email: string, password: string) => Promise<{ error: string | null; needsEmailConfirmation: boolean }>;
   signInWithPassword: (email: string, password: string) => Promise<{ error: string | null }>;
@@ -83,7 +84,7 @@ const AuthContext = createContext<AuthContextType>({
   updateProfile: async () => ({ error: null }),
   preferences: DEFAULT_PREFERENCES,
   updatePreferences: () => {},
-  signInWithGoogle: async () => {},
+  signInWithGoogle: async () => ({ error: null }),
   signInWithEmail: async () => ({ error: null }),
   signUpWithPassword: async () => ({ error: null, needsEmailConfirmation: false }),
   signInWithPassword: async () => ({ error: null }),
@@ -215,10 +216,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [adoptSynced]);
 
   const signInWithGoogle = async () => {
-    await supabase.auth.signInWithOAuth({
+    // Returns { error } like every other method here. It used to discard
+    // it entirely, so if the Google provider was disabled, the redirect
+    // blocked, or the network down, the most prominent button on the login
+    // screen produced no error, no spinner and no navigation — a complete
+    // dead end with nothing to act on.
+    const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo: typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : "" },
     });
+    return { error: translateAuthError(error?.message) };
   };
 
   const signInWithEmail = async (email: string) => {
@@ -226,7 +233,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       email,
       options: { emailRedirectTo: typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : "" },
     });
-    return { error: error ? error.message : null };
+    return { error: translateAuthError(error?.message) };
   };
 
   const signUpWithPassword = async (email: string, password: string) => {
@@ -235,7 +242,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       password,
       options: { emailRedirectTo: typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : "" },
     });
-    if (error) return { error: error.message, needsEmailConfirmation: false };
+    if (error) return { error: translateAuthError(error.message), needsEmailConfirmation: false };
     // Supabase returns 200 with no error for a duplicate email too — it
     // deliberately doesn't reveal whether an account already exists, to
     // avoid leaking which addresses are registered. The one visible tell
@@ -256,14 +263,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithPassword = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return { error: error ? error.message : null };
+    return { error: translateAuthError(error?.message) };
   };
 
   const requestPasswordReset = async (email: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: typeof window !== "undefined" ? `${window.location.origin}/auth/reset-password` : "",
     });
-    return { error: error ? error.message : null };
+    return { error: translateAuthError(error?.message) };
   };
 
   const signOut = async () => {

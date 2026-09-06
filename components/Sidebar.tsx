@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -250,7 +250,7 @@ export default function Sidebar() {
       {mobileOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div
-            className="animate-[fade-in_var(--duration-base)_var(--ease-glide)_both] absolute inset-0 bg-[#3D4852]/40 backdrop-blur-sm"
+            className="animate-[fade-in_var(--duration-base)_var(--ease-glide)_both] absolute inset-0 bg-ink/50 backdrop-blur-sm"
             onClick={() => setMobileOpen(false)}
             aria-hidden="true"
           />

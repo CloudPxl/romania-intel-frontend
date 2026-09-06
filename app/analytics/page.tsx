@@ -1,8 +1,7 @@
 "use client";
-import React, { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useAuth } from "@/context/AuthContext";
 import AuthGate from "@/components/AuthGate";
 import Explain from "@/components/Explain";
 import {

@@ -270,8 +270,12 @@ export function Explainer({
         aria-expanded={open}
         aria-label={title ? `Explicație: ${title}` : "Explicație"}
         className={cn(
-          "neu-flat-sm inline-flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full bg-paper align-middle font-sans text-[11px] font-bold leading-none text-stock-500 transition-all duration-[var(--duration-base)] hover:neu-glow hover:text-editorial focus-visible:text-editorial",
-          open && "neu-pressed-sm text-editorial",
+          // 18px is the visible dot; the -m-3 p-3 pair grows the hit area
+          // to 42px without moving anything on screen. At 18px flat this
+          // was under half the minimum touch target, on a control that
+          // appears throughout the feed, eligibility and pipeline pages.
+          "-m-3 box-content inline-flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full p-3 align-middle font-sans text-[11px] font-bold leading-none text-stock-500 transition-all duration-[var(--duration-base)] hover:text-editorial focus-visible:text-editorial",
+          open && "text-editorial",
           className
         )}
       >

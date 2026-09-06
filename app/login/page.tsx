@@ -46,6 +46,21 @@ export default function LoginPage() {
   const [resetSubmitting, setResetSubmitting] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
   const [resetSent, setResetSent] = useState(false);
+  const [googleBusy, setGoogleBusy] = useState(false);
+  const [googleError, setGoogleError] = useState<string | null>(null);
+
+  const handleGoogle = async () => {
+    setGoogleBusy(true);
+    setGoogleError(null);
+    const { error } = await signInWithGoogle();
+    if (error) {
+      // Only clear the pending state on failure: on success the browser is
+      // navigating away, and flipping the button back would make a working
+      // redirect look like it had been cancelled.
+      setGoogleError(error);
+      setGoogleBusy(false);
+    }
+  };
 
   useEffect(() => setDateline(formatDateline()), []);
 
@@ -169,9 +184,14 @@ export default function LoginPage() {
               <p className="font-mono mt-6 text-xs uppercase tracking-widest text-stock-500">Se verifică sesiunea…</p>
             ) : (
               <>
-                <Button onClick={signInWithGoogle} fullWidth className="mt-6">
-                  Continuă cu Google
+                <Button onClick={handleGoogle} disabled={googleBusy} fullWidth className="mt-6">
+                  {googleBusy ? "Se deschide Google…" : "Continuă cu Google"}
                 </Button>
+                {googleError && (
+                  <div className="mt-3">
+                    <Notice tone="alert">{googleError}</Notice>
+                  </div>
+                )}
 
                 <div className="my-5 flex items-center gap-3">
                   <span className="h-px flex-1 bg-divider" />
@@ -188,6 +208,16 @@ export default function LoginPage() {
                     setError(null);
                     setPwError(null);
                     setResetError(null);
+                    // Terminal states were NOT cleared here, so after
+                    // requesting a password reset the "Email expediat"
+                    // notice — whose branch renders no form and no escape —
+                    // survived a tab switch and back. The password tab was
+                    // then unusable for the rest of the session with no
+                    // visible way to sign in.
+                    setResetMode(false);
+                    setResetSent(false);
+                    setSent(false);
+                    setConfirmEmailSent(false);
                   }}
                 />
 
@@ -223,9 +253,25 @@ export default function LoginPage() {
                 {method === "password" &&
                   (resetMode ? (
                     resetSent ? (
-                      <Notice title="Email expediat">
-                        Dacă există un cont pentru <b>{email}</b>, am trimis un link de resetare a parolei.
-                      </Notice>
+                      <div className="space-y-4">
+                        <Notice title="Email expediat">
+                          Dacă există un cont pentru <b>{email}</b>, am trimis un link de resetare a parolei.
+                        </Notice>
+                        {/* Without this the branch is a dead end: it renders
+                            no form, and the only "Înapoi la autentificare"
+                            lived in the sibling branch. */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setResetMode(false);
+                            setResetSent(false);
+                            setResetError(null);
+                          }}
+                          className="font-body block min-h-[44px] w-full text-center text-sm text-stock-500 underline decoration-dotted underline-offset-4 hover:text-ink"
+                        >
+                          Înapoi la autentificare
+                        </button>
+                      </div>
                     ) : (
                       <form onSubmit={handleResetSubmit} className="space-y-4">
                         <div>
@@ -250,7 +296,7 @@ export default function LoginPage() {
                             setResetMode(false);
                             setResetError(null);
                           }}
-                          className="font-body block w-full text-center text-sm text-stock-500 underline decoration-dotted underline-offset-4 hover:text-ink"
+                          className="font-body block min-h-[44px] w-full text-center text-sm text-stock-500 underline decoration-dotted underline-offset-4 hover:text-ink"
                         >
                           Înapoi la autentificare
                         </button>

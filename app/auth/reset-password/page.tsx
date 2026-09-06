@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { translateAuthError } from "@/lib/authErrors";
 import { Button, Eyebrow, Input, Notice } from "@/components/newsprint";
 
 const MIN_PASSWORD_LENGTH = 8;
@@ -49,7 +50,7 @@ export default function ResetPasswordPage() {
       if (code) {
         const { error } = await supabase.auth.exchangeCodeForSession(code);
         if (error) {
-          if (!cancelled) setLinkError(error.message);
+          if (!cancelled) setLinkError(translateAuthError(error.message));
           return;
         }
         if (!cancelled) setReady(true);
@@ -83,7 +84,7 @@ export default function ResetPasswordPage() {
     const { error } = await supabase.auth.updateUser({ password });
     setSubmitting(false);
     if (error) {
-      setFormError(error.message);
+      setFormError(translateAuthError(error.message));
       return;
     }
     setDone(true);

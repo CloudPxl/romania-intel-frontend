@@ -1,5 +1,5 @@
 "use client";
-import React, { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { ApiError, fetchMarketTrends, type MarketTrendFilters, type MarketTrends } from "@/lib/api";
@@ -34,35 +34,60 @@ export default function AnalysisPage() {
   const [minValue, setMinValue] = useState("");
   const [maxValue, setMaxValue] = useState("");
 
+  // The filters currently in effect, kept separately from the form inputs
+  // so a background reload repeats what the user actually applied rather
+  // than silently falling back to the unfiltered whole market.
+  const [appliedFilters, setAppliedFilters] = useState<MarketTrendFilters>({});
+  // Monotonic request id. Without it a slow response can land after a
+  // newer one and overwrite it, while `finally` has already cleared the
+  // spinner — the numbers change under a UI that says it is done.
+  const requestSeq = useRef(0);
+
   const load = useCallback(
     async (filters: MarketTrendFilters = {}) => {
+      const seq = ++requestSeq.current;
       setLoading(true);
       setError(null);
       try {
-        setData(await fetchMarketTrends(filters));
+        const result = await fetchMarketTrends(filters);
+        if (seq !== requestSeq.current) return;
+        setData(result);
       } catch (e) {
+        if (seq !== requestSeq.current) return;
         setError(e instanceof ApiError ? e.detail : "Nu s-a putut încărca analiza de piață.");
         setData(null);
       } finally {
-        setLoading(false);
+        if (seq === requestSeq.current) setLoading(false);
       }
     },
     []
   );
 
+  // Depend on the user's ID, not the user object. `adoptSynced` builds a
+  // fresh object on every auth event, and supabase-js re-emits SIGNED_IN on
+  // session recovery and TOKEN_REFRESHED on its hourly refresh — so this
+  // effect re-ran on a leave-the-tab-open timescale and called load() with
+  // NO arguments, wiping the applied filters while the panel kept showing
+  // them and the "Filtre (3)" count kept claiming they were active.
+  const userId = user?.user_id ?? null;
   useEffect(() => {
-    load();
-  }, [load, user]);
+    load(appliedFilters);
+    // appliedFilters is deliberately excluded: applyFilters() calls load()
+    // itself, and including it here would fire a second identical request.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [load, userId]);
 
   const applyFilters = () => {
-    load({
+    const next: MarketTrendFilters = {
       start_date: startDate || undefined,
       end_date: endDate || undefined,
       categories: category ? [category] : undefined,
       counties: county.trim() ? [county.trim()] : undefined,
       min_value_ron: minValue ? Number(minValue) : undefined,
       max_value_ron: maxValue ? Number(maxValue) : undefined,
-    });
+    };
+    setAppliedFilters(next);
+    load(next);
   };
 
   const resetFilters = () => {
@@ -72,7 +97,8 @@ export default function AnalysisPage() {
     setCounty("");
     setMinValue("");
     setMaxValue("");
-    load();
+    setAppliedFilters({});
+    load({});
   };
 
   const activeFilterCount = Object.keys(data?.filters_applied ?? {}).filter((k) => k !== "limit").length;

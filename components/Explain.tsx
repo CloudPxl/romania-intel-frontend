@@ -1,5 +1,4 @@
 "use client";
-import React from "react";
 import { Explainer } from "@/components/newsprint";
 import { EXPLAINERS, type ExplainerKey } from "@/lib/explainers";
 

@@ -1,5 +1,5 @@
 "use client";
-import React, { Suspense, useState } from "react";
+import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import AuthGate from "@/components/AuthGate";

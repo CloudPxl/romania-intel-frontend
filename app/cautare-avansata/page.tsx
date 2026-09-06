@@ -1,5 +1,5 @@
 "use client";
-import React, { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
@@ -102,25 +102,36 @@ function CautareAvansataContent() {
   const [toast, setToast] = useState<string | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
 
+  // Monotonic request id: clicking through the domain rail starts a fetch
+  // per click, and a slow earlier response landing after a fast later one
+  // silently replaced the list — while `finally` had already cleared the
+  // spinner, so the rows mutated under a UI that said it was done.
+  const feedSeq = useRef(0);
+
   const loadWorkspace = useCallback(
     async (force = false) => {
+      const seq = ++feedSeq.current;
       if (force) setRefreshing(true);
       else setLoading(true);
       setError(null);
       try {
         const feed = await fetchMyFeed(activeCategory, force);
+        if (seq !== feedSeq.current) return;
         setLeads(feed.leads || []);
         setDegraded(Boolean(feed.degraded));
         setUpdatedAt(feed.data_updated_at);
       } catch (e) {
+        if (seq !== feedSeq.current) return;
         // A failed load used to be swallowed into console.warn, leaving the
         // page on a permanent "no signals" state that looked like a real
         // (empty) market rather than a broken request.
         setError(e instanceof ApiError ? e.detail : "Nu s-a putut încărca registrul.");
         setLeads([]);
       } finally {
-        setLoading(false);
-        setRefreshing(false);
+        if (seq === feedSeq.current) {
+          setLoading(false);
+          setRefreshing(false);
+        }
       }
     },
     [activeCategory]
@@ -151,7 +162,16 @@ function CautareAvansataContent() {
     if (!selectedLead) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setSelectedLead(null);
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    // Lock the page behind the drawer, the same way EnterpriseModals and
+    // the mobile sidebar drawer already do. Without it, scrolling inside
+    // the dossier chained to the feed underneath, so closing the drawer
+    // left the list at a different position than where it was opened.
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = previousOverflow;
+    };
   }, [selectedLead]);
 
   // A click-through from a top-opportunity row (Analiza de Piață / Prima
@@ -161,7 +181,16 @@ function CautareAvansataContent() {
   useEffect(() => {
     if (openLeadHandled || loading || leads.length === 0) return;
     const found = leads.find((l) => l.source_id === initialOpenLead);
-    if (found) setSelectedLead(found);
+    if (found) {
+      setSelectedLead(found);
+    } else {
+      // The id comes from /analysis's market-trends response, but the
+      // lookup happens against /me/feed's slice — so a lead outside the
+      // user's own feed simply vanished: no drawer, no notice, just an
+      // ordinary list after clicking a named project. Say what happened.
+      setToast("Dosarul din link nu este în registrul dvs. curent — afișăm întreaga piață.");
+      setOnlyMatches(false);
+    }
     setOpenLeadHandled(true);
   }, [openLeadHandled, loading, leads, initialOpenLead]);
 
@@ -570,7 +599,7 @@ function CautareAvansataContent() {
       {/* Dossier drawer */}
       {selectedLead && (
         <div className="fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-black/60" onClick={() => setSelectedLead(null)} aria-hidden="true" />
+          <div className="absolute inset-0 bg-ink/50 backdrop-blur-sm" onClick={() => setSelectedLead(null)} aria-hidden="true" />
           <div
             role="dialog"
             aria-modal="true"
