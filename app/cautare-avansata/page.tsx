@@ -7,6 +7,7 @@ import AuthGate from "@/components/AuthGate";
 import Explain from "@/components/Explain";
 import {
   ApiError,
+  PROCEDURE_TYPE_LABELS,
   addLeadToPipeline,
   downloadMyCsv,
   fetchMyFeed,
@@ -97,6 +98,13 @@ function CautareAvansataContent() {
     SORTS.some((s) => s.id === initialSort) ? (initialSort as SortId) : "score_desc"
   );
   const [filtersOpen, setFiltersOpen] = useState(false);
+  // Server-side filters, unlike every other control on this panel. The
+  // CUI keeps a separate draft value so typing one digit at a time doesn't
+  // fire a request per keystroke — it commits on Enter or blur. The
+  // committed values are what the fetch depends on.
+  const [cuiDraft, setCuiDraft] = useState("");
+  const [authorityCui, setAuthorityCui] = useState("");
+  const [procedureType, setProcedureType] = useState("");
   const [openLeadHandled, setOpenLeadHandled] = useState(!initialOpenLead);
 
   const [toast, setToast] = useState<string | null>(null);
@@ -115,7 +123,10 @@ function CautareAvansataContent() {
       else setLoading(true);
       setError(null);
       try {
-        const feed = await fetchMyFeed(activeCategory, force);
+        const feed = await fetchMyFeed(activeCategory, force, {
+          authorityCui: authorityCui || undefined,
+          procedureType: procedureType || undefined,
+        });
         if (seq !== feedSeq.current) return;
         setLeads(feed.leads || []);
         setDegraded(Boolean(feed.degraded));
@@ -134,7 +145,7 @@ function CautareAvansataContent() {
         }
       }
     },
-    [activeCategory]
+    [activeCategory, authorityCui, procedureType]
   );
 
   useEffect(() => {
@@ -379,6 +390,56 @@ function CautareAvansataContent() {
         </Select>
       </Field>
 
+      <Field label="Tip procedură">
+        <Select
+          value={procedureType}
+          onChange={(e) => setProcedureType(e.target.value)}
+          aria-label="Filtrează după tipul procedurii"
+        >
+          <option value="">Toate</option>
+          {Object.entries(PROCEDURE_TYPE_LABELS).map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </Select>
+      </Field>
+
+      <Field label="CUI autoritate contractantă">
+        <Input
+          value={cuiDraft}
+          inputMode="numeric"
+          placeholder="ex. 4374873"
+          aria-label="Filtrează după CUI-ul autorității contractante"
+          onChange={(e) => setCuiDraft(e.target.value)}
+          // Committed on Enter/blur rather than per keystroke: this filter
+          // is applied server-side, so a change is a network request.
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              setAuthorityCui(cuiDraft.trim());
+            }
+          }}
+          onBlur={() => setAuthorityCui(cuiDraft.trim())}
+        />
+        <p className="font-body mt-1.5 text-[11px] leading-snug text-stock-500">
+          {authorityCui ? (
+            <button
+              type="button"
+              className="text-editorial underline underline-offset-2"
+              onClick={() => {
+                setCuiDraft("");
+                setAuthorityCui("");
+              }}
+            >
+              Șterge filtrul CUI ({authorityCui})
+            </button>
+          ) : (
+            "Apăsați Enter pentru a filtra. Prefixul „RO” este acceptat."
+          )}
+        </p>
+      </Field>
+
       <div className="neu-flat rounded-2xl bg-paper p-4">
         <Eyebrow>Volum filtrat</Eyebrow>
         <p className="tabular font-display mt-1 text-2xl font-semibold leading-none">{formatRon(totalValue)}</p>
@@ -544,8 +605,30 @@ function CautareAvansataContent() {
 
                         <p className="font-body mt-1 text-sm text-stock-600">
                           {lead.entity_name}
+                          {lead.authority_cui && (
+                            // The CUI is the only unambiguous handle on an
+                            // authority — names vary between sources for
+                            // one institution — so it's shown on the card,
+                            // not just in the drawer.
+                            <span className="font-mono text-stock-400"> · CUI {lead.authority_cui}</span>
+                          )}
                           {lead.source_type && <span className="text-stock-400"> · {lead.source_type}</span>}
                         </p>
+
+                        {(lead.procedure_type || lead.award_criterion) && (
+                          <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+                            {lead.procedure_type && (
+                              <span className="label-eyebrow text-stock-500">
+                                {PROCEDURE_TYPE_LABELS[lead.procedure_type] ?? lead.procedure_type}
+                              </span>
+                            )}
+                            {lead.award_criterion && (
+                              <span className="label-eyebrow text-stock-500">
+                                Criteriu: {lead.award_criterion}
+                              </span>
+                            )}
+                          </div>
+                        )}
 
                         {lead.executive_summary && (
                           <p
@@ -653,6 +736,19 @@ function CautareAvansataContent() {
                   {[
                     ["Data publicării", formatDate(selectedLead.published_date)],
                     ["Termen dialog tehnic", selectedLead.action_deadline || "Nespecificat"],
+                    ["CUI autoritate", selectedLead.authority_cui || "Nepublicat"],
+                    [
+                      "Tip procedură",
+                      selectedLead.procedure_type
+                        ? PROCEDURE_TYPE_LABELS[selectedLead.procedure_type] ?? selectedLead.procedure_type
+                        : "Nespecificat",
+                    ],
+                    // "Nepublicat" rather than "Niciunul": no live scraper
+                    // has found e-licitatie.ro's per-notice endpoint for
+                    // this yet, so an empty value means we don't have it —
+                    // not that the procedure lacks a criterion.
+                    ["Criteriu de atribuire", selectedLead.award_criterion || "Nepublicat"],
+                    ["Cod CPV", selectedLead.cpv_code || "—"],
                     ["Registru sursă", selectedLead.source_type || "—"],
                     ["Scor oportunitate", selectedLead.opportunity_score != null ? `${selectedLead.opportunity_score} / 10` : "—"],
                   ].map(([label, value]) => (

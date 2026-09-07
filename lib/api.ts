@@ -135,6 +135,26 @@ export interface Lead {
   opportunity_score?: number;
   executive_summary?: string;
   sales_pitch_angle?: string;
+  cpv_code?: string;
+  /**
+   * Contracting authority's fiscal code (CUI), stored bare — the "RO" VAT
+   * prefix is stripped on write, so display it with the prefix only if you
+   * add one yourself. Present on SEAP-sourced leads (DA/CAN/CN/SC); null
+   * for scrapers whose source doesn't publish it.
+   */
+  authority_cui?: string | null;
+  /**
+   * The award procedure, from SEAP's own sysProcedureType — not inferred.
+   * See PROCEDURE_TYPE_LABELS for the display names.
+   */
+  procedure_type?: string | null;
+  /**
+   * Stated evaluation method (e.g. "Pretul cel mai scazut"). Null on every
+   * lead today: the backend column and plumbing exist, but no live scraper
+   * has found e-licitatie.ro's per-notice endpoint for it yet — so treat a
+   * missing value as "not published to us", not as "no criterion".
+   */
+  award_criterion?: string | null;
   /**
    * Why this lead is where it is in the feed. Null when the user hasn't
    * onboarded yet (nothing to rank against). Computed by the ranking
@@ -400,15 +420,47 @@ export async function deleteOwnAccount(): Promise<{ status: string; auth_identit
  * explaining its position, so a card can be badged with the reason rather
  * than the ordering being unexplained.
  */
-export async function fetchMyFeed(category?: string, forceRefresh = false): Promise<FeedResponse> {
+export interface FeedFilters {
+  /** Accepts "RO 14056826" or "14056826" — the backend normalises both. */
+  authorityCui?: string;
+  procedureType?: string;
+  awardCriterion?: string;
+}
+
+/**
+ * Unlike the profile criteria (which only re-rank), these three are hard
+ * filters server-side: they're an explicit narrowing the user just
+ * performed, so ignoring one would be the bug.
+ */
+export async function fetchMyFeed(
+  category?: string,
+  forceRefresh = false,
+  filters: FeedFilters = {}
+): Promise<FeedResponse> {
   return apiFetch(
     "/api/v1/me/feed" +
       qs({
         force_refresh: forceRefresh,
         category: category && category !== "all" ? category : undefined,
+        authority_cui: filters.authorityCui?.trim() || undefined,
+        procedure_type: filters.procedureType || undefined,
+        award_criterion: filters.awardCriterion || undefined,
       })
   );
 }
+
+/**
+ * Display names for `Lead.procedure_type`. Keys are the backend's closed
+ * vocabulary (ai_refinery.PROCEDURE_TYPES) — a value not listed here is
+ * rendered as-is rather than hidden, so a new backend type shows up as an
+ * unstyled label instead of silently disappearing from the UI.
+ */
+export const PROCEDURE_TYPE_LABELS: Record<string, string> = {
+  licitatie_deschisa: "Licitație Deschisă",
+  procedura_simplificata: "Procedură Simplificată",
+  cumparare_directa: "Achiziție Directă",
+  consultare_piata: "Consultare",
+};
 
 /**
  * Downloads the user's qualified leads as CSV.
