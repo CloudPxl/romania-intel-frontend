@@ -541,6 +541,30 @@ export async function askCopilotChat(
   });
 }
 
+/* -------------------------------------------------------------- support */
+
+/**
+ * The Consilier Strategic on /suport. Distinct from askCopilotChat: this
+ * one carries no feed context (it's guest-accessible) and is grounded in
+ * legal/procedural guidance plus Enterprise-plan qualification rather than
+ * the caller's own registry. `degraded: true` means no LLM provider
+ * answered — the reply is still safe to show (it points to direct email
+ * support) rather than something the caller must special-case.
+ */
+export async function askSupportBot(
+  message: string,
+  history: CopilotTurn[] = []
+): Promise<{ reply: string; degraded?: boolean }> {
+  // Not `anonymous: true` — the backend route accepts both a signed-in and
+  // a guest caller (optional_auth), so a logged-in visitor's token is sent
+  // when one exists and simply omitted otherwise; apiFetch already handles
+  // "no session" by finding no token to attach.
+  return apiFetch("/api/v1/support/chat", {
+    method: "POST",
+    body: { message, history: history.slice(-12) },
+  });
+}
+
 /* ------------------------------------------------------------- pipeline */
 
 export async function fetchMyPipeline(): Promise<PipelineResponse> {

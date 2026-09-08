@@ -7,6 +7,7 @@ import {
   FileText,
   Home,
   Kanban,
+  LifeBuoy,
   LogOut,
   Menu,
   Search,
@@ -33,6 +34,7 @@ const NAV_LINKS = [
   { href: "/drafting", label: "Redactare documente", section: "Instrumente", icon: FileText },
   { href: "/analytics", label: "Strategie & Copilot", section: "Instrumente", icon: Sparkles },
   { href: "/pipeline", label: "Pipeline ofertare", section: "Instrumente", icon: Kanban },
+  { href: "/suport", label: "Suport & Asistență", section: "Instrumente", icon: LifeBuoy },
 ];
 
 const SECTIONS = ["", "Instrumente"] as const;
