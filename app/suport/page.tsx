@@ -357,7 +357,10 @@ function ContactCard() {
             <Eyebrow className="text-stock-500">Email principal</Eyebrow>
             <a
               href={`mailto:${SUPPORT_EMAIL}`}
-              className="mt-1 block break-all font-display text-[15px] font-bold text-ink hover:text-editorial"
+              // A standalone contact CTA, not an inline prose link, so the
+              // 44px minimum applies to it (WCAG 2.5.8 exempts only targets
+              // inside a sentence).
+              className="mt-1 flex min-h-[44px] items-center break-all font-display text-[15px] font-bold text-ink hover:text-editorial"
             >
               {SUPPORT_EMAIL}
             </a>

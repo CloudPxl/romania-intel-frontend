@@ -145,10 +145,10 @@ export default function AnalysisPage() {
               <Input value={county} onChange={(e) => setCounty(e.target.value)} placeholder="ex. Cluj" />
             </Field>
             <Field label="Valoare minimă (RON)">
-              <Input type="number" min={0} value={minValue} onChange={(e) => setMinValue(e.target.value)} />
+              <Input type="number" inputMode="numeric" min={0} value={minValue} onChange={(e) => setMinValue(e.target.value)} />
             </Field>
             <Field label="Valoare maximă (RON)">
-              <Input type="number" min={0} value={maxValue} onChange={(e) => setMaxValue(e.target.value)} />
+              <Input type="number" inputMode="numeric" min={0} value={maxValue} onChange={(e) => setMaxValue(e.target.value)} />
             </Field>
           </div>
           <div className="mt-5 flex flex-col gap-3 sm:flex-row">

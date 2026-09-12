@@ -33,6 +33,7 @@ import {
   Input,
   Loading,
   Notice,
+  NumberInput,
   PageHeader,
   Panel,
   SectionTitle,
@@ -261,7 +262,7 @@ function CompetitorTool({ initial }: { initial: { category: string; county: stri
           <Input value={county} onChange={(e) => setCounty(e.target.value)} placeholder="ex. Cluj" />
         </Field>
         <Field label="Valoare estimată (RON)">
-          <Input type="number" min={0} value={budget} onChange={(e) => setBudget(Number(e.target.value))} />
+          <NumberInput  min={0} value={budget} onValueChange={setBudget} />
         </Field>
       </div>
 
@@ -866,10 +867,10 @@ function WinOddsTool({ initial }: { initial: { budget: string } }) {
 
       <div className="mt-6 space-y-5">
         <Field label="Buget estimat al autorității (RON)">
-          <Input type="number" min={0} value={budget} onChange={(e) => setBudget(Number(e.target.value))} />
+          <NumberInput  min={0} value={budget} onValueChange={setBudget} />
         </Field>
         <Field label="Preț ofertat propus (RON)" hint={`Discount curent: ${discountPct.toFixed(1)}%`}>
-          <Input type="number" min={0} value={price} onChange={(e) => setPrice(Number(e.target.value))} />
+          <NumberInput  min={0} value={price} onValueChange={setPrice} />
         </Field>
         <Field label="Criteriu de atribuire">
           <Select value={criterion} onChange={(e) => setCriterion(e.target.value as AwardCriterion)}>
@@ -882,12 +883,11 @@ function WinOddsTool({ initial }: { initial: { budget: string } }) {
             label="Ponderea prețului (%)"
             hint={`Tehnic: ${100 - priceWeight}% — din fișa de date a procedurii.`}
           >
-            <Input
-              type="number"
+            <NumberInput
               min={1}
               max={100}
               value={priceWeight}
-              onChange={(e) => setPriceWeight(Math.max(1, Math.min(100, Number(e.target.value))))}
+              onValueChange={(v) => setPriceWeight(Math.max(1, Math.min(100, v)))}
             />
           </Field>
         )}
@@ -895,7 +895,7 @@ function WinOddsTool({ initial }: { initial: { budget: string } }) {
           <Input value={county} onChange={(e) => setCounty(e.target.value)} placeholder="ex. Brașov" />
         </Field>
         <Field label="Timp până la depunere (zile)">
-          <Input type="number" min={0} value={leadTime} onChange={(e) => setLeadTime(Number(e.target.value))} />
+          <NumberInput min={0} value={leadTime} onValueChange={setLeadTime} />
         </Field>
         <Checkbox
           label="Consorțiu sau subcontractant local în județul autorității"

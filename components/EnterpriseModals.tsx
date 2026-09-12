@@ -2,10 +2,20 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
-import { ApiError, deleteOwnAccount, generateProformaInvoice, updateMyAlertSettings, type ProformaResult } from "@/lib/api";
+import {
+  ApiError,
+  createCheckoutSession,
+  deleteOwnAccount,
+  fetchBillingConfig,
+  generateProformaInvoice,
+  updateMyAlertSettings,
+  type BillingConfig,
+  type ProformaResult,
+} from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { CATEGORIES, COUNTIES } from "@/lib/format";
-import { Button, ChipSelect, Eyebrow, Field, Input, Notice, Select } from "@/components/newsprint";
+import { Badge, Button, ChipSelect, Eyebrow, Field, Input, Notice, Select } from "@/components/newsprint";
+import NotificationToggle from "@/components/NotificationToggle";
 
 /* ------------------------------------------------------------ modal shell */
 
@@ -119,6 +129,10 @@ export function PricingModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
   const [proforma, setProforma] = useState<ProformaResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [billingInterval, setBillingInterval] = useState<"monthly" | "annual">("monthly");
+  const [billing, setBilling] = useState<BillingConfig | null>(null);
+  const [checkoutBusy, setCheckoutBusy] = useState(false);
+  const [checkoutNotice, setCheckoutNotice] = useState<string | null>(null);
 
   // Prefill from the profile's own billing identity and the signed-in
   // account rather than the hardcoded demo company that used to ship here —
@@ -130,6 +144,13 @@ export function PricingModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
     setCui(profile?.cui || "");
     setEmail(user?.email || "");
     setError(null);
+    setCheckoutNotice(null);
+    // Whether the card flow is even available is the server's answer, not
+    // an assumption — with no Stripe key the UI must offer the proforma
+    // path instead of a button that cannot complete.
+    fetchBillingConfig()
+      .then(setBilling)
+      .catch(() => setBilling({ stripe_enabled: false, annual_months_charged: 10, currency: "RON" }));
   }, [isOpen, profile, user]);
 
   const plan = PLANS.find((p) => p.id === selectedPlan);
@@ -158,6 +179,30 @@ export function PricingModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
     }
   };
 
+  const handleCheckout = async () => {
+    setCheckoutBusy(true);
+    setCheckoutNotice(null);
+    setError(null);
+    try {
+      const result = await createCheckoutSession(selectedPlan, billingInterval);
+      if (result.status === "success" && result.checkout_url) {
+        // Full navigation, not a new tab: Stripe Checkout is a hosted page
+        // that redirects back to /abonament, and a pop-up would be blocked
+        // on iOS Safari roughly half the time.
+        window.location.href = result.checkout_url;
+        return;
+      }
+      setCheckoutNotice(
+        result.message ||
+          "Plata prin card în curs de activare — contactați suportul pentru factură proformă."
+      );
+    } catch (e) {
+      setCheckoutNotice(e instanceof ApiError ? e.detail : "Sesiunea de plată nu a putut fi creată.");
+    } finally {
+      setCheckoutBusy(false);
+    }
+  };
+
   const handlePrint = () => {
     if (!proforma?.proforma_html) return;
     const win = window.open("", "_blank");
@@ -181,6 +226,31 @@ export function PricingModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
     >
       {!proforma ? (
         <div className="space-y-6">
+          <div className="neu-pressed flex w-full gap-1.5 rounded-2xl bg-paper p-1.5" role="tablist"
+               aria-label="Perioadă de facturare">
+            {(["monthly", "annual"] as const).map((key) => (
+              <button
+                key={key}
+                role="tab"
+                aria-selected={billingInterval === key}
+                onClick={() => setBillingInterval(key)}
+                className={
+                  "min-h-[44px] flex-1 rounded-xl px-4 py-2 font-sans text-sm font-semibold transition-all duration-[var(--duration-base)] active:scale-95 " +
+                  (billingInterval === key
+                    ? "neu-flat-sm bg-paper text-editorial"
+                    : "text-stock-500 hover:bg-[rgba(255,255,255,0.45)] hover:text-ink")
+                }
+              >
+                {key === "monthly" ? "Lunar" : "Anual"}
+                {key === "annual" && (
+                  <span className="ml-2 text-[11px] font-bold text-positive">
+                    −{Math.round((1 - (billing?.annual_months_charged ?? 10) / 12) * 100)}%
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {PLANS.map((p) => {
               const active = selectedPlan === p.id;
@@ -200,9 +270,16 @@ export function PricingModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
                   </div>
                   <h3 className="font-display mt-2 text-xl font-semibold leading-tight">{p.name}</h3>
                   <p className="tabular font-display mt-3 text-3xl font-semibold">
-                    {p.price}
-                    <span className="font-mono ml-1 text-xs font-normal tracking-widest text-stock-500">RON / LUNĂ</span>
+                    {billingInterval === "annual" ? p.price * (billing?.annual_months_charged ?? 10) : p.price}
+                    <span className="font-mono ml-1 text-xs font-normal tracking-widest text-stock-500">
+                      RON / {billingInterval === "annual" ? "AN" : "LUNĂ"}
+                    </span>
                   </p>
+                  {billingInterval === "annual" && (
+                    <p className="font-body mt-1 text-[12px] text-positive">
+                      Echivalent {p.price} RON/lună — {12 - (billing?.annual_months_charged ?? 10)} luni gratuite.
+                    </p>
+                  )}
                   <ul className="font-body mt-4 space-y-1.5 text-sm leading-relaxed text-stock-600">
                     {p.features.map((f) => (
                       <li key={f} className="flex gap-2">
@@ -217,7 +294,34 @@ export function PricingModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
           </div>
 
           <div className="neu-flat rounded-3xl bg-paper p-4 sm:p-5">
-            <Eyebrow className="mb-4">Date de facturare</Eyebrow>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="min-w-0">
+                <Eyebrow className="text-editorial">Plată cu cardul</Eyebrow>
+                <p className="font-body mt-1 text-sm leading-relaxed text-stock-600">
+                  Activare imediată prin Stripe. Puteți anula oricând.
+                </p>
+              </div>
+              <Button onClick={handleCheckout} disabled={checkoutBusy} className="min-h-[44px]">
+                {checkoutBusy ? "Se pregătește…" : "Continuă la plată"}
+              </Button>
+            </div>
+            {checkoutNotice && (
+              <div className="mt-3">
+                <Notice tone="warning">{checkoutNotice}</Notice>
+              </div>
+            )}
+            {billing && !billing.stripe_enabled && !checkoutNotice && (
+              <div className="mt-3">
+                <Notice tone="neutral">
+                  Plata prin card în curs de activare — folosiți factura proformă de mai jos sau
+                  contactați suportul.
+                </Notice>
+              </div>
+            )}
+          </div>
+
+          <div className="neu-flat rounded-3xl bg-paper p-4 sm:p-5">
+            <Eyebrow className="mb-4">Date de facturare (factură proformă / OP)</Eyebrow>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Denumire companie">
                 <Input value={companyName} onChange={(e) => setCompanyName(e.target.value)} autoComplete="organization" />
@@ -301,6 +405,10 @@ export function AccountSettingsModal({ isOpen, onClose }: { isOpen: boolean; onC
   const [alertEmail, setAlertEmail] = useState("");
   const [scoreThreshold, setScoreThreshold] = useState(9.0);
   const [telegramChatId, setTelegramChatId] = useState("");
+  // Mirrors user_profiles.push_radar_enabled. Held locally so the
+  // checkbox is responsive; NotificationToggle persists it and rolls
+  // this back if the write fails.
+  const [radarEnabled, setRadarEnabled] = useState(true);
   const [magicLinkSent, setMagicLinkSent] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -436,8 +544,8 @@ export function AccountSettingsModal({ isOpen, onClose }: { isOpen: boolean; onC
             )}
           </div>
         ) : (
-          <div className="neu-flat overflow-hidden rounded-3xl bg-paper">
-            <table className="w-full border-collapse text-left font-mono text-xs">
+          <div className="scroll-x neu-flat overflow-hidden rounded-3xl bg-paper">
+            <table className="w-full min-w-[22rem] border-collapse text-left font-mono text-xs">
               <tbody>
                 {[
                   ["Cont", user.email],
@@ -537,6 +645,18 @@ export function AccountSettingsModal({ isOpen, onClose }: { isOpen: boolean; onC
           <Button onClick={handleSave} fullWidth className="mt-5" disabled={saving}>
             {saving ? "Se salvează…" : saved ? "Preferințe salvate" : "Salvează preferințele"}
           </Button>
+        </div>
+
+        {/* Push is per-device and per-browser, so it deliberately sits
+            outside the Save button above: nothing here is a form field
+            waiting to be submitted — enabling it takes effect immediately
+            on the device you are holding. */}
+        <div className="neu-flat rounded-3xl bg-paper p-4 sm:p-5">
+          <Eyebrow className="mb-1">Notificări pe acest dispozitiv</Eyebrow>
+          <p className="font-body mb-4 text-sm leading-relaxed text-stock-600">
+            Primiți oportunitățile potrivite imediat ce sunt detectate, chiar și cu aplicația închisă.
+          </p>
+          <NotificationToggle radarEnabled={radarEnabled} onRadarChange={setRadarEnabled} />
         </div>
       </div>
     </Modal>
@@ -693,7 +813,7 @@ export function ProfileCriteriaModal({ isOpen, onClose }: { isOpen: boolean; onC
         </Field>
 
         <Field label="Valoare minimă a contractului, RON (opțional)">
-          <Input type="number" min="0" value={minValue} onChange={(e) => setMinValue(e.target.value)} placeholder="0" />
+          <Input type="number" inputMode="numeric" min="0" value={minValue} onChange={(e) => setMinValue(e.target.value)} placeholder="0" />
         </Field>
 
         <div className="neu-pressed rounded-2xl bg-paper p-4">

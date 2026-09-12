@@ -23,6 +23,7 @@ import {
   Input,
   Loading,
   Notice,
+  NumberInput,
   PageHeader,
   Panel,
   Select,
@@ -196,12 +197,11 @@ function TechnicalProposalTool({
           </Select>
         </Field>
         <Field label="Valoare estimată (RON)" hint="Determină tipul de procedură menționat în document.">
-          <Input
-            type="number"
+          <NumberInput
             min={0}
-            value={form.estimated_value_ron || ""}
-            onChange={(e) => setForm({ ...form, estimated_value_ron: Number(e.target.value) })}
-          />
+            value={form.estimated_value_ron}
+            onValueChange={(v) => setForm({ ...form, estimated_value_ron: v })}
+            />
         </Field>
         <Field label="Cod CPV" hint="Opțional.">
           <Input value={form.cpv_code} onChange={(e) => setForm({ ...form, cpv_code: e.target.value })} placeholder="45233120-6" />

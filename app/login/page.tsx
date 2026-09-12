@@ -131,7 +131,7 @@ export default function LoginPage() {
         {/* Editorial column */}
         <section className="flex flex-col justify-center border-b border-divider px-4 py-10 sm:px-8 lg:col-span-7 lg:border-b-0 lg:border-r lg:py-16">
           <Eyebrow className="text-editorial">Intelligence achiziții publice · România</Eyebrow>
-          <Link href="/" className="font-display mt-3 flex items-center gap-2.5 text-2xl font-semibold tracking-tight">
+          <Link href="/" className="font-display mt-3 flex min-h-[44px] w-fit items-center gap-2.5 text-2xl font-semibold tracking-tight">
             <span className="neu-flat-sm flex h-9 w-9 items-center justify-center rounded-2xl bg-editorial text-base font-bold text-white">R</span>
             RO-INTEL
           </Link>

@@ -22,6 +22,7 @@ import {
   Input,
   Loading,
   Notice,
+  NumberInput,
   PageHeader,
   Panel,
   SectionTitle,
@@ -202,19 +203,17 @@ function EligibilityContent() {
                   <Input value={caen} onChange={(e) => setCaen(e.target.value)} inputMode="numeric" />
                 </Field>
                 <Field label="Cifră de afaceri (RON)">
-                  <Input
-                    type="number"
+                  <NumberInput
                     min={0}
                     value={turnover}
-                    onChange={(e) => setTurnover(Number(e.target.value))}
+                    onValueChange={setTurnover}
                   />
                 </Field>
                 <Field label="Număr angajați">
-                  <Input
-                    type="number"
+                  <NumberInput
                     min={0}
                     value={employees}
-                    onChange={(e) => setEmployees(Number(e.target.value))}
+                    onValueChange={setEmployees}
                   />
                 </Field>
               </div>
@@ -233,11 +232,10 @@ function EligibilityContent() {
               </span>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Field label="Valoarea estimată a contractului (RON)">
-                  <Input
-                    type="number"
+                  <NumberInput
                     min={0}
                     value={contractValue}
-                    onChange={(e) => setContractValue(Number(e.target.value))}
+                    onValueChange={setContractValue}
                   />
                 </Field>
                 <Field
@@ -245,7 +243,7 @@ function EligibilityContent() {
                   hint="Din fișa de date, dacă o cunoașteți."
                 >
                   <Input
-                    type="number"
+                    type="number" inputMode="numeric"
                     min={0}
                     value={requiredTurnover}
                     onChange={(e) => setRequiredTurnover(e.target.value)}

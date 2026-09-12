@@ -3,7 +3,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { CATEGORIES, COUNTIES } from "@/lib/format";
-import { Button, ChipSelect, Field, Input, Notice, Select } from "@/components/newsprint";
+import { Button, ChipSelect, Eyebrow, Field, Input, Notice, Select } from "@/components/newsprint";
+import NotificationToggle from "@/components/NotificationToggle";
 
 // Same numeric-only rule PUT /api/v1/me/alert-settings enforces server-side
 // (api.py:_validate_alert_fields) — checked here too so a bad value is
@@ -134,7 +135,7 @@ export default function OnboardingForm() {
 
           <Field label="Valoare minimă a contractului, RON (opțional)">
             <Input
-              type="number"
+              type="number" inputMode="numeric"
               min="0"
               value={minValue}
               onChange={(e) => setMinValue(e.target.value)}
@@ -162,6 +163,20 @@ export default function OnboardingForm() {
               placeholder="123456789"
             />
           </Field>
+
+          {/* Offered here as well as in Settings because this is the one
+              moment the user is actively thinking about how they want to be
+              told. Independent of the form: enabling it takes effect on this
+              device immediately and does not block submitting. The radar
+              preference is omitted — it defaults on server-side and belongs
+              with the rest of the settings, not in a signup flow. */}
+          <div className="neu-pressed rounded-2xl bg-paper p-4">
+            <Eyebrow className="mb-1 text-stock-500">Notificări instant (opțional)</Eyebrow>
+            <p className="font-body mb-3 text-[13px] leading-relaxed text-stock-600">
+              Primiți oportunitățile potrivite pe acest dispozitiv, imediat ce sunt detectate.
+            </p>
+            <NotificationToggle compact />
+          </div>
 
           <label className="flex min-h-[44px] cursor-pointer items-start gap-3 font-body text-sm text-ink">
             <input

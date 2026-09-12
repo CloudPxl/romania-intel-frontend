@@ -128,6 +128,16 @@
     color: var(--color-ink);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
+    /* Last line of defence against sideways scroll on a phone. `clip`, not
+       `hidden`: `overflow-x: hidden` on body silently makes every
+       `position: sticky` descendant stop sticking (it establishes a scroll
+       container), which would break the sidebar and every sticky header in
+       the app. `clip` cuts the overflow without creating one.
+
+       This is a backstop, not the fix — wide content still gets its own
+       `.scroll-x` container so it can be scrolled rather than truncated.
+       Without the backstop, one un-wrapped table shifts the whole page. */
+    overflow-x: clip;
   }
 
   h1, h2, h3, h4 {
@@ -353,4 +363,30 @@
 @media print {
   body { background: #fff; }
   .no-print { display: none !important; }
+}
+
+/* ---------------------------------------------------------------------
+   iOS focus-zoom guard.
+
+   Mobile Safari zooms the viewport whenever a focused form control has a
+   font-size below 16px, and does NOT zoom back out afterwards — the user
+   is left on a horizontally-panned page and has to pinch out by hand. The
+   shared CONTROL class in newsprint.tsx is `text-sm` (14px), so every
+   input, select and textarea in the app triggered it on every focus.
+
+   The alternative fix — maximum-scale=1 / user-scalable=no in the viewport
+   meta — is the common one and is worse: it disables pinch-zoom entirely,
+   which is a real accessibility affordance, to paper over a font size.
+
+   Deliberately UNLAYERED. Tailwind's utilities live in a cascade layer, and
+   any rule inside @layer base would lose to `text-sm` regardless of
+   specificity; unlayered styles win over layered ones by definition, so
+   this needs no !important.
+   --------------------------------------------------------------------- */
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    font-size: 16px;
+  }
 }

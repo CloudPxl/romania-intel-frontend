@@ -731,7 +731,8 @@ function CautareAvansataContent() {
                 </div>
               </div>
 
-              <table className="mt-5 w-full neu-pressed overflow-hidden rounded-2xl bg-paper text-left font-mono text-xs">
+              <div className="scroll-x mt-5">
+              <table className="w-full min-w-[26rem] neu-pressed overflow-hidden rounded-2xl bg-paper text-left font-mono text-xs">
                 <tbody>
                   {[
                     ["Data publicării", formatDate(selectedLead.published_date)],
@@ -764,6 +765,7 @@ function CautareAvansataContent() {
                   ))}
                 </tbody>
               </table>
+              </div>
 
               {selectedLead.metadata?.seap_cross_reference && (
                 <p className="font-mono mt-2 text-[11px] uppercase tracking-widest text-stock-500">

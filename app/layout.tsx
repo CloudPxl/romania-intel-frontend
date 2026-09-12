@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans, DM_Sans, JetBrains_Mono } from "next/font/google";
 import { AuthProvider } from "@/context/AuthContext";
 import Sidebar from "@/components/Sidebar";
+import InstallPrompt from "@/components/InstallPrompt";
 import "./globals.css";
 
 const jakarta = Plus_Jakarta_Sans({
@@ -29,12 +30,50 @@ export const metadata: Metadata = {
   title: "RO-INTEL — Registrul Oportunităților Publice",
   description:
     "Intelligence pre-SEAP pentru achiziții publice din România: flux zilnic de oportunități calificate, analiză de piață, generare documente și pipeline de ofertare.",
+  applicationName: "RO-INTEL",
+  // Drives the iOS Home Screen tile and standalone status bar. Safari
+  // still reads these meta tags rather than the manifest for both.
+  appleWebApp: {
+    capable: true,
+    title: "RO-INTEL",
+    statusBarStyle: "default",
+  },
+  formatDetection: {
+    // Stops iOS turning CUIs, notice numbers and RON figures into blue
+    // "call this number" links throughout the feed.
+    telephone: false,
+  },
+  icons: {
+    icon: [
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    // Without this, iOS screenshots the page for the Home Screen tile
+    // instead of using the app mark — and the Home Screen install is the
+    // only route to Web Push on iPhone, so it is the first thing a user
+    // sees of the feature.
+    apple: [{ url: "/apple-icon.png", sizes: "180x180", type: "image/png" }],
+  },
+  other: {
+    // Next 16 emits the modern `mobile-web-app-capable`, which iOS has only
+    // honoured since 15.4. The legacy Apple-prefixed tag is still what
+    // older iPhones read, and a device that ignores it opens the installed
+    // icon in a normal Safari tab — where Web Push does not exist.
+    "apple-mobile-web-app-capable": "yes",
+  },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   themeColor: "#e0e5ec",
+  // Lets the app paint into the notch/home-indicator area when installed;
+  // components that sit at the edges pay for it back with env(safe-area-*).
+  viewportFit: "cover",
+  // Deliberately NOT maximumScale/userScalable — pinch-zoom is an
+  // accessibility affordance, and disabling it to stop iOS focus-zoom is
+  // trading a real need for a cosmetic one. The 16px minimum font size on
+  // inputs (globals.css) is what actually prevents that zoom.
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -60,6 +99,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <Sidebar />
             <div className="flex min-w-0 flex-1 flex-col">{children}</div>
           </div>
+          {/* iOS-only, dismissible: Apple permits Web Push solely from an
+              installed PWA, so on iPhone this is the path to notifications
+              working at all. Renders nothing anywhere else. */}
+          <InstallPrompt />
         </AuthProvider>
       </body>
     </html>

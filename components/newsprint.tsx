@@ -186,7 +186,22 @@ export function Tooltip({
       <span
         role="tooltip"
         className={cn(
-          "neu-flat pointer-events-none absolute left-1/2 z-50 w-max max-w-[16rem] -translate-x-1/2 scale-95 rounded-xl bg-paper px-3 py-2 text-left font-sans text-xs font-medium leading-snug text-ink opacity-0 transition-all duration-[var(--duration-base)] ease-[var(--ease-glide)]",
+          // Not rendered below md, deliberately.
+          //
+          // This tooltip only opens on hover/focus-within, which a touch
+          // device has neither of — so on a phone it was permanently
+          // invisible AND permanently laid out, and a 16rem box centred on
+          // a trigger near the right edge pushed the document to 526px
+          // against a 360px viewport (measured). The body's overflow clip
+          // stopped that becoming a scrollbar, but an invisible element
+          // widening the page is still a bug, and one nobody would find by
+          // looking at the screen.
+          //
+          // Nothing is lost on touch: the accessible name stays on the
+          // wrapper's aria-label, and `Explainer` — click-based, portalled
+          // and viewport-clamped — is the component for content that has to
+          // be reachable by tap.
+          "neu-flat pointer-events-none absolute left-1/2 z-50 hidden w-max max-w-[16rem] -translate-x-1/2 scale-95 rounded-xl bg-paper px-3 py-2 text-left font-sans text-xs font-medium leading-snug text-ink opacity-0 transition-all duration-[var(--duration-base)] ease-[var(--ease-glide)] md:block",
           "group-hover/tip:scale-100 group-hover/tip:opacity-100 group-focus-within/tip:scale-100 group-focus-within/tip:opacity-100",
           side === "top"
             ? "bottom-full mb-2 group-hover/tip:-translate-y-0.5 group-focus-within/tip:-translate-y-0.5"
@@ -583,7 +598,7 @@ export function TabBar<T extends string>({
           aria-selected={active === tab.id}
           onClick={() => onChange(tab.id)}
           className={cn(
-            "min-h-[38px] flex-1 whitespace-nowrap rounded-xl px-4 py-2 font-sans text-sm font-semibold transition-all duration-[var(--duration-base)] ease-[var(--ease-glide)] active:scale-95",
+            "min-h-[44px] flex-1 whitespace-nowrap rounded-xl px-4 py-2 font-sans text-sm font-semibold transition-all duration-[var(--duration-base)] ease-[var(--ease-glide)] active:scale-95",
             active === tab.id
               ? "neu-flat-sm bg-paper text-editorial"
               : "text-stock-500 hover:bg-[rgba(255,255,255,0.45)] hover:text-ink"
@@ -627,6 +642,85 @@ export function Input({ className, ...props }: React.InputHTMLAttributes<HTMLInp
 
 export function Textarea({ className, ...props }: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return <textarea {...props} className={cn(CONTROL, "min-h-[7rem] resize-y leading-relaxed", className)} />;
+}
+
+/**
+ * A numeric field that can actually be emptied.
+ *
+ * Every numeric input in the app was `value={someNumber}` with
+ * `onChange={e => setNumber(Number(e.target.value))}`, which has one
+ * behaviour users hit constantly and cannot work around: clearing the field
+ * makes `e.target.value` the empty string, `Number("")` is `0`, so state
+ * becomes 0 and the controlled input immediately re-renders as "0". You
+ * cannot select-all-and-type — the 0 stays in front of whatever you type
+ * next (typing "5" over a cleared field gives 50, or leaves the caret
+ * behind a 0). On a phone, where select-all is fiddly and the keyboard
+ * hides the field, it is worse: budgets get submitted an order of magnitude
+ * off, and nothing about the UI says anything went wrong.
+ *
+ * The fix is to keep the *text* as state while focused and only project it
+ * to a number for the caller, so "" is a legitimate intermediate state
+ * rather than being instantly coerced to 0. The caller still receives a
+ * number (0 for empty), so no call site has to change its own state type.
+ *
+ * `inputMode` is the second half: `type="number"` alone gives iOS a
+ * full alphanumeric keyboard on many versions, while inputMode="numeric"/
+ * "decimal" gets the number pad. `type="text"` + inputMode also avoids
+ * Chrome's scroll-wheel-changes-the-value behaviour and its spinner
+ * buttons, which are far below the 44px touch target on mobile.
+ */
+export function NumberInput({
+  value,
+  onValueChange,
+  decimal = false,
+  min,
+  max,
+  className,
+  ...props
+}: Omit<React.InputHTMLAttributes<HTMLInputElement>, "value" | "onChange" | "type" | "min" | "max"> & {
+  value: number;
+  onValueChange: (value: number) => void;
+  /** Allow a decimal separator (and show the decimal keypad). */
+  decimal?: boolean;
+  min?: number;
+  max?: number;
+}) {
+  const [draft, setDraft] = React.useState<string | null>(null);
+  const shown = draft ?? (Number.isFinite(value) ? String(value) : "");
+
+  const commit = (raw: string) => {
+    setDraft(raw);
+    if (raw.trim() === "") {
+      onValueChange(0);
+      return;
+    }
+    // Accept the Romanian decimal comma as well as the dot — a phone
+    // keypad in a ro-RO locale offers the comma, and Number(",5") is NaN.
+    const parsed = Number(raw.replace(",", "."));
+    if (!Number.isFinite(parsed)) return;
+    let next = parsed;
+    if (typeof min === "number") next = Math.max(min, next);
+    if (typeof max === "number") next = Math.min(max, next);
+    onValueChange(next);
+  };
+
+  return (
+    <input
+      {...props}
+      type="text"
+      inputMode={decimal ? "decimal" : "numeric"}
+      value={shown}
+      onChange={(e) => commit(e.target.value)}
+      // Dropping the draft on blur re-syncs the box with whatever the
+      // parent actually holds (including a clamped value), so a field left
+      // empty settles visibly on the real number instead of looking blank.
+      onBlur={(e) => {
+        setDraft(null);
+        props.onBlur?.(e);
+      }}
+      className={cn(CONTROL, className)}
+    />
+  );
 }
 
 const CHEVRON_BG =

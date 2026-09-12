@@ -1227,3 +1227,87 @@ export async function generateProformaInvoice(payload: {
 }): Promise<ProformaResult> {
   return apiFetch("/api/v1/me/billing/proforma", { method: "POST", body: payload });
 }
+
+/* -------------------------------------------------- push notifications */
+
+export interface PushPublicKey {
+  configured: boolean;
+  public_key: string | null;
+}
+
+/** The VAPID application server key. Served by the backend rather than
+ *  baked into the bundle so rotating it needs no frontend redeploy. */
+export async function fetchPushPublicKey(): Promise<PushPublicKey> {
+  return apiFetch("/api/v1/notifications/push/public-key", { anonymous: true });
+}
+
+/** `subscription` is the browser's own PushSubscription.toJSON(). */
+export async function subscribeToPush(
+  subscription: { endpoint: string; keys: { p256dh: string; auth: string } }
+): Promise<{ status: string }> {
+  return apiFetch("/api/v1/notifications/push/subscribe", { method: "POST", body: subscription });
+}
+
+export async function unsubscribeFromPush(endpoint: string): Promise<{ status: string }> {
+  return apiFetch("/api/v1/notifications/push/unsubscribe", { method: "POST", body: { endpoint } });
+}
+
+export async function updatePushPreferences(
+  prefs: { push_enabled?: boolean; push_radar_enabled?: boolean }
+): Promise<{ status: string }> {
+  return apiFetch("/api/v1/notifications/push/preferences", { method: "PUT", body: prefs });
+}
+
+/** Fires a real notification at this user's registered devices. Push has an
+ *  unusually long list of ways to be silently off (OS Do Not Disturb, a
+ *  denied permission, an iOS PWA never added to the Home Screen) that the
+ *  server cannot see, so the UI offers one button that either produces a
+ *  notification or names what failed. */
+export async function sendTestPush(): Promise<{ status: string; delivered: number; devices: number }> {
+  return apiFetch("/api/v1/notifications/push/test", { method: "POST" });
+}
+
+/* ---------------------------------------------------------- stripe */
+
+export interface BillingConfig {
+  stripe_enabled: boolean;
+  annual_months_charged: number;
+  currency: string;
+}
+
+export async function fetchBillingConfig(): Promise<BillingConfig> {
+  return apiFetch("/api/v1/billing/config", { anonymous: true });
+}
+
+export interface CheckoutResult {
+  /** "success" carries checkout_url; "unavailable" means Stripe is not
+   *  configured yet and the UI must fall back to the proforma flow. */
+  status: "success" | "unavailable" | "error";
+  checkout_url?: string;
+  session_id?: string;
+  message?: string;
+  plan_id?: string;
+  interval?: string;
+  amount_ron?: number;
+}
+
+export async function createCheckoutSession(
+  planId: string,
+  interval: "monthly" | "annual" = "monthly"
+): Promise<CheckoutResult> {
+  return apiFetch("/api/v1/billing/checkout", {
+    method: "POST",
+    body: { plan_id: planId, interval },
+  });
+}
+
+export interface SubscriptionState {
+  status: string;
+  is_active: boolean;
+  plan_id: string | null;
+  current_period_end: string | null;
+}
+
+export async function fetchMySubscription(): Promise<SubscriptionState> {
+  return apiFetch("/api/v1/billing/subscription");
+}

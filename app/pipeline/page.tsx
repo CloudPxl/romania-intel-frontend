@@ -97,7 +97,7 @@ function DealCard({
             <div className="neu-pressed mt-3 rounded-2xl bg-paper p-3">
               <Field label="Preț ofertat (RON)" hint="Înlocuiește valoarea estimată în calculul pipeline-ului.">
                 <Input
-                  type="number"
+                  type="number" inputMode="numeric"
                   min={0}
                   value={price}
                   onChange={(e) => setPrice(e.target.value)}
@@ -379,7 +379,8 @@ function PipelineContent() {
               <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-2">
                 <Panel as="section" className="p-4 sm:p-5">
                   <SectionTitle note="dosare · valoare">Distribuție pe etape</SectionTitle>
-                  <table className="w-full border-collapse text-left">
+                  <div className="scroll-x">
+                  <table className="w-full min-w-[22rem] border-collapse text-left">
                     <tbody>
                       {stages.map((stage) => {
                         const cell = metrics.stage_breakdown[stage];
@@ -404,11 +405,13 @@ function PipelineContent() {
                       })}
                     </tbody>
                   </table>
+                  </div>
                 </Panel>
 
                 <Panel as="section" className="p-4 sm:p-5">
                   <SectionTitle>Conversie pe pâlnie</SectionTitle>
-                  <table className="w-full border-collapse text-left">
+                  <div className="scroll-x">
+                  <table className="w-full min-w-[22rem] border-collapse text-left">
                     <tbody>
                       {[
                         ["Identificat → Ofertă depusă", metrics.conversion_rates_pct.discovery_to_bid_submitted],
@@ -426,6 +429,7 @@ function PipelineContent() {
                       ))}
                     </tbody>
                   </table>
+                  </div>
 
                   <div className="neu-pressed mt-4 rounded-r-lg border-l-2 border-editorial bg-editorial-soft px-4 py-3">
                     <Eyebrow className="text-editorial">Metodologie</Eyebrow>
