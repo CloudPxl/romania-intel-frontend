@@ -1,0 +1,27 @@
+name: Deploy frontend to VPS
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ro-intel.xyz
+          username: root
+          key: ${{ secrets.VPS_DEPLOY_KEY }}
+          script: |
+            set -e
+            cd /root/ro-intel/romania-intel-frontend
+            git pull --ff-only origin main
+            npm ci
+            npm run build
+            systemctl restart ro-intel-frontend
+            sleep 3
+            systemctl is-active ro-intel-frontend
+            curl -sf -o /dev/null 127.0.0.1:3000
