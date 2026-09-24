@@ -91,11 +91,19 @@ function TopOpportunityRow({
         <p className="font-mono truncate text-[11px] text-stock-500">
           {opportunity.entity_name} · {opportunity.county}
         </p>
+        {/* Two distinct scores, deliberately both shown: Scor proiect is the
+            opportunity's own evidence-based quality score, computed once at
+            ingestion, independent of any profile. Scor potrivire is this
+            profile's relevance score. A high Scor proiect does not imply a
+            high Scor potrivire, or the reverse — conflating the two is what
+            made a well-evidenced but unrelated lead read as "your best
+            match" before this. */}
+        <p className="font-mono mt-1 text-[11px] text-stock-500">
+          {opportunity.opportunity_score != null && <>Scor proiect {opportunity.opportunity_score}/10</>}
+          {opportunity.opportunity_score != null && opportunity.match != null && " · "}
+          {opportunity.match != null && <>Scor potrivire {opportunity.match.score}/10</>}
+        </p>
         {opportunity.match?.is_match && opportunity.match.reasons.length > 0 && (
-          // This list is sorted by value, not match strength (see the
-          // component docstring) — a huge but unrelated contract can lead
-          // the page, so the badge is what tells a user "this is here
-          // because of your criteria" versus "this is just big."
           <Badge tone="accent" className="mt-1.5 inline-block">
             Potrivire · {opportunity.match.reasons.join(", ")}
           </Badge>

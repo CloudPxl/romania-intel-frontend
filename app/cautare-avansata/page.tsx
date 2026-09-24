@@ -29,7 +29,7 @@ import {
 } from "@/components/newsprint";
 
 const SORTS = [
-  { id: "score_desc", label: "Scor oportunitate" },
+  { id: "score_desc", label: "Scor proiect" },
   { id: "budget_desc", label: "Buget descrescător" },
   { id: "budget_asc", label: "Buget crescător" },
   { id: "date_desc", label: "Cele mai recente" },
@@ -662,7 +662,7 @@ function CautareAvansataContent() {
                         )}
                         {lead.opportunity_score != null && (
                           <span className="label-eyebrow inline-flex items-center gap-1 whitespace-nowrap text-stock-600">
-                            Scor {lead.opportunity_score}/10
+                            Scor proiect {lead.opportunity_score}/10
                             <Explain k="opportunityScore" />
                           </span>
                         )}
@@ -751,7 +751,7 @@ function CautareAvansataContent() {
                     ["Criteriu de atribuire", selectedLead.award_criterion || "Nepublicat"],
                     ["Cod CPV", selectedLead.cpv_code || "—"],
                     ["Registru sursă", selectedLead.source_type || "—"],
-                    ["Scor oportunitate", selectedLead.opportunity_score != null ? `${selectedLead.opportunity_score} / 10` : "—"],
+                    ["Scor proiect", selectedLead.opportunity_score != null ? `${selectedLead.opportunity_score} / 10` : "—"],
                   ].map(([label, value]) => (
                     <tr key={label} className="border-b border-divider last:border-b-0">
                       <th

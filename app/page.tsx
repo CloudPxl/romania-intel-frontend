@@ -244,24 +244,32 @@ function PersonalizedHomePage() {
                   <p className="tabular font-display mt-4 border-t border-divider pt-3 text-3xl font-semibold">
                     {formatLeadValue(leadStory.financial_value_ron)}
                   </p>
-                  {leadStory.opportunity_score != null && (
-                    <p className="font-mono mt-1 text-[11px] uppercase tracking-widest text-stock-500">
-                      Scor {leadStory.opportunity_score} / 10
-                    </p>
+                  {/* Scor proiect: the opportunity's own evidence-based
+                      quality score, computed once at ingestion, independent
+                      of any profile. Scor potrivire: this profile's
+                      relevance score. Shown side by side deliberately — a
+                      high project score does not imply a high match score,
+                      or the reverse, and showing only one used to read as
+                      "this is your best match" when it was really just the
+                      highest-scoring item overall. */}
+                  {(leadStory.opportunity_score != null || leadStory.match != null) && (
+                    <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5">
+                      {leadStory.opportunity_score != null && (
+                        <p className="font-mono text-[11px] uppercase tracking-widest text-stock-500">
+                          Scor proiect {leadStory.opportunity_score} / 10
+                        </p>
+                      )}
+                      {leadStory.match != null && (
+                        <p className="font-mono text-[11px] uppercase tracking-widest text-stock-500">
+                          Scor potrivire {leadStory.match.score} / 10
+                        </p>
+                      )}
+                    </div>
                   )}
-                  {/* Poziția este aleasă după valoare, nu după potrivire —
-                      fără acest badge, un dosar mare dar nepotrivit ar putea
-                      apărea aici fără nicio explicație. */}
-                  {leadStory.match?.is_match && leadStory.match.reasons.length > 0 ? (
+                  {leadStory.match?.is_match && leadStory.match.reasons.length > 0 && (
                     <Badge tone="accent" className="mt-3 inline-block">
                       Potrivire · {leadStory.match.reasons.join(", ")}
                     </Badge>
-                  ) : (
-                    isPersonalized && (
-                      <p className="font-body mt-3 text-xs leading-relaxed text-stock-500">
-                        Cea mai mare poziție ca valoare din dosarele dvs. — nu neapărat cea mai bună potrivire.
-                      </p>
-                    )
                   )}
                 </div>
               ) : (
@@ -445,7 +453,7 @@ function PublicHomePage() {
               </p>
               {leadStory.opportunity_score != null && (
                 <p className="font-mono mt-1 text-[11px] uppercase tracking-widest text-stock-500">
-                  Scor {leadStory.opportunity_score} / 10
+                  Scor proiect {leadStory.opportunity_score} / 10
                 </p>
               )}
             </div>
