@@ -7,6 +7,7 @@ import MarketTrendsView from "@/components/MarketTrendsView";
 import { ApiError, fetchMarketTrends, fetchMyMarketTrends, type MarketTrends } from "@/lib/api";
 import { formatDateline, formatLeadValue, formatNumber, formatRon } from "@/lib/format";
 import {
+  Badge,
   ButtonLink,
   CountUp,
   DegradedBanner,
@@ -247,6 +248,20 @@ function PersonalizedHomePage() {
                     <p className="font-mono mt-1 text-[11px] uppercase tracking-widest text-stock-500">
                       Scor {leadStory.opportunity_score} / 10
                     </p>
+                  )}
+                  {/* Poziția este aleasă după valoare, nu după potrivire —
+                      fără acest badge, un dosar mare dar nepotrivit ar putea
+                      apărea aici fără nicio explicație. */}
+                  {leadStory.match?.is_match && leadStory.match.reasons.length > 0 ? (
+                    <Badge tone="accent" className="mt-3 inline-block">
+                      Potrivire · {leadStory.match.reasons.join(", ")}
+                    </Badge>
+                  ) : (
+                    isPersonalized && (
+                      <p className="font-body mt-3 text-xs leading-relaxed text-stock-500">
+                        Cea mai mare poziție ca valoare din dosarele dvs. — nu neapărat cea mai bună potrivire.
+                      </p>
+                    )
                   )}
                 </div>
               ) : (

@@ -210,6 +210,17 @@ export interface MarketTrends {
     category: string;
     financial_value_ron: number;
     opportunity_score: number | null;
+    /** Why this row is in the list — this array is sorted by value, not by
+     *  match strength, so a huge unrelated contract can lead the page with
+     *  no way to tell it apart from a genuine match without this. Only
+     *  present on /me/market-trends (Prima Pagina); the public
+     *  /analysis/market-trends route has no profile to match against. */
+    match?: {
+      score: number;
+      is_match: boolean;
+      excluded: boolean;
+      reasons: string[];
+    } | null;
   }[];
   /** False for anonymous callers — top_opportunities is empty in that case. */
   is_authenticated: boolean;

@@ -2,7 +2,7 @@
 import Link from "next/link";
 import type { MarketTrends } from "@/lib/api";
 import { formatRon } from "@/lib/format";
-import { ButtonLink, Eyebrow, Panel, SectionTitle } from "@/components/newsprint";
+import { Badge, ButtonLink, Eyebrow, Panel, SectionTitle } from "@/components/newsprint";
 
 /**
  * The county/category/funding-source/top-opportunities breakdown, shared by
@@ -91,6 +91,15 @@ function TopOpportunityRow({
         <p className="font-mono truncate text-[11px] text-stock-500">
           {opportunity.entity_name} · {opportunity.county}
         </p>
+        {opportunity.match?.is_match && opportunity.match.reasons.length > 0 && (
+          // This list is sorted by value, not match strength (see the
+          // component docstring) — a huge but unrelated contract can lead
+          // the page, so the badge is what tells a user "this is here
+          // because of your criteria" versus "this is just big."
+          <Badge tone="accent" className="mt-1.5 inline-block">
+            Potrivire · {opportunity.match.reasons.join(", ")}
+          </Badge>
+        )}
       </div>
       <span className="tabular font-display shrink-0 text-sm font-semibold">
         {formatRon(opportunity.financial_value_ron)}
