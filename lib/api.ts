@@ -161,7 +161,14 @@ export interface Lead {
    * query, not recomputed client-side.
    */
   match?: {
+    /** Internal ORDER BY weight, NOT a 0-10 score despite the name — can
+     *  run well past 10 (keyword/county/domain/value weights of
+     *  50/20/15/10 plus opportunity_score on top). Never render this to a
+     *  user; use match_strength for that. */
     score: number;
+    /** The real 0-10-bounded "how well does this fit your profile" number
+     *  — this is what "Scor potrivire" shows. */
+    match_strength: number;
     is_match: boolean;
     excluded: boolean;
     reasons: string[];
@@ -210,13 +217,16 @@ export interface MarketTrends {
     category: string;
     financial_value_ron: number;
     opportunity_score: number | null;
-    /** Why this row is in the list — this array is sorted by value, not by
-     *  match strength, so a huge unrelated contract can lead the page with
-     *  no way to tell it apart from a genuine match without this. Only
-     *  present on /me/market-trends (Prima Pagina); the public
-     *  /analysis/market-trends route has no profile to match against. */
+    /** Why this row is in the list, and how it's ranked (by match_strength
+     *  when there's a real profile to rank against, opportunity_score
+     *  otherwise — see routers/analysis.py). Only present on
+     *  /me/market-trends (Prima Pagina); the public /analysis/market-trends
+     *  route has no profile to match against. */
     match?: {
+      /** Internal ranking weight, NOT a 0-10 score — never render this. */
       score: number;
+      /** The real 0-10-bounded number — this is "Scor potrivire". */
+      match_strength: number;
       is_match: boolean;
       excluded: boolean;
       reasons: string[];

@@ -101,7 +101,7 @@ function TopOpportunityRow({
         <p className="font-mono mt-1 text-[11px] text-stock-500">
           {opportunity.opportunity_score != null && <>Scor proiect {opportunity.opportunity_score}/10</>}
           {opportunity.opportunity_score != null && opportunity.match != null && " · "}
-          {opportunity.match != null && <>Scor potrivire {opportunity.match.score}/10</>}
+          {opportunity.match != null && <>Scor potrivire {opportunity.match.match_strength}/10</>}
         </p>
         {opportunity.match?.is_match && opportunity.match.reasons.length > 0 && (
           <Badge tone="accent" className="mt-1.5 inline-block">

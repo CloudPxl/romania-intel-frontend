@@ -261,7 +261,7 @@ function PersonalizedHomePage() {
                       )}
                       {leadStory.match != null && (
                         <p className="font-mono text-[11px] uppercase tracking-widest text-stock-500">
-                          Scor potrivire {leadStory.match.score} / 10
+                          Scor potrivire {leadStory.match.match_strength} / 10
                         </p>
                       )}
                     </div>
