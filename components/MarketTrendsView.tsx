@@ -13,13 +13,13 @@ import { Badge, ButtonLink, Eyebrow, Panel, SectionTitle } from "@/components/ne
  * hand-copied implementations eventually do — this codebase already hit
  * that exact bug once with a duplicated domain list.
  *
- * County and funding-source rows are real links to Căutare Avansată,
- * pre-filtered to that row's value — clicking "Hunedoara" is the start of
- * a search, not a dead end. Domain rows are the one exception: they're a
- * quick, in-place filter over "Cele mai mari poziții" on this same page
- * (click again to clear) rather than a navigation, since narrowing the
- * list you're already looking at is the more useful reflex there. The
- * hover treatment (`hover:neu-pressed-sm` + a trailing arrow) deliberately
+ * Domain/county/funding-source rows are quick, in-place filters over
+ * "Cele mai mari poziții" on this same page (click again to clear, AND'd
+ * together when more than one is active) rather than a navigation, since
+ * narrowing the list you're already looking at is the more useful reflex
+ * there — see the `quickFilters` prop for why /analysis needs a real
+ * backend re-query to do this correctly rather than a client-side one.
+ * The hover treatment (`hover:neu-pressed-sm` + a trailing arrow) deliberately
  * mirrors Căutare Avansată's own lead-list rows rather than a card-lift:
  * these are rows in a divided list, not cards in a grid, and the "whole
  * row presses in on hover" cue is the one this app already uses for
@@ -37,7 +37,8 @@ function RowLink({
 }: {
   /** Navigates to Căutare Avansată. Mutually exclusive with onSelect. */
   href?: string;
-  /** In-place toggle filter instead of navigation — see onDomainSelect. */
+  /** In-place toggle filter instead of navigation — see MarketTrendsView's
+   *  toggleDomain/toggleCounty/toggleFundingSource. */
   onSelect?: () => void;
   active?: boolean;
   label: string;
@@ -185,35 +186,90 @@ export default function MarketTrendsView({
   data,
   variant,
   onOpenLead,
+  quickFilters,
 }: {
   data: MarketTrends;
   variant: "full" | "compact";
   /** See TopOpportunityRow — passed straight through. */
   onOpenLead?: (sourceId: string) => void;
-}) {
-  // Quick, in-place filters over "Cele mai mari poziții" below — not
-  // navigation (see the component docstring). Combined with AND when more
-  // than one is active (domain=energie + județ=Cluj shows only rows
-  // matching both, not either). Filtered against the full list BEFORE the
-  // compact/full slice, not after: filtering an already-sliced top-5/10
-  // would show "no results" for a real value that simply wasn't in that
-  // slice. County/funding-source panels only render for variant "full"
-  // (/analysis), so their filters can only ever be set there.
-  const [selectedDomain, setSelectedDomain] = useState<string | null>(null);
-  const [selectedCounty, setSelectedCounty] = useState<string | null>(null);
-  const [selectedFundingSource, setSelectedFundingSource] = useState<string | null>(null);
-  const filteredOpportunities = data.top_opportunities.filter(
-    (o) =>
-      (!selectedDomain || o.category === selectedDomain) &&
-      (!selectedCounty || o.county === selectedCounty) &&
-      (!selectedFundingSource || o.funding_source === selectedFundingSource)
-  );
-  const topOpportunities = variant === "full" ? filteredOpportunities : filteredOpportunities.slice(0, 5);
-  const clearFilters = () => {
-    setSelectedDomain(null);
-    setSelectedCounty(null);
-    setSelectedFundingSource(null);
+  /**
+   * Makes the domain/county/funding-source panels drive a real,
+   * correctly-scoped backend re-query (via the caller's own filter state)
+   * instead of narrowing the already-fetched top_opportunities
+   * client-side. That client-side narrowing is only ever correct by
+   * accident: top_opportunities is a small, capped candidate pool (see
+   * TOP_OPPORTUNITIES_PER_DOMAIN in routers/analysis.py) with no
+   * guarantee of representing every county or funding source, even
+   * though the breakdown panels' own counts come from the full dataset —
+   * which is exactly how a county showing "2" produced "Nicio poziție în
+   * această selecție" when clicked. Only /analysis wires this (it already
+   * has real filter infrastructure); Prima Pagina (compact variant) keeps
+   * the client-side fallback below, where that same risk is only
+   * mitigated, not fixed, by the per-domain guarantee.
+   */
+  quickFilters?: {
+    selectedDomain: string | null;
+    selectedCounty: string | null;
+    selectedFundingSource: string | null;
+    onSelectDomain: (value: string | null) => void;
+    onSelectCounty: (value: string | null) => void;
+    onSelectFundingSource: (value: string | null) => void;
   };
+}) {
+  const [localDomain, setLocalDomain] = useState<string | null>(null);
+  const [localCounty, setLocalCounty] = useState<string | null>(null);
+  const [localFundingSource, setLocalFundingSource] = useState<string | null>(null);
+
+  const selectedDomain = quickFilters ? quickFilters.selectedDomain : localDomain;
+  const selectedCounty = quickFilters ? quickFilters.selectedCounty : localCounty;
+  const selectedFundingSource = quickFilters ? quickFilters.selectedFundingSource : localFundingSource;
+
+  // Toggle logic lives here regardless of mode, so both paths agree on
+  // "click again to clear."
+  const toggleDomain = (value: string) => {
+    const next = selectedDomain === value ? null : value;
+    if (quickFilters) quickFilters.onSelectDomain(next);
+    else setLocalDomain(next);
+  };
+  const toggleCounty = (value: string) => {
+    const next = selectedCounty === value ? null : value;
+    if (quickFilters) quickFilters.onSelectCounty(next);
+    else setLocalCounty(next);
+  };
+  const toggleFundingSource = (value: string) => {
+    const next = selectedFundingSource === value ? null : value;
+    if (quickFilters) quickFilters.onSelectFundingSource(next);
+    else setLocalFundingSource(next);
+  };
+  const clearDomain = () => (quickFilters ? quickFilters.onSelectDomain(null) : setLocalDomain(null));
+  const clearCounty = () => (quickFilters ? quickFilters.onSelectCounty(null) : setLocalCounty(null));
+  const clearFundingSource = () =>
+    quickFilters ? quickFilters.onSelectFundingSource(null) : setLocalFundingSource(null);
+  const clearFilters = () => {
+    if (quickFilters) {
+      quickFilters.onSelectDomain(null);
+      quickFilters.onSelectCounty(null);
+      quickFilters.onSelectFundingSource(null);
+    } else {
+      setLocalDomain(null);
+      setLocalCounty(null);
+      setLocalFundingSource(null);
+    }
+  };
+
+  // Controlled mode: data.top_opportunities is already correctly scoped
+  // by the caller's real, server-side query — filtering it again here
+  // could only narrow further, never recover a row that's missing purely
+  // because it fell outside the (much smaller) uncontrolled-mode pool.
+  const filteredOpportunities = quickFilters
+    ? data.top_opportunities
+    : data.top_opportunities.filter(
+        (o) =>
+          (!selectedDomain || o.category === selectedDomain) &&
+          (!selectedCounty || o.county === selectedCounty) &&
+          (!selectedFundingSource || o.funding_source === selectedFundingSource)
+      );
+  const topOpportunities = variant === "full" ? filteredOpportunities : filteredOpportunities.slice(0, 5);
   const maxCategory = Math.max(0, ...data.by_category.map((c) => c.value_ron));
   const maxCounty = Math.max(0, ...data.by_county.map((c) => c.value_ron));
   const maxFunding = Math.max(0, ...data.by_funding_source.map((f) => f.value_ron));
@@ -226,7 +282,7 @@ export default function MarketTrendsView({
           {data.by_category.map((c) => (
             <RowLink
               key={c.category}
-              onSelect={() => setSelectedDomain((prev) => (prev === c.category ? null : c.category))}
+              onSelect={() => toggleDomain(c.category)}
               active={selectedDomain === c.category}
               label={c.category}
               count={c.count}
@@ -248,7 +304,7 @@ export default function MarketTrendsView({
             {data.by_county.map((c) => (
               <RowLink
                 key={c.county}
-                onSelect={() => setSelectedCounty((prev) => (prev === c.county ? null : c.county))}
+                onSelect={() => toggleCounty(c.county)}
                 active={selectedCounty === c.county}
                 label={c.county}
                 count={c.count}
@@ -267,9 +323,7 @@ export default function MarketTrendsView({
             {data.by_funding_source.map((f) => (
               <RowLink
                 key={f.funding_source}
-                onSelect={() =>
-                  setSelectedFundingSource((prev) => (prev === f.funding_source ? null : f.funding_source))
-                }
+                onSelect={() => toggleFundingSource(f.funding_source)}
                 active={selectedFundingSource === f.funding_source}
                 label={f.funding_source}
                 count={f.count}
@@ -290,7 +344,7 @@ export default function MarketTrendsView({
             {selectedDomain && (
               <button
                 type="button"
-                onClick={() => setSelectedDomain(null)}
+                onClick={clearDomain}
                 className="font-mono neu-pressed-sm inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] text-editorial"
               >
                 {selectedDomain} ✕
@@ -299,7 +353,7 @@ export default function MarketTrendsView({
             {selectedCounty && (
               <button
                 type="button"
-                onClick={() => setSelectedCounty(null)}
+                onClick={clearCounty}
                 className="font-mono neu-pressed-sm inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] text-editorial"
               >
                 {selectedCounty} ✕
@@ -308,7 +362,7 @@ export default function MarketTrendsView({
             {selectedFundingSource && (
               <button
                 type="button"
-                onClick={() => setSelectedFundingSource(null)}
+                onClick={clearFundingSource}
                 className="font-mono neu-pressed-sm inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] text-editorial"
               >
                 {selectedFundingSource} ✕

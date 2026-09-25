@@ -34,6 +34,9 @@ export default function AnalysisPage() {
   const [county, setCounty] = useState("");
   const [minValue, setMinValue] = useState("");
   const [maxValue, setMaxValue] = useState("");
+  // Quick-filter only — no field for it in the manual filter panel below,
+  // just the "Surse de finanțare" breakdown panel (see quickFilters).
+  const [fundingSource, setFundingSource] = useState("");
 
   // The filters currently in effect, kept separately from the form inputs
   // so a background reload repeats what the user actually applied rather
@@ -94,15 +97,22 @@ export default function AnalysisPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [load, userId]);
 
+  // The full filter set implied by current state, so a quick-filter click
+  // (which changes exactly one facet) still keeps whatever the manual
+  // panel already had applied — clicking "Cluj" after already filtering
+  // to Energie in the panel narrows to both, it doesn't discard the first.
+  const buildFilters = (): MarketTrendFilters => ({
+    start_date: startDate || undefined,
+    end_date: endDate || undefined,
+    categories: category ? [category] : undefined,
+    counties: county.trim() ? [county.trim()] : undefined,
+    funding_sources: fundingSource ? [fundingSource] : undefined,
+    min_value_ron: minValue ? Number(minValue) : undefined,
+    max_value_ron: maxValue ? Number(maxValue) : undefined,
+  });
+
   const applyFilters = () => {
-    const next: MarketTrendFilters = {
-      start_date: startDate || undefined,
-      end_date: endDate || undefined,
-      categories: category ? [category] : undefined,
-      counties: county.trim() ? [county.trim()] : undefined,
-      min_value_ron: minValue ? Number(minValue) : undefined,
-      max_value_ron: maxValue ? Number(maxValue) : undefined,
-    };
+    const next = buildFilters();
     setAppliedFilters(next);
     load(next);
   };
@@ -114,8 +124,36 @@ export default function AnalysisPage() {
     setCounty("");
     setMinValue("");
     setMaxValue("");
+    setFundingSource("");
     setAppliedFilters({});
     load({});
+  };
+
+  // Quick filters (MarketTrendsView's domain/county/funding-source panels):
+  // a real, correctly-scoped re-query, same mechanism as the manual panel
+  // above — not a client-side narrowing of the already-fetched
+  // top_opportunities, which has no guarantee of representing every
+  // county or funding source (see MarketTrendsView's quickFilters doc).
+  // Each setter takes the fresh value directly rather than reading it back
+  // off state (still stale in the same tick it was just set), and merges
+  // it into buildFilters()'s otherwise-current snapshot of everything else.
+  const selectDomain = (value: string | null) => {
+    setCategory(value ?? "");
+    const next = { ...buildFilters(), categories: value ? [value] : undefined };
+    setAppliedFilters(next);
+    load(next);
+  };
+  const selectCounty = (value: string | null) => {
+    setCounty(value ?? "");
+    const next = { ...buildFilters(), counties: value ? [value] : undefined };
+    setAppliedFilters(next);
+    load(next);
+  };
+  const selectFundingSource = (value: string | null) => {
+    setFundingSource(value ?? "");
+    const next = { ...buildFilters(), funding_sources: value ? [value] : undefined };
+    setAppliedFilters(next);
+    load(next);
   };
 
   const activeFilterCount = Object.keys(data?.filters_applied ?? {}).filter((k) => k !== "limit").length;
@@ -210,7 +248,19 @@ export default function AnalysisPage() {
           </div>
 
           <div className="mt-8">
-            <MarketTrendsView data={data} variant="full" onOpenLead={data.is_authenticated ? openLead : undefined} />
+            <MarketTrendsView
+              data={data}
+              variant="full"
+              onOpenLead={data.is_authenticated ? openLead : undefined}
+              quickFilters={{
+                selectedDomain: category || null,
+                selectedCounty: county || null,
+                selectedFundingSource: fundingSource || null,
+                onSelectDomain: selectDomain,
+                onSelectCounty: selectCounty,
+                onSelectFundingSource: selectFundingSource,
+              }}
+            />
           </div>
 
           {data.is_authenticated && (
