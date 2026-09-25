@@ -5,7 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import OnboardingForm from "@/components/OnboardingForm";
 import MarketTrendsView from "@/components/MarketTrendsView";
 import { ApiError, fetchMarketTrends, fetchMyMarketTrends, type MarketTrends } from "@/lib/api";
-import { formatDateline, formatLeadValue, formatNumber, formatRon } from "@/lib/format";
+import { DOMAIN_OPTIONS, formatDateline, formatLeadValue, formatNumber, formatRon } from "@/lib/format";
 import {
   Badge,
   ButtonLink,
@@ -138,7 +138,8 @@ function PersonalizedHomePage() {
           {firstName ? `Bun venit, ${firstName}.` : "Bun venit."}
         </h1>
         <p className="font-mono mt-4 text-[11px] uppercase tracking-[0.2em] text-stock-500">
-          {dateline || " "} · Criterii active: {profile?.domain ?? "—"}
+          {dateline || " "} · Criterii active:{" "}
+          {profile?.domain ? DOMAIN_OPTIONS.find((d) => d.id === profile.domain)?.label ?? profile.domain : "—"}
         </p>
       </div>
 

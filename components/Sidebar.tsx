@@ -41,6 +41,7 @@ const NAV_LINKS = [
 const SECTIONS = ["", "Instrumente"] as const;
 
 const DOMAIN_LABELS: Record<string, string> = {
+  toate: "Toate domeniile",
   infrastructura: "Infrastructură & Transporturi",
   sanatate: "Sănătate",
   energie: "Energie",

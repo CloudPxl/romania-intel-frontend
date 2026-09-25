@@ -13,7 +13,7 @@ import {
   type ProformaResult,
 } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
-import { CATEGORIES, COUNTIES } from "@/lib/format";
+import { CATEGORIES, COUNTIES, DOMAIN_OPTIONS } from "@/lib/format";
 import { Badge, Button, ChipSelect, Eyebrow, Field, Input, Notice, Select } from "@/components/newsprint";
 import NotificationToggle from "@/components/NotificationToggle";
 
@@ -668,7 +668,10 @@ export function AccountSettingsModal({ isOpen, onClose }: { isOpen: boolean; onC
 // Was a second, hand-copied list of the same five domains. One of the two
 // would eventually gain an entry the other lacked, and the drift would
 // show up as a domain you can pick at onboarding but not edit afterwards.
-const DOMAINS = CATEGORIES;
+// DOMAIN_OPTIONS (not CATEGORIES directly) so "Toate domeniile" — the
+// opt-out-of-narrowing choice, not a sixth real domain — is editable
+// here too, the same place it's offered at onboarding.
+const DOMAINS = DOMAIN_OPTIONS;
 
 /**
  * Edit the matching criteria after signup.
@@ -682,9 +685,13 @@ const DOMAINS = CATEGORIES;
 export function ProfileCriteriaModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const { profile, updateProfile } = useAuth();
   const [displayName, setDisplayName] = useState("");
-  // Explicit `string`: CATEGORIES is `as const`, so DOMAINS[0].id alone
+  // Explicit `string`: CATEGORIES is `as const`, so CATEGORIES[0].id alone
   // narrows this to the literal "infrastructura" and nothing else assigns.
-  const [domain, setDomain] = useState<string>(DOMAINS[0].id);
+  // A real domain, deliberately — DOMAINS[0] is now "toate" (it's first in
+  // the list for visibility), and defaulting an edge case here to "match
+  // everything" without the user having chosen that is not the same as
+  // defaulting to the first real domain.
+  const [domain, setDomain] = useState<string>(CATEGORIES[0].id);
   const [counties, setCounties] = useState<string[]>([]);
   const [keywords, setKeywords] = useState("");
   const [excludeKeywords, setExcludeKeywords] = useState("");
@@ -705,7 +712,7 @@ export function ProfileCriteriaModal({ isOpen, onClose }: { isOpen: boolean; onC
   useEffect(() => {
     if (!isOpen || !profile) return;
     setDisplayName(profile.display_name || "");
-    setDomain(profile.domain || DOMAINS[0].id);
+    setDomain(profile.domain || CATEGORIES[0].id);
     setCounties([...(profile.target_counties || [])]);
     setKeywords((profile.keywords || []).join(", "));
     setExcludeKeywords((profile.exclude_keywords || []).join(", "));
@@ -724,10 +731,6 @@ export function ProfileCriteriaModal({ isOpen, onClose }: { isOpen: boolean; onC
 
   const handleSave = async () => {
     const keywordList = splitList(keywords);
-    if (keywordList.length === 0) {
-      setError("Păstrați cel puțin un cuvânt-cheie — fără el nu se poate calcula nicio potrivire.");
-      return;
-    }
     setSaving(true);
     setError(null);
     const { error: apiError } = await updateProfile({
@@ -795,8 +798,8 @@ export function ProfileCriteriaModal({ isOpen, onClose }: { isOpen: boolean; onC
         </Field>
 
         <Field
-          label="Cuvinte-cheie (separate prin virgulă)"
-          hint="Dovada obligatorie a unei potriviri. Județul și domeniul o întăresc, dar nu o pot crea singure."
+          label="Cuvinte-cheie (opțional, separate prin virgulă)"
+          hint="Un dosar poate fi o potrivire prin domeniu, fără cuvinte-cheie — acestea afinează în plus rezultatele."
         >
           <Input value={keywords} onChange={(e) => setKeywords(e.target.value)} placeholder="drum, pod, asfaltare" />
         </Field>

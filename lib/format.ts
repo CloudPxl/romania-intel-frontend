@@ -91,6 +91,14 @@ export const CATEGORIES = [
   { id: "digitalizare", label: "Digitalizare, IT & Smart City" },
 ] as const;
 
+/** Domain-picker options for a profile (onboarding, criteria editor) —
+ *  distinct from CATEGORIES, which stays the five real domains an
+ *  opportunity can actually be classified into. "toate" (api.py's
+ *  DOMAIN_ALL) is a real, selectable profile value that opts out of
+ *  narrowing by domain; it's never an opportunity's own category, so it
+ *  has no business in CATEGORIES itself. */
+export const DOMAIN_OPTIONS = [{ id: "toate", label: "Toate domeniile" }, ...CATEGORIES] as const;
+
 export function categoryLabel(id: string | null | undefined): string {
   if (!id) return "General";
   return CATEGORIES.find((c) => c.id === id)?.label || id;

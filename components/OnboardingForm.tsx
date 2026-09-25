@@ -2,7 +2,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
-import { CATEGORIES, COUNTIES } from "@/lib/format";
+import { CATEGORIES, COUNTIES, DOMAIN_OPTIONS } from "@/lib/format";
 import { Button, ChipSelect, Eyebrow, Field, Input, Notice, Select } from "@/components/newsprint";
 import NotificationToggle from "@/components/NotificationToggle";
 
@@ -43,10 +43,6 @@ export default function OnboardingForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const keywordList = splitList(keywords);
-    if (keywordList.length === 0) {
-      setError("Adăugați cel puțin un cuvânt-cheie, altfel nu veți primi nicio oportunitate relevantă.");
-      return;
-    }
     const chatId = telegramChatId.trim();
     if (chatId && !TELEGRAM_CHAT_ID_PATTERN.test(chatId)) {
       setError("ID-ul de chat Telegram trebuie să fie numeric (ex: 123456789), nu un @nume de utilizator.");
@@ -97,7 +93,7 @@ export default function OnboardingForm() {
 
           <Field label="Domeniu principal de interes">
             <Select value={domain} onChange={(e) => setDomain(e.target.value)}>
-              {CATEGORIES.map((c) => (
+              {DOMAIN_OPTIONS.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.label}
                 </option>
@@ -120,12 +116,11 @@ export default function OnboardingForm() {
             />
           </Field>
 
-          <Field label="Cuvinte-cheie (separate prin virgulă)">
+          <Field label="Cuvinte-cheie (opțional, separate prin virgulă)">
             <Input
               value={keywords}
               onChange={(e) => setKeywords(e.target.value)}
               placeholder="drum, pod, asfaltare"
-              required
             />
           </Field>
 
