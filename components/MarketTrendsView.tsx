@@ -1,4 +1,5 @@
 "use client";
+import { useState } from "react";
 import Link from "next/link";
 import type { MarketTrends } from "@/lib/api";
 import { formatRon } from "@/lib/format";
@@ -12,43 +13,60 @@ import { Badge, ButtonLink, Eyebrow, Panel, SectionTitle } from "@/components/ne
  * hand-copied implementations eventually do — this codebase already hit
  * that exact bug once with a duplicated domain list.
  *
- * Every row is a real link to Căutare Avansată, pre-filtered to that row's
- * value — clicking "Hunedoara" here is the start of a search, not a dead
- * end. The hover treatment (`hover:neu-pressed-sm` + a trailing arrow)
- * deliberately mirrors Căutare Avansată's own lead-list rows rather than a
- * card-lift: these are rows in a divided list, not cards in a grid, and the
- * "whole row presses in on hover" cue is the one this app already uses for
+ * County and funding-source rows are real links to Căutare Avansată,
+ * pre-filtered to that row's value — clicking "Hunedoara" is the start of
+ * a search, not a dead end. Domain rows are the one exception: they're a
+ * quick, in-place filter over "Cele mai mari poziții" on this same page
+ * (click again to clear) rather than a navigation, since narrowing the
+ * list you're already looking at is the more useful reflex there. The
+ * hover treatment (`hover:neu-pressed-sm` + a trailing arrow) deliberately
+ * mirrors Căutare Avansată's own lead-list rows rather than a card-lift:
+ * these are rows in a divided list, not cards in a grid, and the "whole
+ * row presses in on hover" cue is the one this app already uses for
  * "this row opens something."
  */
 
 function RowLink({
   href,
+  onSelect,
+  active,
   label,
   count,
   value,
   maxValue,
 }: {
-  href: string;
+  /** Navigates to Căutare Avansată. Mutually exclusive with onSelect. */
+  href?: string;
+  /** In-place toggle filter instead of navigation — see onDomainSelect. */
+  onSelect?: () => void;
+  active?: boolean;
   label: string;
   count: number;
   value: number;
   maxValue: number;
 }) {
   const pct = maxValue > 0 ? Math.max(2, Math.round((value / maxValue) * 100)) : 0;
-  return (
-    <Link
-      href={href}
-      className="group -mx-2 flex flex-col gap-1.5 rounded-xl px-2 py-3 transition-all duration-[var(--duration-base)] ease-[var(--ease-glide)] hover:neu-pressed-sm active:scale-[0.99]"
-    >
+  const className =
+    "group -mx-2 flex w-full flex-col gap-1.5 rounded-xl px-2 py-3 text-left transition-all duration-[var(--duration-base)] ease-[var(--ease-glide)] hover:neu-pressed-sm active:scale-[0.99]" +
+    (active ? " neu-pressed-sm" : "");
+  const content = (
+    <>
       <div className="flex items-baseline justify-between gap-3">
         <span className="font-body flex min-w-0 items-center gap-1.5 truncate text-sm font-semibold">
           <span className="truncate">{label}</span>
-          <span
-            aria-hidden="true"
-            className="shrink-0 text-editorial opacity-0 transition-all duration-[var(--duration-base)] ease-[var(--ease-spring)] group-hover:translate-x-0.5 group-hover:opacity-100"
-          >
-            →
-          </span>
+          {href && (
+            <span
+              aria-hidden="true"
+              className="shrink-0 text-editorial opacity-0 transition-all duration-[var(--duration-base)] ease-[var(--ease-spring)] group-hover:translate-x-0.5 group-hover:opacity-100"
+            >
+              →
+            </span>
+          )}
+          {active && (
+            <span className="shrink-0 text-[11px] font-semibold text-editorial" aria-hidden="true">
+              · filtrat
+            </span>
+          )}
         </span>
         <span className="tabular font-mono shrink-0 text-[11px] text-stock-500">
           {count} · {formatRon(value)}
@@ -57,6 +75,19 @@ function RowLink({
       <div className="h-1.5 w-full overflow-hidden rounded-full bg-stock-200">
         <div className="h-full rounded-full bg-editorial" style={{ width: `${pct}%` }} role="presentation" />
       </div>
+    </>
+  );
+
+  if (onSelect) {
+    return (
+      <button type="button" onClick={onSelect} className={className} aria-pressed={active}>
+        {content}
+      </button>
+    );
+  }
+  return (
+    <Link href={href!} className={className}>
+      {content}
     </Link>
   );
 }
@@ -140,7 +171,16 @@ export default function MarketTrendsView({
   data: MarketTrends;
   variant: "full" | "compact";
 }) {
-  const topOpportunities = variant === "full" ? data.top_opportunities : data.top_opportunities.slice(0, 5);
+  // A quick, in-place filter over "Cele mai mari poziții" below — not
+  // navigation, unlike the county/funding-source rows (see the component
+  // docstring). Filtered against the full list BEFORE the compact/full
+  // slice, not after: filtering an already-sliced top-5/10 would show
+  // "no results" for a real domain that simply wasn't in that slice.
+  const [selectedDomain, setSelectedDomain] = useState<string | null>(null);
+  const filteredOpportunities = selectedDomain
+    ? data.top_opportunities.filter((o) => o.category === selectedDomain)
+    : data.top_opportunities;
+  const topOpportunities = variant === "full" ? filteredOpportunities : filteredOpportunities.slice(0, 5);
   const maxCategory = Math.max(0, ...data.by_category.map((c) => c.value_ron));
   const maxCounty = Math.max(0, ...data.by_county.map((c) => c.value_ron));
   const maxFunding = Math.max(0, ...data.by_funding_source.map((f) => f.value_ron));
@@ -153,7 +193,8 @@ export default function MarketTrendsView({
           {data.by_category.map((c) => (
             <RowLink
               key={c.category}
-              href={cautareAvansataHref({ category: c.category })}
+              onSelect={() => setSelectedDomain((prev) => (prev === c.category ? null : c.category))}
+              active={selectedDomain === c.category}
               label={c.category}
               count={c.count}
               value={c.value_ron}
@@ -207,6 +248,15 @@ export default function MarketTrendsView({
         <SectionTitle note={data.is_authenticated ? undefined : "restricționat"}>
           Cele mai mari poziții
         </SectionTitle>
+        {data.is_authenticated && selectedDomain && (
+          <button
+            type="button"
+            onClick={() => setSelectedDomain(null)}
+            className="font-mono mb-3 inline-flex items-center gap-1.5 text-[11px] text-editorial"
+          >
+            Filtrat: {selectedDomain} · Șterge filtrul ✕
+          </button>
+        )}
         {data.is_authenticated ? (
           topOpportunities.length > 0 ? (
             <ol className="divide-y divide-divider">
