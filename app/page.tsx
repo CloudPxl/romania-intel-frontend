@@ -19,6 +19,78 @@ import {
   StatCell,
 } from "@/components/newsprint";
 
+/**
+ * The "Cea mai bună potrivire" / "Cea mai mare poziție" hero card, shared
+ * by both the personalized and public front pages. Links through to the
+ * actual record on Căutare Avansată — it used to be static text describing
+ * a lead you had no way to actually open. `match` is only ever present on
+ * the personalized (authenticated, /me/market-trends) variant; the public
+ * one only ever has opportunity_score, and the two score blocks + badge
+ * already degrade individually when their data isn't there.
+ */
+function LeadStoryCard({ leadStory }: { leadStory: MarketTrends["top_opportunities"][number] }) {
+  const body = (
+    <div className="mt-3">
+      <h3 className="font-display flex items-start gap-1.5 text-xl font-bold leading-tight">
+        <span>{leadStory.project_title}</span>
+        {leadStory.source_id && (
+          <span
+            aria-hidden="true"
+            className="shrink-0 pt-1 text-base text-editorial opacity-0 transition-all duration-[var(--duration-base)] ease-[var(--ease-spring)] group-hover:translate-x-0.5 group-hover:opacity-100"
+          >
+            →
+          </span>
+        )}
+      </h3>
+      <p className="font-body mt-2 text-sm leading-relaxed text-stock-600">
+        {leadStory.entity_name} · {leadStory.county}
+      </p>
+      <p className="tabular font-display mt-4 border-t border-divider pt-3 text-3xl font-semibold">
+        {formatLeadValue(leadStory.financial_value_ron)}
+      </p>
+      {/* Scor proiect: the opportunity's own evidence-based quality score,
+          computed once at ingestion, independent of any profile. Scor
+          potrivire: this profile's relevance score. Shown side by side
+          deliberately — a high project score does not imply a high match
+          score, or the reverse, and showing only one used to read as
+          "this is your best match" when it was really just the
+          highest-scoring item overall. */}
+      {(leadStory.opportunity_score != null || leadStory.match != null) && (
+        <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5">
+          {leadStory.opportunity_score != null && (
+            <p className="font-mono text-[11px] uppercase tracking-widest text-stock-500">
+              Scor proiect {leadStory.opportunity_score} / 10
+            </p>
+          )}
+          {leadStory.match != null && (
+            <p className="font-mono text-[11px] uppercase tracking-widest text-stock-500">
+              Scor potrivire {leadStory.match.match_strength} / 10
+            </p>
+          )}
+        </div>
+      )}
+      {leadStory.match?.is_match && leadStory.match.reasons.length > 0 && (
+        <Badge tone="accent" className="mt-3 inline-block">
+          Potrivire · {leadStory.match.reasons.join(", ")}
+        </Badge>
+      )}
+    </div>
+  );
+
+  // No source_id (shouldn't happen from the current backend, but this
+  // component has no control over what a caller hands it) degrades to
+  // plain, unlinked text rather than a broken "?openLead=undefined".
+  if (!leadStory.source_id) return body;
+  return (
+    <Link
+      href={`/cautare-avansata?openLead=${encodeURIComponent(leadStory.source_id)}`}
+      className="group -mx-2 block rounded-2xl px-2 transition-all duration-[var(--duration-base)] ease-[var(--ease-glide)] hover:neu-pressed-sm active:scale-[0.99]"
+    >
+      {body}
+    </Link>
+  );
+}
+
 /** `tags` name what each section actually contains — they are revealed on
  *  hover rather than shown at rest, so the grid gains density on demand
  *  instead of carrying six rows of chips by default. */
@@ -237,42 +309,7 @@ function PersonalizedHomePage() {
             <aside className="p-5 sm:p-8 lg:col-span-4">
               <Eyebrow>{isPersonalized ? "Cea mai bună potrivire" : "Cea mai mare poziție"}</Eyebrow>
               {leadStory ? (
-                <div className="mt-3">
-                  <h3 className="font-display text-xl font-bold leading-tight">{leadStory.project_title}</h3>
-                  <p className="font-body mt-2 text-sm leading-relaxed text-stock-600">
-                    {leadStory.entity_name} · {leadStory.county}
-                  </p>
-                  <p className="tabular font-display mt-4 border-t border-divider pt-3 text-3xl font-semibold">
-                    {formatLeadValue(leadStory.financial_value_ron)}
-                  </p>
-                  {/* Scor proiect: the opportunity's own evidence-based
-                      quality score, computed once at ingestion, independent
-                      of any profile. Scor potrivire: this profile's
-                      relevance score. Shown side by side deliberately — a
-                      high project score does not imply a high match score,
-                      or the reverse, and showing only one used to read as
-                      "this is your best match" when it was really just the
-                      highest-scoring item overall. */}
-                  {(leadStory.opportunity_score != null || leadStory.match != null) && (
-                    <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5">
-                      {leadStory.opportunity_score != null && (
-                        <p className="font-mono text-[11px] uppercase tracking-widest text-stock-500">
-                          Scor proiect {leadStory.opportunity_score} / 10
-                        </p>
-                      )}
-                      {leadStory.match != null && (
-                        <p className="font-mono text-[11px] uppercase tracking-widest text-stock-500">
-                          Scor potrivire {leadStory.match.match_strength} / 10
-                        </p>
-                      )}
-                    </div>
-                  )}
-                  {leadStory.match?.is_match && leadStory.match.reasons.length > 0 && (
-                    <Badge tone="accent" className="mt-3 inline-block">
-                      Potrivire · {leadStory.match.reasons.join(", ")}
-                    </Badge>
-                  )}
-                </div>
+                <LeadStoryCard leadStory={leadStory} />
               ) : (
                 <p className="font-body mt-3 text-sm leading-relaxed text-stock-600">
                   Nicio poziție disponibilă momentan.
@@ -444,20 +481,7 @@ function PublicHomePage() {
           {loading ? (
             <p className="font-body mt-3 text-sm text-stock-500">Se încarcă…</p>
           ) : leadStory ? (
-            <div className="mt-3">
-              <h3 className="font-display text-xl font-bold leading-tight">{leadStory.project_title}</h3>
-              <p className="font-body mt-2 text-sm leading-relaxed text-stock-600">
-                {leadStory.entity_name} · {leadStory.county}
-              </p>
-              <p className="tabular font-display mt-4 border-t border-divider pt-3 text-3xl font-semibold">
-                {formatLeadValue(leadStory.financial_value_ron)}
-              </p>
-              {leadStory.opportunity_score != null && (
-                <p className="font-mono mt-1 text-[11px] uppercase tracking-widest text-stock-500">
-                  Scor proiect {leadStory.opportunity_score} / 10
-                </p>
-              )}
-            </div>
+            <LeadStoryCard leadStory={leadStory} />
           ) : (
             <div className="mt-3">
               <p className="font-body text-sm leading-relaxed text-stock-600">
