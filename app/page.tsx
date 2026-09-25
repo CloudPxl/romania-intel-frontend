@@ -1,10 +1,12 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import OnboardingForm from "@/components/OnboardingForm";
 import MarketTrendsView from "@/components/MarketTrendsView";
-import { ApiError, fetchMarketTrends, fetchMyMarketTrends, type MarketTrends } from "@/lib/api";
+import LeadDossierPanel from "@/components/LeadDossierPanel";
+import { ApiError, fetchMarketTrends, fetchMyFeed, fetchMyMarketTrends, type Lead, type MarketTrends } from "@/lib/api";
 import { DOMAIN_OPTIONS, formatDateline, formatLeadValue, formatNumber, formatRon } from "@/lib/format";
 import {
   Badge,
@@ -21,14 +23,27 @@ import {
 
 /**
  * The "Cea mai bună potrivire" / "Cea mai mare poziție" hero card, shared
- * by both the personalized and public front pages. Links through to the
- * actual record on Căutare Avansată — it used to be static text describing
- * a lead you had no way to actually open. `match` is only ever present on
- * the personalized (authenticated, /me/market-trends) variant; the public
- * one only ever has opportunity_score, and the two score blocks + badge
- * already degrade individually when their data isn't there.
+ * by both the personalized and public front pages. Opens the record's full
+ * dossier in place (LeadDossierPanel) rather than navigating to Căutare
+ * Avansată — it used to be static text describing a lead you had no way to
+ * actually open, then briefly a Link that took you elsewhere entirely.
+ * `top_opportunities` doesn't carry the full Lead shape the dossier needs
+ * (published_date, executive_summary, etc.), so onOpen resolves the full
+ * record via a cached fetchMyFeed() call — see PersonalizedHomePage. `match`
+ * is only ever present on the personalized (authenticated, /me/market-
+ * trends) variant; the public one only ever has opportunity_score, and the
+ * two score blocks + badge already degrade individually when their data
+ * isn't there.
  */
-function LeadStoryCard({ leadStory }: { leadStory: MarketTrends["top_opportunities"][number] }) {
+function LeadStoryCard({
+  leadStory,
+  onOpen,
+  opening,
+}: {
+  leadStory: MarketTrends["top_opportunities"][number];
+  onOpen: (sourceId: string) => void;
+  opening?: boolean;
+}) {
   const body = (
     <div className="mt-3">
       <h3 className="font-display flex items-start gap-1.5 text-xl font-bold leading-tight">
@@ -79,15 +94,21 @@ function LeadStoryCard({ leadStory }: { leadStory: MarketTrends["top_opportuniti
 
   // No source_id (shouldn't happen from the current backend, but this
   // component has no control over what a caller hands it) degrades to
-  // plain, unlinked text rather than a broken "?openLead=undefined".
+  // plain, unopenable text rather than a click that can never resolve.
   if (!leadStory.source_id) return body;
+  const sourceId = leadStory.source_id;
   return (
-    <Link
-      href={`/cautare-avansata?openLead=${encodeURIComponent(leadStory.source_id)}`}
-      className="group -mx-2 block rounded-2xl px-2 transition-all duration-[var(--duration-base)] ease-[var(--ease-glide)] hover:neu-pressed-sm active:scale-[0.99]"
+    <button
+      type="button"
+      onClick={() => onOpen(sourceId)}
+      disabled={opening}
+      className="group -mx-2 block w-full rounded-2xl px-2 text-left transition-all duration-[var(--duration-base)] ease-[var(--ease-glide)] hover:neu-pressed-sm active:scale-[0.99] disabled:opacity-60"
     >
       {body}
-    </Link>
+      {opening && (
+        <p className="font-mono pb-3 text-[11px] uppercase tracking-widest text-stock-500">Se deschide…</p>
+      )}
+    </button>
   );
 }
 
@@ -171,6 +192,31 @@ function PersonalizedHomePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dateline, setDateline] = useState("");
+
+  // top_opportunities (from /me/market-trends) is a slim projection —
+  // enough for the list/card, not enough for LeadDossierPanel (no
+  // published_date, executive_summary, source_url, ...). Opening a record
+  // in place resolves it against the full feed instead of navigating to
+  // Căutare Avansată to get it, fetched once and reused for every
+  // subsequent open this page load rather than refetching per click.
+  const [fullFeed, setFullFeed] = useState<Lead[] | null>(null);
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [openingLeadId, setOpeningLeadId] = useState<string | null>(null);
+
+  const openLead = async (sourceId: string) => {
+    setOpeningLeadId(sourceId);
+    try {
+      const feed = fullFeed ?? (await fetchMyFeed()).leads;
+      if (!fullFeed) setFullFeed(feed);
+      const lead = feed.find((l) => l.source_id === sourceId);
+      if (lead) setSelectedLead(lead);
+    } catch {
+      // Best-effort — the click simply does nothing rather than navigating
+      // away, which is no worse than before this existed.
+    } finally {
+      setOpeningLeadId(null);
+    }
+  };
 
   useEffect(() => setDateline(formatDateline()), []);
 
@@ -309,7 +355,11 @@ function PersonalizedHomePage() {
             <aside className="p-5 sm:p-8 lg:col-span-4">
               <Eyebrow>{isPersonalized ? "Cea mai bună potrivire" : "Cea mai mare poziție"}</Eyebrow>
               {leadStory ? (
-                <LeadStoryCard leadStory={leadStory} />
+                <LeadStoryCard
+                  leadStory={leadStory}
+                  onOpen={openLead}
+                  opening={openingLeadId === leadStory.source_id}
+                />
               ) : (
                 <p className="font-body mt-3 text-sm leading-relaxed text-stock-600">
                   Nicio poziție disponibilă momentan.
@@ -320,11 +370,13 @@ function PersonalizedHomePage() {
 
           {stats && (
             <div className="stagger mt-8">
-              <MarketTrendsView data={stats} variant="compact" />
+              <MarketTrendsView data={stats} variant="compact" onOpenLead={openLead} />
             </div>
           )}
         </>
       )}
+
+      {selectedLead && <LeadDossierPanel lead={selectedLead} onClose={() => setSelectedLead(null)} />}
     </main>
   );
 }
@@ -336,10 +388,18 @@ function PersonalizedHomePage() {
  */
 function PublicHomePage() {
   const { user } = useAuth();
+  const router = useRouter();
   const [stats, setStats] = useState<MarketTrends | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dateline, setDateline] = useState("");
+  // top_opportunities is always empty for an anonymous caller (this
+  // component only ever renders when !user — see HomePage below), so
+  // leadStory is never actually truthy here in practice. Kept for type
+  // symmetry with LeadStoryCard's required onOpen: if it somehow were
+  // populated, there's no full-feed fetch available without auth, so the
+  // closest sensible thing is asking the visitor to sign in.
+  const openLead = () => router.push("/login");
 
   useEffect(() => setDateline(formatDateline()), []);
 
@@ -481,7 +541,7 @@ function PublicHomePage() {
           {loading ? (
             <p className="font-body mt-3 text-sm text-stock-500">Se încarcă…</p>
           ) : leadStory ? (
-            <LeadStoryCard leadStory={leadStory} />
+            <LeadStoryCard leadStory={leadStory} onOpen={openLead} />
           ) : (
             <div className="mt-3">
               <p className="font-body text-sm leading-relaxed text-stock-600">

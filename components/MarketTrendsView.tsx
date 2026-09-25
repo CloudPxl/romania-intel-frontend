@@ -100,9 +100,14 @@ function cautareAvansataHref(params: Record<string, string>): string {
 function TopOpportunityRow({
   rank,
   opportunity,
+  onOpenLead,
 }: {
   rank: number;
   opportunity: MarketTrends["top_opportunities"][number];
+  /** When provided, opens the record in place (LeadDossierPanel on the
+   *  caller's own page) instead of navigating to Căutare Avansată — Prima
+   *  Pagina wires this, /analysis leaves it unset and keeps the link. */
+  onOpenLead?: (sourceId: string) => void;
 }) {
   const content = (
     <>
@@ -152,12 +157,21 @@ function TopOpportunityRow({
   if (!opportunity.source_id) {
     return <li className="flex gap-4 py-3">{content}</li>;
   }
+  const rowClassName =
+    "group -mx-2 flex w-full gap-4 rounded-xl px-2 py-3 text-left transition-all duration-[var(--duration-base)] ease-[var(--ease-glide)] hover:neu-pressed-sm active:scale-[0.99]";
+  if (onOpenLead) {
+    const sourceId = opportunity.source_id;
+    return (
+      <li>
+        <button type="button" onClick={() => onOpenLead(sourceId)} className={rowClassName}>
+          {content}
+        </button>
+      </li>
+    );
+  }
   return (
     <li>
-      <Link
-        href={cautareAvansataHref({ openLead: opportunity.source_id })}
-        className="group -mx-2 flex gap-4 rounded-xl px-2 py-3 transition-all duration-[var(--duration-base)] ease-[var(--ease-glide)] hover:neu-pressed-sm active:scale-[0.99]"
-      >
+      <Link href={cautareAvansataHref({ openLead: opportunity.source_id })} className={rowClassName}>
         {content}
       </Link>
     </li>
@@ -167,9 +181,12 @@ function TopOpportunityRow({
 export default function MarketTrendsView({
   data,
   variant,
+  onOpenLead,
 }: {
   data: MarketTrends;
   variant: "full" | "compact";
+  /** See TopOpportunityRow — passed straight through. */
+  onOpenLead?: (sourceId: string) => void;
 }) {
   // A quick, in-place filter over "Cele mai mari poziții" below — not
   // navigation, unlike the county/funding-source rows (see the component
@@ -261,7 +278,12 @@ export default function MarketTrendsView({
           topOpportunities.length > 0 ? (
             <ol className="divide-y divide-divider">
               {topOpportunities.map((o, i) => (
-                <TopOpportunityRow key={`${o.source_id ?? o.project_title}-${i}`} rank={i + 1} opportunity={o} />
+                <TopOpportunityRow
+                  key={`${o.source_id ?? o.project_title}-${i}`}
+                  rank={i + 1}
+                  opportunity={o}
+                  onOpenLead={onOpenLead}
+                />
               ))}
             </ol>
           ) : (

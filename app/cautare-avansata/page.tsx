@@ -1,17 +1,15 @@
 "use client";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { X } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import AuthGate from "@/components/AuthGate";
 import Explain from "@/components/Explain";
+import LeadDossierPanel from "@/components/LeadDossierPanel";
 import {
   ApiError,
   PROCEDURE_TYPE_LABELS,
-  addLeadToPipeline,
   downloadMyCsv,
   fetchMyFeed,
-  triggerEmailAlert,
   type Lead,
 } from "@/lib/api";
 import { CATEGORIES, categoryLabel, formatDate, formatLeadValue, formatRon } from "@/lib/format";
@@ -38,9 +36,8 @@ const SORTS = [
 type SortId = (typeof SORTS)[number]["id"];
 
 function CautareAvansataContent() {
-  const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, preferences, profile } = useAuth();
+  const { profile } = useAuth();
 
   const [leads, setLeads] = useState<Lead[]>([]);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
@@ -254,52 +251,6 @@ function CautareAvansataContent() {
   const noMatchesForProfile =
     leads.length > 0 && !leads.some((l) => l.match?.is_match);
 
-  const handleSaveToPipeline = async (lead: Lead) => {
-    setBusyAction("pipeline");
-    try {
-      const res = await addLeadToPipeline(lead);
-      if (res.status === "success") {
-        // Saying so matters: without a database the deal lives in process
-        // memory and disappears on the next restart, and the user would
-        // otherwise find an empty pipeline with no explanation.
-        setToast(
-          res.persisted === false
-            ? "Dosar salvat temporar — baza de date nu răspunde, dosarul nu va fi păstrat."
-            : "Dosar salvat în pipeline."
-        );
-      } else if (res.status === "already_saved") {
-        setToast("Acest dosar este deja în pipeline.");
-      } else {
-        setToast(res.message || "Nu s-a putut salva dosarul.");
-      }
-    } catch (e) {
-      setToast(e instanceof ApiError ? e.detail : "Nu s-a putut salva dosarul.");
-    } finally {
-      setBusyAction(null);
-    }
-  };
-
-  const handleSendEmailAlert = async (lead: Lead) => {
-    const recipient = preferences?.notification_email || user?.email;
-    if (!recipient) {
-      setToast("Configurați un email de notificare în Setări cont.");
-      return;
-    }
-    setBusyAction("email");
-    try {
-      const res = await triggerEmailAlert(lead, recipient);
-      setToast(
-        res.status === "success"
-          ? `Alertă expediată către ${recipient}.`
-          : "Serverul nu are configurat un canal SMTP — alerta nu a fost trimisă."
-      );
-    } catch (e) {
-      setToast(e instanceof ApiError ? e.detail : "Nu s-a putut expedia alerta.");
-    } finally {
-      setBusyAction(null);
-    }
-  };
-
   const handleExport = async () => {
     setBusyAction("csv");
     try {
@@ -309,10 +260,6 @@ function CautareAvansataContent() {
     } finally {
       setBusyAction(null);
     }
-  };
-
-  const openTool = (path: string, params: Record<string, string>) => {
-    router.push(`${path}?${new URLSearchParams(params).toString()}`);
   };
 
   const filterPanel = (
@@ -681,203 +628,7 @@ function CautareAvansataContent() {
 
       {/* Dossier drawer */}
       {selectedLead && (
-        <div className="fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-ink/50 backdrop-blur-sm" onClick={() => setSelectedLead(null)} aria-hidden="true" />
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label="Dosar strategic"
-            className="absolute inset-y-0 right-0 flex w-full max-w-xl flex-col overflow-y-auto bg-paper"
-          >
-            <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-divider bg-paper/95 p-4 backdrop-blur sm:p-6">
-              <div className="min-w-0">
-                <Eyebrow className="text-editorial">Dosar strategic · {selectedLead.source_id}</Eyebrow>
-                <h2 className="font-display mt-2 text-xl font-semibold leading-tight tracking-tight sm:text-2xl">
-                  {selectedLead.project_title}
-                </h2>
-                <p className="font-body mt-1 text-sm text-stock-600">
-                  {selectedLead.entity_name} · {selectedLead.county}
-                </p>
-              </div>
-              <button
-                onClick={() => setSelectedLead(null)}
-                aria-label="Închide dosarul"
-                className="-mr-1 -mt-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-stock-500 transition-all duration-300 hover:neu-pressed-sm hover:text-ink"
-              >
-                <X size={20} strokeWidth={1.5} />
-              </button>
-            </div>
-
-            <div className="flex-1 p-4 sm:p-6">
-              <div className="grid grid-cols-2 divide-x divide-divider neu-pressed overflow-hidden rounded-2xl bg-paper">
-                <div className="p-4">
-                  <Eyebrow>Buget estimat</Eyebrow>
-                  <p
-                    className={
-                      "mt-1 leading-snug " +
-                      (selectedLead.financial_value_ron
-                        ? "tabular font-display text-xl font-semibold leading-none"
-                        : "font-body text-sm italic text-stock-400")
-                    }
-                  >
-                    {formatLeadValue(selectedLead.financial_value_ron)}
-                  </p>
-                </div>
-                <div className="p-4">
-                  <Eyebrow>Sursă finanțare</Eyebrow>
-                  <p className="font-display mt-1 text-base font-semibold leading-tight">
-                    {selectedLead.funding_source || "Nespecificat"}
-                  </p>
-                </div>
-              </div>
-
-              <div className="scroll-x mt-5">
-              <table className="w-full min-w-[26rem] neu-pressed overflow-hidden rounded-2xl bg-paper text-left font-mono text-xs">
-                <tbody>
-                  {[
-                    ["Data publicării", formatDate(selectedLead.published_date)],
-                    ["Termen dialog tehnic", selectedLead.action_deadline || "Nespecificat"],
-                    ["CUI autoritate", selectedLead.authority_cui || "Nepublicat"],
-                    [
-                      "Tip procedură",
-                      selectedLead.procedure_type
-                        ? PROCEDURE_TYPE_LABELS[selectedLead.procedure_type] ?? selectedLead.procedure_type
-                        : "Nespecificat",
-                    ],
-                    // "Nepublicat" rather than "Niciunul": no live scraper
-                    // has found e-licitatie.ro's per-notice endpoint for
-                    // this yet, so an empty value means we don't have it —
-                    // not that the procedure lacks a criterion.
-                    ["Criteriu de atribuire", selectedLead.award_criterion || "Nepublicat"],
-                    ["Cod CPV", selectedLead.cpv_code || "—"],
-                    ["Registru sursă", selectedLead.source_type || "—"],
-                    ["Scor proiect", selectedLead.opportunity_score != null ? `${selectedLead.opportunity_score} / 10` : "—"],
-                  ].map(([label, value]) => (
-                    <tr key={label} className="border-b border-divider last:border-b-0">
-                      <th
-                        scope="row"
-                        className="w-44 border-r border-divider px-3 py-2.5 font-sans text-[10px] font-semibold uppercase tracking-widest text-stock-500"
-                      >
-                        {label}
-                      </th>
-                      <td className="px-3 py-2.5">{value}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              </div>
-
-              {selectedLead.metadata?.seap_cross_reference && (
-                <p className="font-mono mt-2 text-[11px] uppercase tracking-widest text-stock-500">
-                  Posibilă corespondență SEAP · bază:{" "}
-                  {selectedLead.metadata.seap_cross_reference.basis
-                    .map(
-                      (b) =>
-                        ({ cpv_prefix: "CPV", value_within_tolerance: "valoare", buyer_name: "autoritate" }[b])
-                    )
-                    .join(", ")}
-                </p>
-              )}
-
-              {selectedLead.sales_pitch_angle && (
-                <div className="neu-pressed mt-5 rounded-r-lg border-l-2 border-editorial bg-editorial-soft px-4 py-3">
-                  <Eyebrow className="text-editorial">Poziționare tehnică</Eyebrow>
-                  <p className="font-body mt-1.5 text-sm leading-relaxed">{selectedLead.sales_pitch_angle}</p>
-                </div>
-              )}
-
-              {selectedLead.executive_summary && (
-                <div className="mt-5">
-                  <Eyebrow className="mb-1.5">Sinteză</Eyebrow>
-                  <p className="font-body mt-2 text-sm leading-relaxed text-stock-600">
-                    {selectedLead.executive_summary}
-                  </p>
-                </div>
-              )}
-
-              <div className="mt-6">
-                <Eyebrow className="mb-3">Acțiuni</Eyebrow>
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  <Button onClick={() => handleSaveToPipeline(selectedLead)} disabled={busyAction === "pipeline"}>
-                    {busyAction === "pipeline" ? "Se salvează…" : "Salvează în pipeline"}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => handleSendEmailAlert(selectedLead)}
-                    disabled={busyAction === "email"}
-                  >
-                    {busyAction === "email" ? "Se expediază…" : "Trimite alertă email"}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() =>
-                      openTool("/drafting", {
-                        tool: "proposal",
-                        project_title: selectedLead.project_title || "",
-                        authority_name: selectedLead.entity_name || "",
-                        county: selectedLead.county || "",
-                        category: selectedLead.category || "",
-                        source_id: selectedLead.source_id || "",
-                        budget: String(selectedLead.financial_value_ron || ""),
-                      })
-                    }
-                  >
-                    Propunere tehnică
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() =>
-                      openTool("/drafting", {
-                        tool: "clarification",
-                        project_title: selectedLead.project_title || "",
-                        authority_name: selectedLead.entity_name || "",
-                        source_id: selectedLead.source_id || "",
-                      })
-                    }
-                  >
-                    Solicitare clarificări
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() =>
-                      openTool("/analytics", {
-                        tool: "competitor",
-                        category: selectedLead.category || "",
-                        county: selectedLead.county || "",
-                        budget: String(selectedLead.financial_value_ron || ""),
-                      })
-                    }
-                  >
-                    Profil de piață
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() =>
-                      openTool("/analytics", {
-                        tool: "win",
-                        budget: String(selectedLead.financial_value_ron || ""),
-                        project_title: selectedLead.project_title || "",
-                      })
-                    }
-                  >
-                    Poziționare preț
-                  </Button>
-                </div>
-              </div>
-
-              {selectedLead.source_url && (
-                <a
-                  href={selectedLead.source_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-6 flex min-h-[44px] w-full items-center justify-center rounded-lg bg-editorial px-4 font-sans text-sm font-medium text-white transition-colors hover:brightness-110"
-                >
-                  Documentul oficial sursă →
-                </a>
-              )}
-            </div>
-          </div>
-        </div>
+        <LeadDossierPanel lead={selectedLead} onClose={() => setSelectedLead(null)} />
       )}
 
       {toast && (
