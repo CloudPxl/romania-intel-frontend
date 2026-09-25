@@ -6,7 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import OnboardingForm from "@/components/OnboardingForm";
 import MarketTrendsView from "@/components/MarketTrendsView";
 import LeadDossierPanel from "@/components/LeadDossierPanel";
-import { ApiError, fetchMarketTrends, fetchMyFeed, fetchMyMarketTrends, type Lead, type MarketTrends } from "@/lib/api";
+import { ApiError, fetchMarketTrends, fetchMyMarketTrends, fetchOpportunity, type Lead, type MarketTrends } from "@/lib/api";
 import { DOMAIN_OPTIONS, formatDateline, formatLeadValue, formatNumber, formatRon } from "@/lib/format";
 import {
   Badge,
@@ -29,7 +29,7 @@ import {
  * actually open, then briefly a Link that took you elsewhere entirely.
  * `top_opportunities` doesn't carry the full Lead shape the dossier needs
  * (published_date, executive_summary, etc.), so onOpen resolves the full
- * record via a cached fetchMyFeed() call — see PersonalizedHomePage. `match`
+ * record via fetchOpportunity — see PersonalizedHomePage. `match`
  * is only ever present on the personalized (authenticated, /me/market-
  * trends) variant; the public one only ever has opportunity_score, and the
  * two score blocks + badge already degrade individually when their data
@@ -196,20 +196,15 @@ function PersonalizedHomePage() {
   // top_opportunities (from /me/market-trends) is a slim projection —
   // enough for the list/card, not enough for LeadDossierPanel (no
   // published_date, executive_summary, source_url, ...). Opening a record
-  // in place resolves it against the full feed instead of navigating to
-  // Căutare Avansată to get it, fetched once and reused for every
-  // subsequent open this page load rather than refetching per click.
-  const [fullFeed, setFullFeed] = useState<Lead[] | null>(null);
+  // in place resolves the full row via fetchOpportunity instead of
+  // navigating to Căutare Avansată to get it.
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [openingLeadId, setOpeningLeadId] = useState<string | null>(null);
 
   const openLead = async (sourceId: string) => {
     setOpeningLeadId(sourceId);
     try {
-      const feed = fullFeed ?? (await fetchMyFeed()).leads;
-      if (!fullFeed) setFullFeed(feed);
-      const lead = feed.find((l) => l.source_id === sourceId);
-      if (lead) setSelectedLead(lead);
+      setSelectedLead(await fetchOpportunity(sourceId));
     } catch {
       // Best-effort — the click simply does nothing rather than navigating
       // away, which is no worse than before this existed.

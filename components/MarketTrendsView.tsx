@@ -105,8 +105,11 @@ function TopOpportunityRow({
   rank: number;
   opportunity: MarketTrends["top_opportunities"][number];
   /** When provided, opens the record in place (LeadDossierPanel on the
-   *  caller's own page) instead of navigating to Căutare Avansată — Prima
-   *  Pagina wires this, /analysis leaves it unset and keeps the link. */
+   *  caller's own page) instead of navigating to Căutare Avansată. Both
+   *  Prima Pagina and /analysis wire this for an authenticated caller;
+   *  left unset only where there's genuinely nowhere to open it in place
+   *  (e.g. an anonymous /analysis visitor, who never sees these rows at
+   *  all since top_opportunities is already empty for them). */
   onOpenLead?: (sourceId: string) => void;
 }) {
   const content = (

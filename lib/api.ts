@@ -471,6 +471,18 @@ export async function fetchMyFeed(
 }
 
 /**
+ * The one full record, for LeadDossierPanel when it's opened from a
+ * slimmer projection (top_opportunities on Prima Pagina/Analiza de Piață)
+ * that doesn't carry every field the dossier shows. Not scoped to a
+ * user's own ranked feed, unlike fetchMyFeed — a lead on screen in
+ * Analiza de Piață's whole-market view could sit outside any one
+ * profile's ranked top-300.
+ */
+export async function fetchOpportunity(sourceId: string): Promise<Lead> {
+  return apiFetch(`/api/v1/me/opportunities/${encodeURIComponent(sourceId)}`);
+}
+
+/**
  * Display names for `Lead.procedure_type`. Keys are the backend's closed
  * vocabulary (ai_refinery.PROCEDURE_TYPES) — a value not listed here is
  * rendered as-is rather than hidden, so a new backend type shows up as an

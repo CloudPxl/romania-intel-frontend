@@ -2,9 +2,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
-import { ApiError, fetchMarketTrends, type MarketTrendFilters, type MarketTrends } from "@/lib/api";
+import { ApiError, fetchMarketTrends, fetchOpportunity, type Lead, type MarketTrendFilters, type MarketTrends } from "@/lib/api";
 import { CATEGORIES, formatDate, formatNumber, formatRon } from "@/lib/format";
 import MarketTrendsView from "@/components/MarketTrendsView";
+import LeadDossierPanel from "@/components/LeadDossierPanel";
 import {
   Button,
   DegradedBanner,
@@ -42,6 +43,22 @@ export default function AnalysisPage() {
   // newer one and overwrite it, while `finally` has already cleared the
   // spinner — the numbers change under a UI that says it is done.
   const requestSeq = useRef(0);
+
+  // top_opportunities here is a slim, whole-market projection — not the
+  // full Lead shape LeadDossierPanel needs, and not scoped to any one
+  // profile's ranked feed (this page's data comes from the public,
+  // filtered market view even for a signed-in caller), so opening a
+  // record resolves the full row via fetchOpportunity rather than
+  // reusing a per-user feed that might not contain it at all.
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const openLead = async (sourceId: string) => {
+    try {
+      setSelectedLead(await fetchOpportunity(sourceId));
+    } catch {
+      // Best-effort — the click simply does nothing rather than navigating
+      // away, which is no worse than the pre-existing Link behavior.
+    }
+  };
 
   const load = useCallback(
     async (filters: MarketTrendFilters = {}) => {
@@ -193,7 +210,7 @@ export default function AnalysisPage() {
           </div>
 
           <div className="mt-8">
-            <MarketTrendsView data={data} variant="full" />
+            <MarketTrendsView data={data} variant="full" onOpenLead={data.is_authenticated ? openLead : undefined} />
           </div>
 
           {data.is_authenticated && (
@@ -205,6 +222,8 @@ export default function AnalysisPage() {
           )}
         </>
       )}
+
+      {selectedLead && <LeadDossierPanel lead={selectedLead} onClose={() => setSelectedLead(null)} />}
     </main>
   );
 }
