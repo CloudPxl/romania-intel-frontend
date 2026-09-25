@@ -79,12 +79,16 @@ export default function LeadDossierPanel({ lead, onClose }: { lead: Lead; onClos
   return (
     <>
       <div className="fixed inset-0 z-50">
-        <div className="absolute inset-0 bg-ink/50 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
+        <div
+          className="absolute inset-0 bg-ink/50 backdrop-blur-sm animate-[fade-in_var(--duration-base)_var(--ease-glide)_both]"
+          onClick={onClose}
+          aria-hidden="true"
+        />
         <div
           role="dialog"
           aria-modal="true"
           aria-label="Dosar strategic"
-          className="absolute inset-y-0 right-0 flex w-full max-w-xl flex-col overflow-y-auto bg-paper"
+          className="absolute inset-y-0 right-0 flex w-full max-w-xl flex-col overflow-y-auto bg-paper animate-[slide-over-right_var(--duration-base)_var(--ease-glide)_both]"
         >
           <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-divider bg-paper/95 p-4 backdrop-blur sm:p-6">
             <div className="min-w-0">
