@@ -48,7 +48,7 @@ function RowLink({
 }) {
   const pct = maxValue > 0 ? Math.max(2, Math.round((value / maxValue) * 100)) : 0;
   const className =
-    "group -mx-2 flex w-full flex-col gap-1.5 rounded-xl px-2 py-3 text-left transition-all duration-[var(--duration-base)] ease-[var(--ease-glide)] hover:neu-pressed-sm active:scale-[0.99]" +
+    "group flex w-full flex-col gap-1.5 rounded-xl px-2 py-3 text-left transition-all duration-[var(--duration-base)] ease-[var(--ease-glide)] hover:neu-pressed-sm active:scale-[0.99]" +
     (active ? " neu-pressed-sm" : "");
   const content = (
     <>
@@ -162,7 +162,7 @@ function TopOpportunityRow({
     return <li className="flex gap-4 py-3">{content}</li>;
   }
   const rowClassName =
-    "group -mx-2 flex w-full gap-4 rounded-xl px-2 py-3 text-left transition-all duration-[var(--duration-base)] ease-[var(--ease-glide)] hover:neu-pressed-sm active:scale-[0.99]";
+    "group flex w-full gap-4 rounded-xl px-2 py-3 text-left transition-all duration-[var(--duration-base)] ease-[var(--ease-glide)] hover:neu-pressed-sm active:scale-[0.99]";
   if (onOpenLead) {
     const sourceId = opportunity.source_id;
     return (
@@ -285,7 +285,7 @@ export default function MarketTrendsView({
   const domainPanel = (
     <Panel as="section" className={variant === "full" ? "p-3 sm:p-4" : "p-4 sm:p-5"}>
       <SectionTitle note={`${data.by_category.length} domenii`}>Distribuție pe domeniu</SectionTitle>
-      <div className={variant === "full" ? "max-h-56 overflow-y-auto pr-1" : undefined}>
+      <div className={variant === "full" ? "-mr-1.25 max-h-56 overflow-y-auto pr-2.25" : undefined}>
         {data.by_category.map((c) => (
           <RowLink
             key={c.category}
@@ -399,7 +399,7 @@ export default function MarketTrendsView({
               project used to be invisible here. Scrollable rather than
               letting 40+ rows stretch the card, mirroring how ChipSelect
               already scrolls a long, complete list elsewhere. */}
-          <div className="max-h-56 overflow-y-auto pr-1">
+          <div className="-mr-1.25 max-h-56 overflow-y-auto pr-2.25">
             {data.by_county.map((c) => (
               <RowLink
                 key={c.county}
@@ -416,7 +416,7 @@ export default function MarketTrendsView({
 
         <Panel as="section" className="p-3 sm:p-4">
           <SectionTitle note={`${data.by_funding_source.length} surse`}>Surse de finanțare</SectionTitle>
-          <div className="max-h-56 overflow-y-auto pr-1">
+          <div className="-mr-1.25 max-h-56 overflow-y-auto pr-2.25">
             {data.by_funding_source.map((f) => (
               <RowLink
                 key={f.funding_source}
