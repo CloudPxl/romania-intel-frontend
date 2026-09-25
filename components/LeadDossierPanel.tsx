@@ -13,6 +13,13 @@ import {
 import { formatDate, formatLeadValue } from "@/lib/format";
 import { Button, Eyebrow } from "@/components/newsprint";
 
+// Matches --duration-base in globals.css. The exit keyframes are that
+// long; onClose (which actually unmounts this component, via the
+// caller's `{selectedLead && <LeadDossierPanel .../>}`) has to wait for
+// them to finish, since a conditionally-rendered element has nothing
+// left to animate once React has already removed it from the DOM.
+const CLOSE_ANIMATION_MS = 320;
+
 /**
  * The right-side "Dosar strategic" slide-over — extracted out of Căutare
  * Avansată so Prima Pagina can open the same panel in place, without
@@ -25,6 +32,15 @@ export default function LeadDossierPanel({ lead, onClose }: { lead: Lead; onClos
   const router = useRouter();
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  // Plays the exit animation, then unmounts once it's done — closing was
+  // previously an instant disappearance, since the caller's conditional
+  // render gives the panel nothing to animate against once it's gone.
+  const [closing, setClosing] = useState(false);
+  const requestClose = () => {
+    if (closing) return;
+    setClosing(true);
+    setTimeout(onClose, CLOSE_ANIMATION_MS);
+  };
 
   const openTool = (path: string, params: Record<string, string>) => {
     router.push(`${path}?${new URLSearchParams(params).toString()}`);
@@ -80,15 +96,25 @@ export default function LeadDossierPanel({ lead, onClose }: { lead: Lead; onClos
     <>
       <div className="fixed inset-0 z-50">
         <div
-          className="absolute inset-0 bg-ink/50 backdrop-blur-sm animate-[fade-in_var(--duration-base)_var(--ease-glide)_both]"
-          onClick={onClose}
+          className={
+            "absolute inset-0 bg-ink/50 backdrop-blur-sm " +
+            (closing
+              ? "animate-[fade-out_var(--duration-base)_var(--ease-glide)_both]"
+              : "animate-[fade-in_var(--duration-base)_var(--ease-glide)_both]")
+          }
+          onClick={requestClose}
           aria-hidden="true"
         />
         <div
           role="dialog"
           aria-modal="true"
           aria-label="Dosar strategic"
-          className="absolute inset-y-0 right-0 flex w-full max-w-xl flex-col overflow-y-auto bg-paper animate-[slide-over-right_var(--duration-base)_var(--ease-glide)_both]"
+          className={
+            "absolute inset-y-0 right-0 flex w-full max-w-xl flex-col overflow-y-auto bg-paper " +
+            (closing
+              ? "animate-[slide-over-right-out_var(--duration-base)_var(--ease-glide)_both]"
+              : "animate-[slide-over-right_var(--duration-base)_var(--ease-glide)_both]")
+          }
         >
           <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-divider bg-paper/95 p-4 backdrop-blur sm:p-6">
             <div className="min-w-0">
@@ -101,7 +127,7 @@ export default function LeadDossierPanel({ lead, onClose }: { lead: Lead; onClos
               </p>
             </div>
             <button
-              onClick={onClose}
+              onClick={requestClose}
               aria-label="Închide dosarul"
               className="-mr-1 -mt-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-stock-500 transition-all duration-300 hover:neu-pressed-sm hover:text-ink"
             >

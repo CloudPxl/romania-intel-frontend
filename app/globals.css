@@ -254,6 +254,18 @@
     from { transform: translateX(100%); }
     to { transform: none; }
   }
+  /* Exit direction of the two above — LeadDossierPanel plays these on
+     close (delaying the actual unmount to match, since a conditionally-
+     rendered element has nothing left to animate once it's gone) rather
+     than just disappearing the way the mobile drawer's close still does. */
+  @keyframes fade-out {
+    from { opacity: 1; }
+    to { opacity: 0; }
+  }
+  @keyframes slide-over-right-out {
+    from { transform: none; }
+    to { transform: translateX(100%); }
+  }
 
   /* Cascading entrance. `both` holds the from-state during the delay, so
      nothing flashes at full opacity before its turn. Delay is derived from
