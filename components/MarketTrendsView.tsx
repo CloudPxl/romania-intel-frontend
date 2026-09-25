@@ -274,68 +274,35 @@ export default function MarketTrendsView({
   const maxCounty = Math.max(0, ...data.by_county.map((c) => c.value_ron));
   const maxFunding = Math.max(0, ...data.by_funding_source.map((f) => f.value_ron));
 
-  return (
-    <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-      <Panel as="section" className="p-4 sm:p-5">
-        <SectionTitle note={`${data.by_category.length} domenii`}>Distribuție pe domeniu</SectionTitle>
-        <div>
-          {data.by_category.map((c) => (
-            <RowLink
-              key={c.category}
-              onSelect={() => toggleDomain(c.category)}
-              active={selectedDomain === c.category}
-              label={c.category}
-              count={c.count}
-              value={c.value_ron}
-              maxValue={maxCategory}
-            />
-          ))}
-        </div>
-      </Panel>
+  // The three filter panels below are ~1/3 shorter than before (smaller
+  // padding, a tighter row height via RowLink, and a shared max-h scroll
+  // cap) specifically so all three can sit on one row on /analysis without
+  // the page reading top-heavy — "Cele mai mari poziții" then gets the
+  // full width for itself underneath rather than fighting them for a
+  // two-column split. The compact variant (Prima Pagina) never shows the
+  // county/funding panels at all, so it keeps the original single-domain
+  // + results two-up layout unchanged.
+  const domainPanel = (
+    <Panel as="section" className={variant === "full" ? "p-3 sm:p-4" : "p-4 sm:p-5"}>
+      <SectionTitle note={`${data.by_category.length} domenii`}>Distribuție pe domeniu</SectionTitle>
+      <div className={variant === "full" ? "max-h-56 overflow-y-auto pr-1" : undefined}>
+        {data.by_category.map((c) => (
+          <RowLink
+            key={c.category}
+            onSelect={() => toggleDomain(c.category)}
+            active={selectedDomain === c.category}
+            label={c.category}
+            count={c.count}
+            value={c.value_ron}
+            maxValue={maxCategory}
+          />
+        ))}
+      </div>
+    </Panel>
+  );
 
-      {variant === "full" && (
-        <Panel as="section" className="p-4 sm:p-5">
-          <SectionTitle note={`${data.by_county.length} județe`}>Județe după valoare</SectionTitle>
-          {/* Every county, not a top-10 cut — a small county's single
-              project used to be invisible here. Scrollable rather than
-              letting 40+ rows stretch the page, mirroring how ChipSelect
-              already scrolls a long, complete list elsewhere. */}
-          <div className="max-h-[28rem] overflow-y-auto pr-1">
-            {data.by_county.map((c) => (
-              <RowLink
-                key={c.county}
-                onSelect={() => toggleCounty(c.county)}
-                active={selectedCounty === c.county}
-                label={c.county}
-                count={c.count}
-                value={c.value_ron}
-                maxValue={maxCounty}
-              />
-            ))}
-          </div>
-        </Panel>
-      )}
-
-      {variant === "full" && (
-        <Panel as="section" className="p-4 sm:p-5">
-          <SectionTitle note={`${data.by_funding_source.length} surse`}>Surse de finanțare</SectionTitle>
-          <div>
-            {data.by_funding_source.map((f) => (
-              <RowLink
-                key={f.funding_source}
-                onSelect={() => toggleFundingSource(f.funding_source)}
-                active={selectedFundingSource === f.funding_source}
-                label={f.funding_source}
-                count={f.count}
-                value={f.value_ron}
-                maxValue={maxFunding}
-              />
-            ))}
-          </div>
-        </Panel>
-      )}
-
-      <Panel as="section" className="p-4 sm:p-5">
+  const topOpportunitiesPanel = (
+    <Panel as="section" className="p-4 sm:p-5">
         <SectionTitle note={data.is_authenticated ? undefined : "restricționat"}>
           Cele mai mari poziții
         </SectionTitle>
@@ -410,6 +377,62 @@ export default function MarketTrendsView({
           </div>
         )}
       </Panel>
+  );
+
+  if (variant !== "full") {
+    return (
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+        {domainPanel}
+        {topOpportunitiesPanel}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
+        {domainPanel}
+
+        <Panel as="section" className="p-3 sm:p-4">
+          <SectionTitle note={`${data.by_county.length} județe`}>Județe după valoare</SectionTitle>
+          {/* Every county, not a top-10 cut — a small county's single
+              project used to be invisible here. Scrollable rather than
+              letting 40+ rows stretch the card, mirroring how ChipSelect
+              already scrolls a long, complete list elsewhere. */}
+          <div className="max-h-56 overflow-y-auto pr-1">
+            {data.by_county.map((c) => (
+              <RowLink
+                key={c.county}
+                onSelect={() => toggleCounty(c.county)}
+                active={selectedCounty === c.county}
+                label={c.county}
+                count={c.count}
+                value={c.value_ron}
+                maxValue={maxCounty}
+              />
+            ))}
+          </div>
+        </Panel>
+
+        <Panel as="section" className="p-3 sm:p-4">
+          <SectionTitle note={`${data.by_funding_source.length} surse`}>Surse de finanțare</SectionTitle>
+          <div className="max-h-56 overflow-y-auto pr-1">
+            {data.by_funding_source.map((f) => (
+              <RowLink
+                key={f.funding_source}
+                onSelect={() => toggleFundingSource(f.funding_source)}
+                active={selectedFundingSource === f.funding_source}
+                label={f.funding_source}
+                count={f.count}
+                value={f.value_ron}
+                maxValue={maxFunding}
+              />
+            ))}
+          </div>
+        </Panel>
+      </div>
+
+      {topOpportunitiesPanel}
     </div>
   );
 }
