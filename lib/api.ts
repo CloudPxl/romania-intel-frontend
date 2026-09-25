@@ -215,6 +215,9 @@ export interface MarketTrends {
     entity_name: string;
     county: string;
     category: string;
+    /** Quick-filtered by the "Surse de finanțare" panel, same as county/
+     *  category are by their own panels — see MarketTrendsView.tsx. */
+    funding_source: string;
     financial_value_ron: number;
     opportunity_score: number | null;
     /** Why this row is in the list, and how it's ranked (by match_strength

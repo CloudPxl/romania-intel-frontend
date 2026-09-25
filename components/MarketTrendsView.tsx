@@ -191,16 +191,29 @@ export default function MarketTrendsView({
   /** See TopOpportunityRow — passed straight through. */
   onOpenLead?: (sourceId: string) => void;
 }) {
-  // A quick, in-place filter over "Cele mai mari poziții" below — not
-  // navigation, unlike the county/funding-source rows (see the component
-  // docstring). Filtered against the full list BEFORE the compact/full
-  // slice, not after: filtering an already-sliced top-5/10 would show
-  // "no results" for a real domain that simply wasn't in that slice.
+  // Quick, in-place filters over "Cele mai mari poziții" below — not
+  // navigation (see the component docstring). Combined with AND when more
+  // than one is active (domain=energie + județ=Cluj shows only rows
+  // matching both, not either). Filtered against the full list BEFORE the
+  // compact/full slice, not after: filtering an already-sliced top-5/10
+  // would show "no results" for a real value that simply wasn't in that
+  // slice. County/funding-source panels only render for variant "full"
+  // (/analysis), so their filters can only ever be set there.
   const [selectedDomain, setSelectedDomain] = useState<string | null>(null);
-  const filteredOpportunities = selectedDomain
-    ? data.top_opportunities.filter((o) => o.category === selectedDomain)
-    : data.top_opportunities;
+  const [selectedCounty, setSelectedCounty] = useState<string | null>(null);
+  const [selectedFundingSource, setSelectedFundingSource] = useState<string | null>(null);
+  const filteredOpportunities = data.top_opportunities.filter(
+    (o) =>
+      (!selectedDomain || o.category === selectedDomain) &&
+      (!selectedCounty || o.county === selectedCounty) &&
+      (!selectedFundingSource || o.funding_source === selectedFundingSource)
+  );
   const topOpportunities = variant === "full" ? filteredOpportunities : filteredOpportunities.slice(0, 5);
+  const clearFilters = () => {
+    setSelectedDomain(null);
+    setSelectedCounty(null);
+    setSelectedFundingSource(null);
+  };
   const maxCategory = Math.max(0, ...data.by_category.map((c) => c.value_ron));
   const maxCounty = Math.max(0, ...data.by_county.map((c) => c.value_ron));
   const maxFunding = Math.max(0, ...data.by_funding_source.map((f) => f.value_ron));
@@ -235,7 +248,8 @@ export default function MarketTrendsView({
             {data.by_county.map((c) => (
               <RowLink
                 key={c.county}
-                href={cautareAvansataHref({ county: c.county })}
+                onSelect={() => setSelectedCounty((prev) => (prev === c.county ? null : c.county))}
+                active={selectedCounty === c.county}
                 label={c.county}
                 count={c.count}
                 value={c.value_ron}
@@ -253,7 +267,10 @@ export default function MarketTrendsView({
             {data.by_funding_source.map((f) => (
               <RowLink
                 key={f.funding_source}
-                href={cautareAvansataHref({ fundingSource: f.funding_source })}
+                onSelect={() =>
+                  setSelectedFundingSource((prev) => (prev === f.funding_source ? null : f.funding_source))
+                }
+                active={selectedFundingSource === f.funding_source}
                 label={f.funding_source}
                 count={f.count}
                 value={f.value_ron}
@@ -268,14 +285,48 @@ export default function MarketTrendsView({
         <SectionTitle note={data.is_authenticated ? undefined : "restricționat"}>
           Cele mai mari poziții
         </SectionTitle>
-        {data.is_authenticated && selectedDomain && (
-          <button
-            type="button"
-            onClick={() => setSelectedDomain(null)}
-            className="font-mono mb-3 inline-flex items-center gap-1.5 text-[11px] text-editorial"
-          >
-            Filtrat: {selectedDomain} · Șterge filtrul ✕
-          </button>
+        {data.is_authenticated && (selectedDomain || selectedCounty || selectedFundingSource) && (
+          <div className="mb-3 flex flex-wrap items-center gap-1.5">
+            {selectedDomain && (
+              <button
+                type="button"
+                onClick={() => setSelectedDomain(null)}
+                className="font-mono neu-pressed-sm inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] text-editorial"
+              >
+                {selectedDomain} ✕
+              </button>
+            )}
+            {selectedCounty && (
+              <button
+                type="button"
+                onClick={() => setSelectedCounty(null)}
+                className="font-mono neu-pressed-sm inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] text-editorial"
+              >
+                {selectedCounty} ✕
+              </button>
+            )}
+            {selectedFundingSource && (
+              <button
+                type="button"
+                onClick={() => setSelectedFundingSource(null)}
+                className="font-mono neu-pressed-sm inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] text-editorial"
+              >
+                {selectedFundingSource} ✕
+              </button>
+            )}
+            {/* Only worth a separate "clear all" once there's more than one
+                chip to clear — with a single filter it would just duplicate
+                that chip's own ✕. */}
+            {[selectedDomain, selectedCounty, selectedFundingSource].filter(Boolean).length > 1 && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="font-mono ml-1 text-[11px] text-stock-500 underline-offset-2 hover:underline"
+              >
+                Șterge toate filtrele
+              </button>
+            )}
+          </div>
         )}
         {data.is_authenticated ? (
           topOpportunities.length > 0 ? (
