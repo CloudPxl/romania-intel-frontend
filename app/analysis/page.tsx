@@ -227,50 +227,82 @@ export default function AnalysisPage() {
         </div>
       )}
 
-      {loading ? (
-        <Loading label="Se calculează agregările" />
-      ) : !data || data.total_leads === 0 ? (
+      {!data ? (
+        loading ? (
+          <Loading label="Se calculează agregările" />
+        ) : (
+          <EmptyState title="Nu există date pentru această selecție">
+            {activeFilterCount > 0
+              ? "Niciun dosar nu corespunde filtrelor aplicate. Extindeți intervalul sau eliminați un criteriu."
+              : "Registrul nu conține încă dosare. Datele apar automat după primul ciclu de scanare."}
+          </EmptyState>
+        )
+      ) : data.total_leads === 0 ? (
         <EmptyState title="Nu există date pentru această selecție">
           {activeFilterCount > 0
             ? "Niciun dosar nu corespunde filtrelor aplicate. Extindeți intervalul sau eliminați un criteriu."
             : "Registrul nu conține încă dosare. Datele apar automat după primul ciclu de scanare."}
         </EmptyState>
       ) : (
-        <>
-          <div className="rule-grid grid grid-cols-2 lg:grid-cols-4">
-            <StatCell label="Dosare în selecție" value={formatNumber(data.total_leads)} />
-            <StatCell label="Valoare totală" value={formatRon(data.total_market_value_ron)} />
-            <StatCell
-              label="Scor mediu"
-              value={data.average_opportunity_score != null ? `${data.average_opportunity_score} / 10` : "—"}
-            />
-            <StatCell label="Actualizat" value={formatDate(data.updated_at)} hint={`${data.by_county.length} județe`} />
-          </div>
-
-          <div className="mt-8">
-            <MarketTrendsView
-              data={data}
-              variant="full"
-              onOpenLead={data.is_authenticated ? openLead : undefined}
-              quickFilters={{
-                selectedDomain: category || null,
-                selectedCounty: county || null,
-                selectedFundingSource: fundingSource || null,
-                onSelectDomain: selectDomain,
-                onSelectCounty: selectCounty,
-                onSelectFundingSource: selectFundingSource,
-              }}
-            />
-          </div>
-
-          {data.is_authenticated && (
-            <p className="mt-10 border-t border-divider pt-5 text-center">
-              <Link href="/cautare-avansata" className="font-sans text-sm font-medium text-editorial hover:brightness-110">
-                Vezi toate dosarele în căutarea avansată →
-              </Link>
-            </p>
+        // Once a first result has landed, a later reload (a quick-filter
+        // click, Apply, Reset) never unmounts this section — that used to
+        // swap the whole page out for the <Loading> block above, which
+        // read as the page breaking rather than refreshing. Instead the
+        // existing content stays on screen, dimmed and non-interactive,
+        // under a small floating loader — same reflex as a search results
+        // page re-querying under a still-visible previous result set.
+        <div className="relative">
+          {loading && (
+            <div
+              className="absolute inset-0 z-10 flex items-start justify-center rounded-3xl bg-paper/60 pt-24 backdrop-blur-[1px]"
+              role="status"
+              aria-live="polite"
+            >
+              <div className="neu-flat flex items-center gap-3 rounded-full bg-paper px-5 py-3">
+                <span
+                  className="neu-flat-sm h-2.5 w-2.5 shrink-0 animate-pulse rounded-full bg-editorial"
+                  aria-hidden="true"
+                />
+                <span className="label-eyebrow text-stock-500">Se recalculează…</span>
+              </div>
+            </div>
           )}
-        </>
+          <div className={loading ? "pointer-events-none opacity-60 transition-opacity" : "transition-opacity"}>
+            <div className="rule-grid grid grid-cols-2 lg:grid-cols-4">
+              <StatCell label="Dosare în selecție" value={formatNumber(data.total_leads)} />
+              <StatCell label="Valoare totală" value={formatRon(data.total_market_value_ron)} />
+              <StatCell
+                label="Scor mediu"
+                value={data.average_opportunity_score != null ? `${data.average_opportunity_score} / 10` : "—"}
+              />
+              <StatCell label="Actualizat" value={formatDate(data.updated_at)} hint={`${data.by_county.length} județe`} />
+            </div>
+
+            <div className="mt-8">
+              <MarketTrendsView
+                data={data}
+                variant="full"
+                onOpenLead={data.is_authenticated ? openLead : undefined}
+                quickFilters={{
+                  selectedDomain: category || null,
+                  selectedCounty: county || null,
+                  selectedFundingSource: fundingSource || null,
+                  onSelectDomain: selectDomain,
+                  onSelectCounty: selectCounty,
+                  onSelectFundingSource: selectFundingSource,
+                }}
+              />
+            </div>
+
+            {data.is_authenticated && (
+              <p className="mt-10 border-t border-divider pt-5 text-center">
+                <Link href="/cautare-avansata" className="font-sans text-sm font-medium text-editorial hover:brightness-110">
+                  Vezi toate dosarele în căutarea avansată →
+                </Link>
+              </p>
+            )}
+          </div>
+        </div>
       )}
 
       {selectedLead && <LeadDossierPanel lead={selectedLead} onClose={() => setSelectedLead(null)} />}
