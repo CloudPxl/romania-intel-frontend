@@ -259,6 +259,15 @@ export interface MarketTrendFilters {
   include_ai_report?: boolean;
 }
 
+export interface OpportunityPage {
+  items: MarketTrends["top_opportunities"];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+  is_authenticated: boolean;
+}
+
 export interface Deal {
   deal_id: string;
   opportunity_id?: string | null;
@@ -524,6 +533,14 @@ export async function downloadMyCsv(): Promise<void> {
 
 export async function fetchMarketTrends(filters: MarketTrendFilters = {}): Promise<MarketTrends> {
   return apiFetch(`/api/v1/analysis/market-trends${qs({ ...filters })}`);
+}
+
+/** The real, paginated "see everything" list behind market-trends'
+ *  results panel — same filters, but not capped to the ~25-row preview
+ *  top_opportunities deliberately is. Powers pagination on both /analysis
+ *  and Prima Pagina's profile-criteria results. */
+export async function fetchOpportunitiesPage(filters: MarketTrendFilters = {}, page = 1, pageSize = 20): Promise<OpportunityPage> {
+  return apiFetch(`/api/v1/analysis/opportunities${qs({ ...filters, page, page_size: pageSize })}`);
 }
 
 /** The same aggregation, scoped to the signed-in user's own matches — see

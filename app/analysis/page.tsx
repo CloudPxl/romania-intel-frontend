@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
-import { ApiError, fetchMarketTrends, fetchOpportunity, type Lead, type MarketTrendFilters, type MarketTrends } from "@/lib/api";
+import { ApiError, fetchMarketTrends, fetchOpportunitiesPage, fetchOpportunity, type Lead, type MarketTrendFilters, type MarketTrends, type OpportunityPage } from "@/lib/api";
 import { CATEGORIES, formatDate, formatNumber, formatRon } from "@/lib/format";
 import MarketTrendsView from "@/components/MarketTrendsView";
 import LeadDossierPanel from "@/components/LeadDossierPanel";
@@ -83,6 +83,33 @@ export default function AnalysisPage() {
     []
   );
 
+  // The real, paginated "see everything" list behind "Poziții filtrate" —
+  // independent of `load` above (which only drives the totals/breakdown
+  // panels and the small top_opportunities preview those still carry).
+  // Same filters, a separate request, because pagination has to survive a
+  // page-2/3/... click without re-running the (heavier) breakdown
+  // aggregation query every time.
+  const RESULTS_PAGE_SIZE = 20;
+  const [resultsPage, setResultsPage] = useState(1);
+  const [pageData, setPageData] = useState<OpportunityPage | null>(null);
+  const [pageLoading, setPageLoading] = useState(false);
+  const pageSeq = useRef(0);
+
+  useEffect(() => {
+    const seq = ++pageSeq.current;
+    setPageLoading(true);
+    fetchOpportunitiesPage(appliedFilters, resultsPage, RESULTS_PAGE_SIZE)
+      .then((d) => {
+        if (seq === pageSeq.current) setPageData(d);
+      })
+      .catch(() => {
+        if (seq === pageSeq.current) setPageData(null);
+      })
+      .finally(() => {
+        if (seq === pageSeq.current) setPageLoading(false);
+      });
+  }, [appliedFilters, resultsPage]);
+
   // Depend on the user's ID, not the user object. `adoptSynced` builds a
   // fresh object on every auth event, and supabase-js re-emits SIGNED_IN on
   // session recovery and TOKEN_REFRESHED on its hourly refresh — so this
@@ -114,6 +141,7 @@ export default function AnalysisPage() {
   const applyFilters = () => {
     const next = buildFilters();
     setAppliedFilters(next);
+    setResultsPage(1);
     load(next);
   };
 
@@ -126,6 +154,7 @@ export default function AnalysisPage() {
     setMaxValue("");
     setFundingSource("");
     setAppliedFilters({});
+    setResultsPage(1);
     load({});
   };
 
@@ -141,18 +170,21 @@ export default function AnalysisPage() {
     setCategory(value ?? "");
     const next = { ...buildFilters(), categories: value ? [value] : undefined };
     setAppliedFilters(next);
+    setResultsPage(1);
     load(next);
   };
   const selectCounty = (value: string | null) => {
     setCounty(value ?? "");
     const next = { ...buildFilters(), counties: value ? [value] : undefined };
     setAppliedFilters(next);
+    setResultsPage(1);
     load(next);
   };
   const selectFundingSource = (value: string | null) => {
     setFundingSource(value ?? "");
     const next = { ...buildFilters(), funding_sources: value ? [value] : undefined };
     setAppliedFilters(next);
+    setResultsPage(1);
     load(next);
   };
 
@@ -290,6 +322,14 @@ export default function AnalysisPage() {
                   onSelectDomain: selectDomain,
                   onSelectCounty: selectCounty,
                   onSelectFundingSource: selectFundingSource,
+                }}
+                results={{
+                  items: pageData?.items ?? [],
+                  total: pageData?.total ?? 0,
+                  page: resultsPage,
+                  pageSize: RESULTS_PAGE_SIZE,
+                  onPageChange: setResultsPage,
+                  loading: pageLoading,
                 }}
               />
             </div>

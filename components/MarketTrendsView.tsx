@@ -2,8 +2,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { MarketTrends } from "@/lib/api";
-import { formatRon } from "@/lib/format";
-import { Badge, ButtonLink, Eyebrow, Panel, SectionTitle } from "@/components/newsprint";
+import { formatNumber, formatRon } from "@/lib/format";
+import { Badge, Button, ButtonLink, Eyebrow, Panel, SectionTitle } from "@/components/newsprint";
 
 /**
  * The county/category/funding-source/top-opportunities breakdown, shared by
@@ -174,6 +174,7 @@ export default function MarketTrendsView({
 	variant,
 	onOpenLead,
 	quickFilters,
+	results,
 }: {
 	data: MarketTrends;
 	/** "results" is a domain/county/funding-free variant: just the
@@ -205,6 +206,24 @@ export default function MarketTrendsView({
 		onSelectDomain: (value: string | null) => void;
 		onSelectCounty: (value: string | null) => void;
 		onSelectFundingSource: (value: string | null) => void;
+	};
+	/**
+	 * The real, paginated "see everything" list (GET /analysis/opportunities)
+	 * — when given, replaces data.top_opportunities as the results panel's
+	 * item source entirely. top_opportunities is a small, per-domain-capped
+	 * preview (TOP_OPPORTUNITIES_TOTAL_CAP in routers/analysis.py), never
+	 * meant to be the whole result set — a filtered slice with, say, 185
+	 * real matches used to be visible only up to whatever fit in that
+	 * preview, with no way to page through the rest. Both /analysis and
+	 * Prima Pagina supply this now.
+	 */
+	results?: {
+		items: MarketTrends["top_opportunities"];
+		total: number;
+		page: number;
+		pageSize: number;
+		onPageChange: (page: number) => void;
+		loading?: boolean;
 	};
 }) {
 	const [localDomain, setLocalDomain] = useState<string | null>(null);
@@ -252,7 +271,10 @@ export default function MarketTrendsView({
 	// could only narrow further, never recover a row that's missing purely
 	// because it fell outside the (much smaller) uncontrolled-mode pool.
 	const filteredOpportunities = quickFilters ? data.top_opportunities : data.top_opportunities.filter((o) => (!selectedDomain || o.category === selectedDomain) && (!selectedCounty || o.county === selectedCounty) && (!selectedFundingSource || o.funding_source === selectedFundingSource));
-	const topOpportunities = variant === "compact" ? filteredOpportunities.slice(0, 5) : filteredOpportunities;
+	// `results`, when supplied, is the real paginated list — it replaces
+	// the capped top_opportunities preview outright rather than narrowing
+	// it further.
+	const topOpportunities = results ? results.items : variant === "compact" ? filteredOpportunities.slice(0, 5) : filteredOpportunities;
 	const maxCategory = Math.max(0, ...data.by_category.map((c) => c.value_ron));
 	const maxCounty = Math.max(0, ...data.by_county.map((c) => c.value_ron));
 	const maxFunding = Math.max(0, ...data.by_funding_source.map((f) => f.value_ron));
@@ -308,11 +330,40 @@ export default function MarketTrendsView({
 			)}
 			{data.is_authenticated ? (
 				topOpportunities.length > 0 ? (
-					<ol className="divide-y divide-divider">
-						{topOpportunities.map((o, i) => (
-							<TopOpportunityRow key={`${o.source_id ?? o.project_title}-${i}`} rank={i + 1} opportunity={o} onOpenLead={onOpenLead} />
-						))}
-					</ol>
+					<>
+						<ol className={"divide-y divide-divider" + (results?.loading ? " pointer-events-none opacity-50 transition-opacity" : " transition-opacity")}>
+							{topOpportunities.map((o, i) => (
+								<TopOpportunityRow key={`${o.source_id ?? o.project_title}-${i}`} rank={results ? (results.page - 1) * results.pageSize + i + 1 : i + 1} opportunity={o} onOpenLead={onOpenLead} />
+							))}
+						</ol>
+						{results && results.total > results.pageSize && (
+							<div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-divider pt-3">
+								<span className="font-mono text-[11px] text-stock-500">
+									Pagina {results.page} din {Math.max(1, Math.ceil(results.total / results.pageSize))} · {formatNumber(results.total)} rezultate
+								</span>
+								<div className="flex gap-2">
+									<Button
+										type="button"
+										variant="outline"
+										className="min-h-0 px-3 py-1.5 text-xs"
+										disabled={results.page <= 1 || Boolean(results.loading)}
+										onClick={() => results.onPageChange(results.page - 1)}
+									>
+										← Anterior
+									</Button>
+									<Button
+										type="button"
+										variant="outline"
+										className="min-h-0 px-3 py-1.5 text-xs"
+										disabled={results.page >= Math.ceil(results.total / results.pageSize) || Boolean(results.loading)}
+										onClick={() => results.onPageChange(results.page + 1)}
+									>
+										Următor →
+									</Button>
+								</div>
+							</div>
+						)}
+					</>
 				) : (
 					<p className="font-body text-sm text-stock-500">Nicio poziție în această selecție.</p>
 				)

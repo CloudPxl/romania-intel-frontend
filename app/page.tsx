@@ -6,7 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import OnboardingForm from "@/components/OnboardingForm";
 import MarketTrendsView from "@/components/MarketTrendsView";
 import LeadDossierPanel from "@/components/LeadDossierPanel";
-import { ApiError, fetchMarketTrends, fetchMyMarketTrends, fetchOpportunity, type Lead, type MarketTrendFilters, type MarketTrends } from "@/lib/api";
+import { ApiError, fetchMarketTrends, fetchMyMarketTrends, fetchOpportunitiesPage, fetchOpportunity, type Lead, type MarketTrendFilters, type MarketTrends, type OpportunityPage } from "@/lib/api";
 import { DOMAIN_OPTIONS, formatDateline, formatLeadValue, formatNumber, formatRon } from "@/lib/format";
 import { Badge, ButtonLink, CountUp, DegradedBanner, Eyebrow, Loading, Notice, Ornament, ProgressBar, StatCell } from "@/components/newsprint";
 
@@ -251,6 +251,17 @@ function PersonalizedHomePage() {
 	// a faster, more recent one would otherwise overwrite it.
 	const resultsSeq = useRef(0);
 
+	// The real, paginated "see everything" list — top_opportunities on
+	// `results` above is a small, per-domain-capped preview
+	// (TOP_OPPORTUNITIES_TOTAL_CAP), never the full match set. Same filters
+	// as the effect below, fetched separately so paging doesn't re-run the
+	// (heavier) breakdown/stats aggregation every click.
+	const RESULTS_PAGE_SIZE = 20;
+	const [resultsPage, setResultsPage] = useState(1);
+	const [pageData, setPageData] = useState<OpportunityPage | null>(null);
+	const [pageLoading, setPageLoading] = useState(false);
+	const pageSeq = useRef(0);
+
 	useEffect(() => {
 		if (!profile) return;
 		const seq = ++resultsSeq.current;
@@ -281,6 +292,29 @@ function PersonalizedHomePage() {
 		// re-running on every render from a fresh array/string identity.
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [profile, domainActive, countyActive, keywordsActive, minValueActive]);
+
+	useEffect(() => {
+		if (!profile) return;
+		const seq = ++pageSeq.current;
+		setPageLoading(true);
+		const filters: MarketTrendFilters = {
+			categories: domainActive && domainValue ? [domainValue] : undefined,
+			counties: countyActive && countyApplicable ? countyValues : undefined,
+			keywords: keywordsActive && keywordApplicable ? keywordValues : undefined,
+			min_value_ron: minValueActive && minValueApplicable ? profile.min_value_ron : undefined,
+		};
+		fetchOpportunitiesPage(filters, resultsPage, RESULTS_PAGE_SIZE)
+			.then((d) => {
+				if (seq === pageSeq.current) setPageData(d);
+			})
+			.catch(() => {
+				if (seq === pageSeq.current) setPageData(null);
+			})
+			.finally(() => {
+				if (seq === pageSeq.current) setPageLoading(false);
+			});
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [profile, domainActive, countyActive, keywordsActive, minValueActive, resultsPage]);
 
 	const firstName = user?.full_name?.split(" ")[0];
 	const leadStory = stats?.top_opportunities?.[0];
@@ -387,11 +421,41 @@ function PersonalizedHomePage() {
 								value={domainValue ? (DOMAIN_OPTIONS.find((d) => d.id === domainValue)?.label ?? domainValue) : "Toate domeniile"}
 								active={domainActive}
 								applicable={domainApplicable}
-								onToggle={() => setDomainActive((v) => !v)}
+								onToggle={() => {
+									setDomainActive((v) => !v);
+									setResultsPage(1);
+								}}
 							/>
-							<FilterToggleCard label="Județ" value={countyApplicable ? countyValues.join(", ") : "Nesetat"} active={countyActive} applicable={countyApplicable} onToggle={() => setCountyActive((v) => !v)} />
-							<FilterToggleCard label="Cuvinte-cheie" value={keywordApplicable ? keywordValues.join(", ") : "Nesetat"} active={keywordsActive} applicable={keywordApplicable} onToggle={() => setKeywordsActive((v) => !v)} />
-							<FilterToggleCard label="Valoare minimă" value={minValueApplicable ? formatRon(profile!.min_value_ron) : "Nesetat"} active={minValueActive} applicable={minValueApplicable} onToggle={() => setMinValueActive((v) => !v)} />
+							<FilterToggleCard
+								label="Județ"
+								value={countyApplicable ? countyValues.join(", ") : "Nesetat"}
+								active={countyActive}
+								applicable={countyApplicable}
+								onToggle={() => {
+									setCountyActive((v) => !v);
+									setResultsPage(1);
+								}}
+							/>
+							<FilterToggleCard
+								label="Cuvinte-cheie"
+								value={keywordApplicable ? keywordValues.join(", ") : "Nesetat"}
+								active={keywordsActive}
+								applicable={keywordApplicable}
+								onToggle={() => {
+									setKeywordsActive((v) => !v);
+									setResultsPage(1);
+								}}
+							/>
+							<FilterToggleCard
+								label="Valoare minimă"
+								value={minValueApplicable ? formatRon(profile!.min_value_ron) : "Nesetat"}
+								active={minValueActive}
+								applicable={minValueApplicable}
+								onToggle={() => {
+									setMinValueActive((v) => !v);
+									setResultsPage(1);
+								}}
+							/>
 						</div>
 
 						<div className="relative mt-6">
@@ -409,7 +473,19 @@ function PersonalizedHomePage() {
 								<Loading label="Se calculează rezultatele filtrate" />
 							) : (
 								<div className={resultsLoading ? "pointer-events-none opacity-60 transition-opacity" : "transition-opacity"}>
-									<MarketTrendsView data={results} variant="results" onOpenLead={openLead} />
+									<MarketTrendsView
+									data={results}
+									variant="results"
+									onOpenLead={openLead}
+									results={{
+										items: pageData?.items ?? [],
+										total: pageData?.total ?? 0,
+										page: resultsPage,
+										pageSize: RESULTS_PAGE_SIZE,
+										onPageChange: setResultsPage,
+										loading: pageLoading,
+									}}
+								/>
 								</div>
 							)}
 						</div>
