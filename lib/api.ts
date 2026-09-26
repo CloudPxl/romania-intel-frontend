@@ -252,6 +252,7 @@ export interface MarketTrendFilters {
   counties?: string[];
   categories?: string[];
   funding_sources?: string[];
+  keywords?: string[];
   min_value_ron?: number;
   max_value_ron?: number;
   limit?: number;

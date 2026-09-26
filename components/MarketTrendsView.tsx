@@ -189,7 +189,11 @@ export default function MarketTrendsView({
   quickFilters,
 }: {
   data: MarketTrends;
-  variant: "full" | "compact";
+  /** "results" is a domain/county/funding-free variant: just the
+   *  "Cele mai mari poziții" list, full width — for a caller (Prima
+   *  Pagina's profile-criteria toggle cards) that already owns its own
+   *  filtering and only needs the results list itself. */
+  variant: "full" | "compact" | "results";
   /** See TopOpportunityRow — passed straight through. */
   onOpenLead?: (sourceId: string) => void;
   /**
@@ -269,7 +273,7 @@ export default function MarketTrendsView({
           (!selectedCounty || o.county === selectedCounty) &&
           (!selectedFundingSource || o.funding_source === selectedFundingSource)
       );
-  const topOpportunities = variant === "full" ? filteredOpportunities : filteredOpportunities.slice(0, 5);
+  const topOpportunities = variant === "compact" ? filteredOpportunities.slice(0, 5) : filteredOpportunities;
   const maxCategory = Math.max(0, ...data.by_category.map((c) => c.value_ron));
   const maxCounty = Math.max(0, ...data.by_county.map((c) => c.value_ron));
   const maxFunding = Math.max(0, ...data.by_funding_source.map((f) => f.value_ron));
@@ -378,6 +382,13 @@ export default function MarketTrendsView({
         )}
       </Panel>
   );
+
+  if (variant === "results") {
+    // No domain/county/funding breakdown at all — the caller (Prima
+    // Pagina's own profile-criteria toggle cards) already owns filtering
+    // here, so this variant is just the results list, full width.
+    return <div className="w-full">{topOpportunitiesPanel}</div>;
+  }
 
   if (variant !== "full") {
     return (

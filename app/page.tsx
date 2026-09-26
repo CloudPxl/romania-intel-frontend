@@ -1,12 +1,12 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import OnboardingForm from "@/components/OnboardingForm";
 import MarketTrendsView from "@/components/MarketTrendsView";
 import LeadDossierPanel from "@/components/LeadDossierPanel";
-import { ApiError, fetchMarketTrends, fetchMyMarketTrends, fetchOpportunity, type Lead, type MarketTrends } from "@/lib/api";
+import { ApiError, fetchMarketTrends, fetchMyMarketTrends, fetchOpportunity, type Lead, type MarketTrendFilters, type MarketTrends } from "@/lib/api";
 import { DOMAIN_OPTIONS, formatDateline, formatLeadValue, formatNumber, formatRon } from "@/lib/format";
 import { Badge, ButtonLink, CountUp, DegradedBanner, Eyebrow, Loading, Notice, Ornament, ProgressBar, StatCell } from "@/components/newsprint";
 
@@ -69,6 +69,37 @@ function LeadStoryCard({ leadStory, onOpen, opening }: { leadStory: MarketTrends
 		<button type="button" onClick={() => onOpen(sourceId)} disabled={opening} className="group -mx-2 block w-full rounded-2xl px-2 text-left transition-all duration-[var(--duration-base)] ease-[var(--ease-glide)] hover:neu-pressed-sm active:scale-[0.99] disabled:opacity-60">
 			{body}
 			{opening && <p className="font-mono pb-3 text-[11px] uppercase tracking-widest text-stock-500">Se deschide…</p>}
+		</button>
+	);
+}
+
+/**
+ * One profile-criterion toggle: Domeniu / Județ / Cuvinte-cheie / Valoare
+ * minimă. Replaces the single "Distribuție pe domeniu" panel that used to
+ * sit next to the results list here — that panel only ever showed one
+ * criterion (domain) and wasn't clickable in a way that changed the
+ * results below. These four are: each shows the value already configured
+ * in the user's profile and toggles whether it's currently applied to the
+ * results panel underneath (see PersonalizedHomePage's `results` fetch).
+ * A criterion with nothing configured (no keywords, no counties, no
+ * minimum value, or a domain of "toate") renders inert — there's nothing
+ * to toggle on or off.
+ */
+function FilterToggleCard({ label, value, active, applicable, onToggle }: { label: string; value: string; active: boolean; applicable: boolean; onToggle: () => void }) {
+	return (
+		<button
+			type="button"
+			onClick={applicable ? onToggle : undefined}
+			disabled={!applicable}
+			aria-pressed={applicable && active}
+			className={
+				"flex min-h-[44px] flex-col gap-1 rounded-3xl p-4 text-left transition-all duration-[var(--duration-base)] ease-[var(--ease-glide)] " +
+				(!applicable ? "neu-pressed-sm cursor-not-allowed opacity-50" : active ? "neu-pressed active:scale-[0.99]" : "neu-flat hover:neu-lift active:scale-[0.99]")
+			}
+		>
+			<span className="label-eyebrow text-stock-500">{label}</span>
+			<span className="font-display truncate text-base font-semibold text-ink">{value}</span>
+			<span className={"font-mono text-[10px] uppercase tracking-widest " + (applicable && active ? "text-editorial" : "text-stock-400")}>{!applicable ? "Nesetat" : active ? "Activ · dezactivează" : "Inactiv · activează"}</span>
 		</button>
 	);
 }
@@ -191,6 +222,66 @@ function PersonalizedHomePage() {
 		};
 	}, []);
 
+	// The four profile-criteria toggles (Domeniu/Județ/Cuvinte-cheie/Valoare
+	// minimă) — all active by default, since that reproduces the fully-
+	// personalized view the page always showed before this existed.
+	// Deactivating one re-queries the real market-trends endpoint (the
+	// same hard, server-side AND filter /analysis's quick filters use, not
+	// a client-side narrowing of an already-fetched sample — see that
+	// page's own history of undercounting for why) with that criterion
+	// dropped, widening the results panel below rather than the profile's
+	// own /me/market-trends match set, which stays fixed.
+	const [domainActive, setDomainActive] = useState(true);
+	const [countyActive, setCountyActive] = useState(true);
+	const [keywordsActive, setKeywordsActive] = useState(true);
+	const [minValueActive, setMinValueActive] = useState(true);
+
+	const domainValue = profile?.domain && profile.domain !== "toate" ? profile.domain : null;
+	const domainApplicable = Boolean(domainValue);
+	const countyValues = profile?.target_counties ?? [];
+	const countyApplicable = countyValues.length > 0;
+	const keywordValues = profile?.keywords ?? [];
+	const keywordApplicable = keywordValues.length > 0;
+	const minValueApplicable = Boolean(profile?.min_value_ron && profile.min_value_ron > 0);
+
+	const [results, setResults] = useState<MarketTrends | null>(null);
+	const [resultsLoading, setResultsLoading] = useState(true);
+	const [resultsError, setResultsError] = useState<string | null>(null);
+	// Same stale-response guard as /analysis: a slower request landing after
+	// a faster, more recent one would otherwise overwrite it.
+	const resultsSeq = useRef(0);
+
+	useEffect(() => {
+		if (!profile) return;
+		const seq = ++resultsSeq.current;
+		setResultsLoading(true);
+		const filters: MarketTrendFilters = {
+			categories: domainActive && domainValue ? [domainValue] : undefined,
+			counties: countyActive && countyApplicable ? countyValues : undefined,
+			keywords: keywordsActive && keywordApplicable ? keywordValues : undefined,
+			min_value_ron: minValueActive && minValueApplicable ? profile.min_value_ron : undefined,
+		};
+		fetchMarketTrends(filters)
+			.then((d) => {
+				if (seq !== resultsSeq.current) return;
+				setResults(d);
+				setResultsError(null);
+			})
+			.catch((e) => {
+				if (seq !== resultsSeq.current) return;
+				setResultsError(e instanceof ApiError ? e.detail : "Nu s-au putut încărca rezultatele filtrate.");
+				setResults(null);
+			})
+			.finally(() => {
+				if (seq === resultsSeq.current) setResultsLoading(false);
+			});
+		// domainValue/countyValues/keywordValues are all derived from profile
+		// on every render, not independent state — depending on profile
+		// (plus the four toggles, the only real inputs) is enough and avoids
+		// re-running on every render from a fresh array/string identity.
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [profile, domainActive, countyActive, keywordsActive, minValueActive]);
+
 	const firstName = user?.full_name?.split(" ")[0];
 	const leadStory = stats?.top_opportunities?.[0];
 	const topCounty = stats?.by_county?.[0];
@@ -289,11 +380,40 @@ function PersonalizedHomePage() {
 						</aside>
 					</section>
 
-					{stats && (
-						<div className="stagger mt-8">
-							<MarketTrendsView data={stats} variant="compact" onOpenLead={openLead} />
+					<div className="stagger mt-8">
+						<div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+							<FilterToggleCard
+								label="Domeniu"
+								value={domainValue ? (DOMAIN_OPTIONS.find((d) => d.id === domainValue)?.label ?? domainValue) : "Toate domeniile"}
+								active={domainActive}
+								applicable={domainApplicable}
+								onToggle={() => setDomainActive((v) => !v)}
+							/>
+							<FilterToggleCard label="Județ" value={countyApplicable ? countyValues.join(", ") : "Nesetat"} active={countyActive} applicable={countyApplicable} onToggle={() => setCountyActive((v) => !v)} />
+							<FilterToggleCard label="Cuvinte-cheie" value={keywordApplicable ? keywordValues.join(", ") : "Nesetat"} active={keywordsActive} applicable={keywordApplicable} onToggle={() => setKeywordsActive((v) => !v)} />
+							<FilterToggleCard label="Valoare minimă" value={minValueApplicable ? formatRon(profile!.min_value_ron) : "Nesetat"} active={minValueActive} applicable={minValueApplicable} onToggle={() => setMinValueActive((v) => !v)} />
 						</div>
-					)}
+
+						<div className="relative mt-6">
+							{resultsLoading && results && (
+								<div className="absolute inset-0 z-10 flex items-start justify-center rounded-3xl bg-paper/60 pt-16 backdrop-blur-[1px]" role="status" aria-live="polite">
+									<div className="neu-flat flex items-center gap-3 rounded-full bg-paper px-5 py-3">
+										<span className="neu-flat-sm h-2.5 w-2.5 shrink-0 animate-pulse rounded-full bg-editorial" aria-hidden="true" />
+										<span className="label-eyebrow text-stock-500">Se recalculează…</span>
+									</div>
+								</div>
+							)}
+							{resultsError ? (
+								<Notice tone="alert">{resultsError}</Notice>
+							) : !results ? (
+								<Loading label="Se calculează rezultatele filtrate" />
+							) : (
+								<div className={resultsLoading ? "pointer-events-none opacity-60 transition-opacity" : "transition-opacity"}>
+									<MarketTrendsView data={results} variant="results" onOpenLead={openLead} />
+								</div>
+							)}
+						</div>
+					</div>
 				</>
 			)}
 
