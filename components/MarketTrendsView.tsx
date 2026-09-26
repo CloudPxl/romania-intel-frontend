@@ -48,7 +48,7 @@ function RowLink({
 }) {
   const pct = maxValue > 0 ? Math.max(2, Math.round((value / maxValue) * 100)) : 0;
   const className =
-    "group flex w-full flex-col gap-1.5 rounded-xl px-2 py-3 text-left transition-all duration-[var(--duration-base)] ease-[var(--ease-glide)] hover:neu-pressed-sm active:scale-[0.99]" +
+    "group flex w-full flex-col gap-1.5 rounded-xl px-2 py-2 text-left transition-all duration-[var(--duration-base)] ease-[var(--ease-glide)] hover:neu-pressed-sm active:scale-[0.99]" +
     (active ? " neu-pressed-sm" : "");
   const content = (
     <>
@@ -159,10 +159,10 @@ function TopOpportunityRow({
   // this component has no control over what a caller hands it) degrades to
   // plain text rather than linking to a broken "?openLead=undefined".
   if (!opportunity.source_id) {
-    return <li className="flex gap-4 py-3">{content}</li>;
+    return <li className="flex gap-4 py-2">{content}</li>;
   }
   const rowClassName =
-    "group flex w-full gap-4 rounded-xl px-2 py-3 text-left transition-all duration-[var(--duration-base)] ease-[var(--ease-glide)] hover:neu-pressed-sm active:scale-[0.99]";
+    "group flex w-full gap-4 rounded-xl px-2 py-2 text-left transition-all duration-[var(--duration-base)] ease-[var(--ease-glide)] hover:neu-pressed-sm active:scale-[0.99]";
   if (onOpenLead) {
     const sourceId = opportunity.source_id;
     return (
