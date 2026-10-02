@@ -1,9 +1,17 @@
 import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans, DM_Sans, JetBrains_Mono } from "next/font/google";
 import { AuthProvider } from "@/context/AuthContext";
+import { ThemeProvider } from "@/context/ThemeContext";
 import Sidebar from "@/components/Sidebar";
 import InstallPrompt from "@/components/InstallPrompt";
 import "./globals.css";
+
+// Runs before React hydrates, same mechanism next-themes uses, so a
+// returning user who picked dark mode never sees a flash of the light
+// theme on load. Kept as a literal string (not a shared constant with
+// ThemeContext.tsx) because it has to be inlined into the HTML as-is —
+// importing it would pull a module graph into a plain <script> tag.
+const THEME_INIT_SCRIPT = `(function(){try{var t=localStorage.getItem('ro_intel_theme');if(t==='dark'){document.documentElement.setAttribute('data-theme','dark');}}catch(e){}})();`;
 
 const jakarta = Plus_Jakarta_Sans({
   subsets: ["latin", "latin-ext"],
@@ -79,31 +87,36 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ro" className={`${jakarta.variable} ${dmSans.variable} ${jetbrains.variable}`}>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body>
-        <AuthProvider>
-          {/* Ambient colour behind everything. A real element rather than a
-              body::before, so its stacking context is explicit: the shell
-              below sits at z-10 and is never painted underneath it. */}
-          <div className="mesh-layer" aria-hidden="true" />
-          {/* flex-col below lg, flex-row from lg up.
-              Sidebar renders a fragment: an <aside> (hidden below lg) AND a
-              sticky mobile <header> (hidden from lg up). Both are direct
-              children of this container, so with a plain `flex` the mobile
-              header became a flex ROW item — a ~226px left-hand column that
-              squeezed <main> into the remaining ~160px of a 390px phone,
-              instead of the top bar it is styled to be. It only shows below
-              lg, which is exactly where the row direction is wrong.
-              min-h-svh lives here alone; a second one on the inner column
-              would stack under the header and overflow the viewport. */}
-          <div className="relative z-10 flex min-h-svh flex-col lg:flex-row">
-            <Sidebar />
-            <div className="flex min-w-0 flex-1 flex-col">{children}</div>
-          </div>
-          {/* iOS-only, dismissible: Apple permits Web Push solely from an
-              installed PWA, so on iPhone this is the path to notifications
-              working at all. Renders nothing anywhere else. */}
-          <InstallPrompt />
-        </AuthProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            {/* Ambient colour behind everything. A real element rather than a
+                body::before, so its stacking context is explicit: the shell
+                below sits at z-10 and is never painted underneath it. */}
+            <div className="mesh-layer" aria-hidden="true" />
+            {/* flex-col below lg, flex-row from lg up.
+                Sidebar renders a fragment: an <aside> (hidden below lg) AND a
+                sticky mobile <header> (hidden from lg up). Both are direct
+                children of this container, so with a plain `flex` the mobile
+                header became a flex ROW item — a ~226px left-hand column that
+                squeezed <main> into the remaining ~160px of a 390px phone,
+                instead of the top bar it is styled to be. It only shows below
+                lg, which is exactly where the row direction is wrong.
+                min-h-svh lives here alone; a second one on the inner column
+                would stack under the header and overflow the viewport. */}
+            <div className="relative z-10 flex min-h-svh flex-col lg:flex-row">
+              <Sidebar />
+              <div className="flex min-w-0 flex-1 flex-col">{children}</div>
+            </div>
+            {/* iOS-only, dismissible: Apple permits Web Push solely from an
+                installed PWA, so on iPhone this is the path to notifications
+                working at all. Renders nothing anywhere else. */}
+            <InstallPrompt />
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

@@ -43,6 +43,11 @@
   --shadow-light: rgba(255, 255, 255, 0.55);
   --shadow-light-strong: rgba(255, 255, 255, 0.65);
 
+  /* The one spot a hardcoded white-ish overlay (TabBar's active-tab hover
+     in newsprint.tsx) needed a token instead of a literal, so dark mode
+     below can give it a value that doesn't wash out a dark surface. */
+  --color-tab-hover: rgba(255, 255, 255, 0.45);
+
   --font-display: var(--font-jakarta), 'Segoe UI', sans-serif;
   --font-body: var(--font-dm-sans), 'Segoe UI', sans-serif;
   --font-sans: var(--font-dm-sans), 'Segoe UI', sans-serif;
@@ -72,6 +77,56 @@
   --radius-2xl: 16px;
   --radius-3xl: 32px;
   --radius-full: 9999px;
+}
+
+/*
+ * Dark mode — toggled from Account settings (components/EnterpriseModals.tsx),
+ * applied via a `data-theme="dark"` attribute on <html> (context/ThemeContext.tsx),
+ * not `prefers-color-scheme` — this is a deliberate in-app choice, not an
+ * OS-following one. Same token names as the light @theme block above, which
+ * is the entire point: every component already composes `bg-paper`,
+ * `text-ink`, `border-divider`, `neu-flat`/`neu-pressed`/etc., and none of
+ * those call sites need to change — only the values these custom
+ * properties resolve to.
+ *
+ * The neu-* shadow utilities reference --shadow-dark/-light (and their
+ * -strong variants) rather than literal colors, so redefining just those
+ * four here is enough to re-skin every card/button/input's bevel. Naively
+ * inverting lightness alone (bright highlight, near-black shadow) would
+ * make the highlight read as a glow rather than a bevel on a dark
+ * surface — the highlight shadow has to stay dim here, not just "light
+ * grey became dark grey," or the illusion breaks.
+ */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --color-paper: #1b1e27;
+  --color-surface: #1b1e27;
+  --color-surface-2: #1b1e27;
+  --color-ink: #e7e9ee;
+  --color-rule: rgba(0, 0, 0, 0.45);
+  --color-divider: rgba(0, 0, 0, 0.45);
+  --color-editorial: #8b84ff;
+  --color-editorial-light: #a7a1ff;
+  --color-editorial-soft: rgba(139, 132, 255, 0.18);
+
+  --color-stock-100: #1b1e27;
+  --color-stock-200: #242836;
+  --color-stock-400: #6b7686;
+  --color-stock-500: #9aa3b2;
+  --color-stock-600: #c3c9d4;
+  --color-stock-700: #e7e9ee;
+
+  --color-positive: #4fd1c9;
+  --color-negative: #f1707f;
+  --color-warning: #e2b659;
+
+  --shadow-dark: rgba(0, 0, 0, 0.65);
+  --shadow-dark-strong: rgba(0, 0, 0, 0.8);
+  --shadow-light: rgba(255, 255, 255, 0.045);
+  --shadow-light-strong: rgba(255, 255, 255, 0.07);
+
+  --color-tab-hover: rgba(255, 255, 255, 0.06);
 }
 
 /* Reusable shadow "physics" as real Tailwind utilities (via @utility) so
@@ -349,11 +404,17 @@
       radial-gradient(46rem 32rem at 46% 108%, rgba(139, 132, 255, 0.09), transparent 62%);
   }
 
-  /* Frosted chrome for elements that float over scrolling content. */
+  /* Frosted chrome for elements that float over scrolling content. Not
+     derived from --color-paper (backdrop-filter needs a real alpha value,
+     and the two tokens are identical by coincidence only in light mode),
+     so dark mode needs its own literal here rather than inheriting one. */
   .glass {
     background-color: rgba(224, 229, 236, 0.72);
     backdrop-filter: blur(14px) saturate(1.4);
     -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  }
+  :root[data-theme='dark'] .glass {
+    background-color: rgba(27, 30, 39, 0.72);
   }
 }
 

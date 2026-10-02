@@ -13,6 +13,7 @@ import {
   type ProformaResult,
 } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
+import { useTheme } from "@/context/ThemeContext";
 import { CATEGORIES, COUNTIES, DOMAIN_OPTIONS } from "@/lib/format";
 import { Badge, Button, ChipSelect, Eyebrow, Field, Input, Notice, Select } from "@/components/newsprint";
 import NotificationToggle from "@/components/NotificationToggle";
@@ -238,7 +239,7 @@ export function PricingModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
                   "min-h-[44px] flex-1 rounded-xl px-4 py-2 font-sans text-sm font-semibold transition-all duration-[var(--duration-base)] active:scale-95 " +
                   (billingInterval === key
                     ? "neu-flat-sm bg-paper text-editorial"
-                    : "text-stock-500 hover:bg-[rgba(255,255,255,0.45)] hover:text-ink")
+                    : "text-stock-500 hover:bg-tab-hover hover:text-ink")
                 }
               >
                 {key === "monthly" ? "Lunar" : "Anual"}
@@ -401,6 +402,7 @@ export function PricingModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
 
 export function AccountSettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const { user, profile, preferences, updatePreferences, signInWithGoogle, signInWithEmail, signOut } = useAuth();
+  const { theme, setTheme } = useTheme();
   const [emailInput, setEmailInput] = useState("");
   const [alertEmail, setAlertEmail] = useState("");
   const [scoreThreshold, setScoreThreshold] = useState(9.0);
@@ -657,6 +659,40 @@ export function AccountSettingsModal({ isOpen, onClose }: { isOpen: boolean; onC
             Primiți oportunitățile potrivite imediat ce sunt detectate, chiar și cu aplicația închisă.
           </p>
           <NotificationToggle radarEnabled={radarEnabled} onRadarChange={setRadarEnabled} />
+        </div>
+
+        {/* Same reasoning as the notifications card above: per-device, no
+            form field, takes effect immediately rather than waiting on
+            the Save button. */}
+        <div className="neu-flat rounded-3xl bg-paper p-4 sm:p-5">
+          <Eyebrow className="mb-1">Aspect</Eyebrow>
+          <p className="font-body mb-4 text-sm leading-relaxed text-stock-600">Alegeți modul de afișare al platformei.</p>
+          <div role="radiogroup" aria-label="Mod de afișare" className="flex gap-2">
+            <button
+              type="button"
+              role="radio"
+              aria-checked={theme === "light"}
+              onClick={() => setTheme("light")}
+              className={
+                "min-h-[44px] flex-1 rounded-2xl px-4 py-2 font-sans text-sm font-semibold transition-all duration-[var(--duration-base)] ease-[var(--ease-glide)] active:scale-95 " +
+                (theme === "light" ? "neu-pressed text-editorial" : "neu-flat text-stock-600 hover:neu-lift")
+              }
+            >
+              Luminos
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={theme === "dark"}
+              onClick={() => setTheme("dark")}
+              className={
+                "min-h-[44px] flex-1 rounded-2xl px-4 py-2 font-sans text-sm font-semibold transition-all duration-[var(--duration-base)] ease-[var(--ease-glide)] active:scale-95 " +
+                (theme === "dark" ? "neu-pressed text-editorial" : "neu-flat text-stock-600 hover:neu-lift")
+              }
+            >
+              Întunecat
+            </button>
+          </div>
         </div>
       </div>
     </Modal>

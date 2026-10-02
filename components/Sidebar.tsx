@@ -113,7 +113,7 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
                       "transition-all duration-[var(--duration-base)] ease-[var(--ease-glide)] active:scale-[0.97]",
                       active
                         ? "neu-pressed bg-paper font-semibold text-editorial"
-                        : "bg-transparent text-stock-600 hover:bg-[rgba(255,255,255,0.5)] hover:text-ink"
+                        : "bg-transparent text-stock-600 hover:bg-tab-hover hover:text-ink"
                     )}
                   >
                     {/* Accent rail that wipes down the left edge on hover.
@@ -166,7 +166,7 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
         <div className="mt-2 flex flex-col gap-1.5">
           <button
             onClick={() => setPricingOpen(true)}
-            className="flex min-h-[44px] w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm text-stock-600 transition-all duration-[var(--duration-base)] ease-[var(--ease-glide)] hover:bg-[rgba(255,255,255,0.5)] hover:text-ink active:scale-[0.97]"
+            className="flex min-h-[44px] w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm text-stock-600 transition-all duration-[var(--duration-base)] ease-[var(--ease-glide)] hover:bg-tab-hover hover:text-ink active:scale-[0.97]"
           >
             <CreditCard size={15} className="shrink-0" />
             Abonament & plată

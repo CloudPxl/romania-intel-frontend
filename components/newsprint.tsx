@@ -601,7 +601,7 @@ export function TabBar<T extends string>({
             "min-h-[44px] flex-1 whitespace-nowrap rounded-xl px-4 py-2 font-sans text-sm font-semibold transition-all duration-[var(--duration-base)] ease-[var(--ease-glide)] active:scale-95",
             active === tab.id
               ? "neu-flat-sm bg-paper text-editorial"
-              : "text-stock-500 hover:bg-[rgba(255,255,255,0.45)] hover:text-ink"
+              : "text-stock-500 hover:bg-tab-hover hover:text-ink"
           )}
         >
           {tab.label}
