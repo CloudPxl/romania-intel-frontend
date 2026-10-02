@@ -281,7 +281,20 @@ export function Explainer({
       <button
         ref={btnRef}
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        // stopPropagation matters wherever this sits inside another
+        // clickable element (e.g. a whole lead card as a <button> on
+        // Căutare Avansată) — without it, tapping "?" also fired the
+        // ancestor's onClick and opened the record the explainer was
+        // annotating, a click on an unrelated control a user had every
+        // reason not to expect.
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen((v) => !v);
+        }}
+        onMouseEnter={() => setOpen(true)}
+        onMouseLeave={() => setOpen(false)}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setOpen(false)}
         aria-expanded={open}
         aria-label={title ? `Explicație: ${title}` : "Explicație"}
         className={cn(
@@ -304,6 +317,13 @@ export function Explainer({
               aria-label={title || "Explicație"}
               style={{ top: pos.top, left: pos.left, width: Math.min(320, window.innerWidth - 24) }}
               className="neu-flat fixed z-[60] rounded-2xl bg-paper p-3.5"
+              // Keeps it open while the cursor crosses the gap between the
+              // "?" and the popover itself (it renders 8px below the
+              // trigger), and while reading a popover long enough to
+              // scroll — a hover-only trigger with no such grace would
+              // close the moment the mouse left the 18px dot.
+              onMouseEnter={() => setOpen(true)}
+              onMouseLeave={() => setOpen(false)}
             >
               {title && <p className="font-display text-sm font-bold leading-snug text-ink">{title}</p>}
               <div className={cn("font-body text-[13px] leading-relaxed text-stock-600", title && "mt-1.5")}>
