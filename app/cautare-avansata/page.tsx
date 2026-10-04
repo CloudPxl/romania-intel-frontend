@@ -505,11 +505,11 @@ function CautareAvansataContent() {
 												)}
 												{lead.opportunity_score != null && (
 													<span className="flex flex-col items-end gap-0.5">
-														<span className="label-eyebrow inline-flex items-center gap-1 whitespace-nowrap text-stock-600">
-															Scor proiect
+														<span className="label-eyebrow inline-flex items-center gap-1 whitespace-nowrap text-stock-600">Scor proiect</span>
+														<span className="tabular font-display text-sm font-semibold leading-none text-stock-700">
 															<Explain k="opportunityScore" />
+															{lead.opportunity_score}/10
 														</span>
-														<span className="tabular font-display text-sm font-semibold leading-none text-stock-700">{lead.opportunity_score}/10</span>
 													</span>
 												)}
 												<span className="label-eyebrow whitespace-nowrap text-editorial">Deschide →</span>
