@@ -97,7 +97,7 @@ function EligibilityContent() {
 
 	const handleQualification = async () => {
 		if (!cui.trim()) {
-			setQualError("Introduceți CUI-ul — analiza pornește de la datele reale ale firmei, nu de la cele completate manual.");
+			setQualError("Introduceți CUI-ul — analiza pornește de la datele reale ale firmei.");
 			return;
 		}
 		if (contractValue <= 0) {
@@ -197,7 +197,7 @@ function EligibilityContent() {
 
 	const handleScan = async () => {
 		if (!companyName.trim() || !cui.trim()) {
-			setError("Completați CUI-ul.");
+			setError("Completați CUI-ul companiei.");
 			return;
 		}
 		setLoading(true);
@@ -327,10 +327,10 @@ function EligibilityContent() {
             card beside it: for a contract of THIS value, can this
             company bid alone — and if not, what does the law leave open. */}
 				<Panel className="p-4 sm:p-5">
-					<span className="flex items-center gap-1.5">
-						<Eyebrow className="mb-5 border-b border-divider pb-2">Participare la o procedură</Eyebrow>
-						<Explain k="qualificationRoutes" className="mb-5" />
-					</span>
+					<Eyebrow className="mb-5 flex items-center gap-1.5 border-b border-divider pb-2">
+						Participare la o procedură
+						<Explain k="qualificationRoutes" />
+					</Eyebrow>
 					<div className="space-y-4">
 						<Field label="Valoarea estimată a contractului (RON)">
 							<NumberInput className={COMPACT_FIELD} min={0} value={contractValue} onValueChange={setContractValue} />
@@ -504,7 +504,7 @@ function EligibilityContent() {
 								</Notice>
 							) : (
 								<>
-									<SectionTitle note={qualification.company?.name}>criterii de participare</SectionTitle>
+									<SectionTitle note={qualification.company?.name}>Criterii de participare</SectionTitle>
 
 									{/* Scenario A — can they lead. Status drives the tone, so
                       "blocked" and "eligible" are never mistakable. */}
@@ -536,10 +536,10 @@ function EligibilityContent() {
                       because "ineligible as leader" is not "ineligible". */}
 									{qualification.scenario_b_partnership && (
 										<div className="mt-5">
-											<span className="flex items-center gap-1.5">
-												<Eyebrow className="mb-2">{qualification.scenario_b_partnership.label}</Eyebrow>
-												<Explain k="partnershipRoutes" className="mb-2" />
-											</span>
+											<Eyebrow className="mb-2 flex items-center gap-1.5">
+												{qualification.scenario_b_partnership.label}
+												<Explain k="partnershipRoutes" />
+											</Eyebrow>
 											{qualification.scenario_b_partnership.findings.map((f, i) => (
 												<p key={i} className="font-body mb-2 text-sm leading-relaxed text-stock-600">
 													{f}
