@@ -218,137 +218,135 @@ function EligibilityContent() {
 		<main className="mx-auto w-full max-w-screen-xl flex-1 px-4 py-6 sm:py-8">
 			<PageHeader eyebrow="Eligibilitate finanțări" title="Verificarea profilului companiei" standfirst="Evaluează profilul financiar față de liniile de finanțare active și verifică motivele de excludere obligatorii din Legea 98/2016 înainte de a angaja resurse într-o procedură." />
 
-			<div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
-				<section className="lg:col-span-5">
-					<Panel className="p-4 sm:p-6">
-						<Eyebrow className="mb-5 border-b border-divider pb-2">Profil companie</Eyebrow>
-						<div className="space-y-5">
-							<Field label="Denumire companie">
-								<Input value={companyName} onChange={(e) => setCompanyName(e.target.value)} autoComplete="organization" />
-							</Field>
-							<div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-								<Field label="CUI / cod fiscal">
-									<Input value={cui} onChange={(e) => setCui(e.target.value)} onBlur={handleCuiBlur} placeholder="RO12345678" />
-								</Field>
-								<Field label="Cod CAEN principal">
-									<Input value={caen} onChange={(e) => setCaen(e.target.value)} inputMode="numeric" />
-								</Field>
-								<Field label="Cifră de afaceri (RON)">
-									<NumberInput min={0} value={turnover} onValueChange={setTurnover} />
-								</Field>
-								<Field label="Număr angajați">
-									<NumberInput min={0} value={employees} onValueChange={setEmployees} />
-								</Field>
-							</div>
-							<Field label="Județ sediu">
-								<Input value={county} onChange={(e) => setCounty(e.target.value)} placeholder="ex. Cluj" />
-							</Field>
-						</div>
+			{/* Three cards in one row, same convention as /analysis's filter
+          cards — each a self-contained step rather than one long form,
+          since the three actions below them (Evaluează profilul, Verifică
+          criteriile de participare) run independently of each other. */}
+			<div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
+				<Panel className="p-4 sm:p-5">
+					<Eyebrow className="mb-5 border-b border-divider pb-2">Profil companie</Eyebrow>
+					<div className="space-y-5">
+						<Field label="Denumire companie">
+							<Input value={companyName} onChange={(e) => setCompanyName(e.target.value)} autoComplete="organization" />
+						</Field>
+						<Field label="CUI / cod fiscal">
+							<Input value={cui} onChange={(e) => setCui(e.target.value)} onBlur={handleCuiBlur} placeholder="RO12345678" />
+						</Field>
+						<Field label="Cod CAEN principal">
+							<Input value={caen} onChange={(e) => setCaen(e.target.value)} inputMode="numeric" />
+						</Field>
+						<Field label="Cifră de afaceri (RON)">
+							<NumberInput min={0} value={turnover} onValueChange={setTurnover} />
+						</Field>
+						<Field label="Număr angajați">
+							<NumberInput min={0} value={employees} onValueChange={setEmployees} />
+						</Field>
+						<Field label="Județ sediu">
+							<Input value={county} onChange={(e) => setCounty(e.target.value)} placeholder="ex. Cluj" />
+						</Field>
+					</div>
 
-						{/* The procurement question, distinct from the grant scoring
-                below it: for a contract of THIS value, can this company
-                bid alone — and if not, what does the law leave open. */}
-						<div className="mt-6 border-t border-divider pt-5">
-							<span className="flex items-center gap-1.5">
-								<Eyebrow className="mb-2">Participare la o procedură</Eyebrow>
-								<Explain k="qualificationRoutes" className="mb-2" />
-							</span>
-							<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-								<Field label="Valoarea estimată a contractului (RON)">
-									<NumberInput min={0} value={contractValue} onValueChange={setContractValue} />
-								</Field>
-								<Field label="Cifra de afaceri cerută (opțional)" hint="Din fișa de date, dacă o cunoașteți.">
-									<Input type="number" inputMode="numeric" min={0} value={requiredTurnover} onChange={(e) => setRequiredTurnover(e.target.value)} placeholder="ex. 20000000" />
-								</Field>
-							</div>
-							<Button onClick={handleQualification} variant="outline" fullWidth disabled={qualLoading} className="mt-4">
-								{qualLoading ? "Se analizează…" : "Verifică criteriile de participare"}
-							</Button>
-						</div>
-
+					{/* Feedback from the CUI field's own onBlur lookup (or
+              whichever of the three actions last ran one) — confirms the
+              fields above came from ANAF, not just what was typed. */}
+					{verification && (
 						<div className="mt-5">
-							<Button onClick={handleVerify} variant="outline" fullWidth disabled={verifying}>
-								{verifying ? "Se caută în registre…" : "Caută firma în registrele oficiale (ANAF)"}
-							</Button>
-							<p className="font-body mt-2 text-xs leading-relaxed text-stock-500">Completează automat denumirea, codul CAEN, județul, cifra de afaceri și numărul de angajați din registrul ANAF și din bilanțul depus de firmă — în locul valorilor introduse manual.</p>
-						</div>
-
-						{verification && (
-							<div className="mt-4">
-								{verification.verified && verification.company ? (
-									<div className="neu-pressed rounded-2xl bg-paper p-4">
-										<div className="flex flex-wrap items-center gap-2">
-											<Badge tone="positive">Verificat ANAF</Badge>
-											{verification.company.vat_registered && <Badge tone="neutral">Plătitor TVA</Badge>}
-											{verification.company.is_inactive_taxpayer && <Badge tone="negative">Inactiv fiscal</Badge>}
-											{verification.financials?.found && <Badge tone="neutral">Bilanț {verification.financials.fiscal_year}</Badge>}
-										</div>
-										<p className="font-display mt-3 text-base font-semibold leading-snug">{verification.company.company_name}</p>
-										<dl className="mt-2 grid grid-cols-1 gap-x-4 gap-y-1 font-mono text-[11px] text-stock-600 sm:grid-cols-2">
-											<div>Nr. reg. com.: {verification.company.trade_registry_number || "—"}</div>
-											<div>CAEN: {verification.company.caen_code || "—"}</div>
-											<div>Sediu: {verification.company.locality || verification.company.county || "—"}</div>
-											<div>Înregistrată: {verification.company.registration_date || "—"}</div>
-											{verification.financials?.found && (
-												<>
-													<div>Cifră afaceri: {typeof verification.financials.turnover_ron === "number" ? formatRon(verification.financials.turnover_ron) : "—"}</div>
-													<div>Angajați: {verification.financials.employee_count ?? "—"}</div>
-												</>
-											)}
-										</dl>
-										{!verification.financials?.found && verification.financials?.error && <p className="font-body mt-2 text-xs leading-relaxed text-stock-500">{verification.financials.error} Completați manual cifra de afaceri și numărul de angajați.</p>}
-										{verification.registry_warnings?.map((w) => (
-											<div key={w} className="mt-3">
-												<Notice tone="warning">{w}</Notice>
-											</div>
-										))}
+							{verification.verified && verification.company ? (
+								<div className="neu-pressed rounded-2xl bg-paper p-4">
+									<div className="flex flex-wrap items-center gap-2">
+										<Badge tone="positive">Verificat ANAF</Badge>
+										{verification.company.vat_registered && <Badge tone="neutral">Plătitor TVA</Badge>}
+										{verification.company.is_inactive_taxpayer && <Badge tone="negative">Inactiv fiscal</Badge>}
+										{verification.financials?.found && <Badge tone="neutral">Bilanț {verification.financials.fiscal_year}</Badge>}
 									</div>
-								) : (
-									<Notice tone="alert" title="Firma nu a putut fi verificată">
-										{verification.error || "ANAF nu a returnat nicio firmă pentru acest CUI."}
-									</Notice>
-								)}
-							</div>
-						)}
-
-						<div className="mt-7 border-t border-divider pt-5">
-							<Eyebrow className="text-editorial">Motive de excludere · Legea 98/2016</Eyebrow>
-							{/* Informative only, deliberately not checkboxes: niciunul dintre
-                  aceste patru motive nu poate fi verificat dintr-un API
-                  public (cazier judiciar, certificat fiscal, insolvență,
-                  abatere profesională nu au o sursă liberă de consultat), iar
-                  o evaluare construită pe o bifă auto-declarată ar fi o
-                  certificare fără valoare reală. Singurul semnal real pe care
-                  îl avem — contribuabil inactiv la ANAF — vine automat din
-                  verificarea CUI-ului, nu dintr-o bifă. */}
-							<p className="font-body mt-1.5 text-xs leading-relaxed text-stock-600">
-								Niciunul dintre aceste motive nu poate fi verificat automat dintr-un registru public — sunt prezentate informativ, nu ca opțiuni de bifat. Oricare dintre ele blochează participarea la procedură, indiferent de scorul financiar, și se dovedește cu documentul oficial corespunzător înainte de atribuire.
-							</p>
-							<ul className="mt-3 divide-y divide-divider">
-								{EXCLUSION_GROUNDS.map((g) => (
-									<li key={g.key} className="font-body py-2.5 text-sm text-stock-700">
-										{g.label}
-									</li>
-								))}
-							</ul>
-							{exclusions.has_unpaid_taxes && (
-								<p className="font-mono mt-2 text-[11px] uppercase tracking-wider text-editorial">Semnalat automat: ANAF declară firma inactivă fiscal (Art. 165).</p>
+									<p className="font-display mt-3 text-base font-semibold leading-snug">{verification.company.company_name}</p>
+									<dl className="mt-2 grid grid-cols-1 gap-x-4 gap-y-1 font-mono text-[11px] text-stock-600 sm:grid-cols-2">
+										<div>Nr. reg. com.: {verification.company.trade_registry_number || "—"}</div>
+										<div>CAEN: {verification.company.caen_code || "—"}</div>
+										<div>Sediu: {verification.company.locality || verification.company.county || "—"}</div>
+										<div>Înregistrată: {verification.company.registration_date || "—"}</div>
+										{verification.financials?.found && (
+											<>
+												<div>Cifră afaceri: {typeof verification.financials.turnover_ron === "number" ? formatRon(verification.financials.turnover_ron) : "—"}</div>
+												<div>Angajați: {verification.financials.employee_count ?? "—"}</div>
+											</>
+										)}
+									</dl>
+									{!verification.financials?.found && verification.financials?.error && <p className="font-body mt-2 text-xs leading-relaxed text-stock-500">{verification.financials.error} Completați manual cifra de afaceri și numărul de angajați.</p>}
+									{verification.registry_warnings?.map((w) => (
+										<div key={w} className="mt-3">
+											<Notice tone="warning">{w}</Notice>
+										</div>
+									))}
+								</div>
+							) : (
+								<Notice tone="alert" title="Firma nu a putut fi verificată">
+									{verification.error || "ANAF nu a returnat nicio firmă pentru acest CUI."}
+								</Notice>
 							)}
 						</div>
+					)}
 
-						{error && (
-							<div className="mt-5">
-								<Notice tone="alert">{error}</Notice>
-							</div>
-						)}
+					{error && (
+						<div className="mt-5">
+							<Notice tone="alert">{error}</Notice>
+						</div>
+					)}
 
-						<Button onClick={handleScan} disabled={loading} fullWidth className="mt-6">
-							{loading ? "Se evaluează…" : "Evaluează profilul"}
-						</Button>
-					</Panel>
-				</section>
+					<Button onClick={handleScan} disabled={loading} fullWidth className="mt-6">
+						{loading ? "Se evaluează…" : "Evaluează profilul"}
+					</Button>
+				</Panel>
 
-				<section className="lg:col-span-7 space-y-6">
+				{/* The procurement question, distinct from the grant scoring
+            card beside it: for a contract of THIS value, can this
+            company bid alone — and if not, what does the law leave open. */}
+				<Panel className="p-4 sm:p-5">
+					<span className="flex items-center gap-1.5">
+						<Eyebrow className="mb-5 border-b border-divider pb-2">Participare la o procedură</Eyebrow>
+						<Explain k="qualificationRoutes" className="mb-5" />
+					</span>
+					<div className="space-y-5">
+						<Field label="Valoarea estimată a contractului (RON)">
+							<NumberInput min={0} value={contractValue} onValueChange={setContractValue} />
+						</Field>
+						<Field label="Cifra de afaceri cerută (opțional)" hint="Din fișa de date, dacă o cunoașteți.">
+							<Input type="number" inputMode="numeric" min={0} value={requiredTurnover} onChange={(e) => setRequiredTurnover(e.target.value)} placeholder="ex. 20000000" />
+						</Field>
+					</div>
+					<Button onClick={handleQualification} variant="outline" fullWidth disabled={qualLoading} className="mt-6">
+						{qualLoading ? "Se analizează…" : "Verifică criteriile de participare"}
+					</Button>
+				</Panel>
+
+				<Panel className="p-4 sm:p-5">
+					<Eyebrow className="mb-5 border-b border-divider pb-2 text-editorial">Motive de excludere · Legea 98/2016</Eyebrow>
+					{/* Informative only, deliberately not checkboxes: niciunul dintre
+              aceste patru motive nu poate fi verificat dintr-un API
+              public (cazier judiciar, certificat fiscal, insolvență,
+              abatere profesională nu au o sursă liberă de consultat), iar
+              o evaluare construită pe o bifă auto-declarată ar fi o
+              certificare fără valoare reală. Singurul semnal real pe care
+              îl avem — contribuabil inactiv la ANAF — vine automat din
+              verificarea CUI-ului, nu dintr-o bifă. */}
+					<p className="font-body text-xs leading-relaxed text-stock-600">
+						Niciunul dintre aceste motive nu poate fi verificat automat dintr-un registru public — sunt prezentate informativ, nu ca opțiuni de bifat. Oricare dintre ele blochează participarea la procedură, indiferent de scorul financiar, și se dovedește cu documentul oficial corespunzător înainte de atribuire.
+					</p>
+					<ul className="mt-3 divide-y divide-divider">
+						{EXCLUSION_GROUNDS.map((g) => (
+							<li key={g.key} className="font-body py-2.5 text-sm text-stock-700">
+								{g.label}
+							</li>
+						))}
+					</ul>
+					{exclusions.has_unpaid_taxes && (
+						<p className="font-mono mt-2 text-[11px] uppercase tracking-wider text-editorial">Semnalat automat: ANAF declară firma inactivă fiscal (Art. 165).</p>
+					)}
+				</Panel>
+			</div>
+
+			<div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
+				<section className="space-y-6">
 					{qualification && (
 						<Panel className="p-4 sm:p-6">
 							{!qualification.available ? (
@@ -421,7 +419,9 @@ function EligibilityContent() {
 							)}
 						</Panel>
 					)}
+				</section>
 
+				<section className="space-y-6">
 					{loading ? (
 						<Loading label="Se verifică criteriile de eligibilitate" />
 					) : !result ? (
