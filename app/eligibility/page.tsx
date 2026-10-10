@@ -5,7 +5,7 @@ import AuthGate from "@/components/AuthGate";
 import Explain from "@/components/Explain";
 import { ApiError, evaluateBusinessEligibility, fetchQualificationScenarios, verifyCompany, type CompanyVerification, type QualificationScenarios, type EligibilityResult } from "@/lib/api";
 import { formatNumber, formatRon } from "@/lib/format";
-import { Badge, Button, Checkbox, Eyebrow, Field, Input, Loading, Notice, NumberInput, PageHeader, Panel, SectionTitle } from "@/components/newsprint";
+import { Badge, Button, Eyebrow, Field, Input, Loading, Notice, NumberInput, PageHeader, Panel, SectionTitle } from "@/components/newsprint";
 
 /**
  * Mandatory exclusion grounds under Legea 98/2016. A company that trips
@@ -214,8 +214,6 @@ function EligibilityContent() {
 		}
 	};
 
-	const flaggedCount = Object.values(exclusions).filter(Boolean).length;
-
 	return (
 		<main className="mx-auto w-full max-w-screen-xl flex-1 px-4 py-6 sm:py-8">
 			<PageHeader eyebrow="Eligibilitate finanțări" title="Verificarea profilului companiei" standfirst="Evaluează profilul financiar față de liniile de finanțare active și verifică motivele de excludere obligatorii din Legea 98/2016 înainte de a angaja resurse într-o procedură." />
@@ -315,16 +313,26 @@ function EligibilityContent() {
 
 						<div className="mt-7 border-t border-divider pt-5">
 							<Eyebrow className="text-editorial">Motive de excludere · Legea 98/2016</Eyebrow>
-							<p className="font-body mt-1.5 text-xs leading-relaxed text-stock-600">Bifați orice situație aplicabilă. Oricare dintre acestea blochează participarea la procedură, indiferent de scorul financiar.</p>
-							<div className="mt-3 divide-y divide-divider">
+							{/* Informative only, deliberately not checkboxes: niciunul dintre
+                  aceste patru motive nu poate fi verificat dintr-un API
+                  public (cazier judiciar, certificat fiscal, insolvență,
+                  abatere profesională nu au o sursă liberă de consultat), iar
+                  o evaluare construită pe o bifă auto-declarată ar fi o
+                  certificare fără valoare reală. Singurul semnal real pe care
+                  îl avem — contribuabil inactiv la ANAF — vine automat din
+                  verificarea CUI-ului, nu dintr-o bifă. */}
+							<p className="font-body mt-1.5 text-xs leading-relaxed text-stock-600">
+								Niciunul dintre aceste motive nu poate fi verificat automat dintr-un registru public — sunt prezentate informativ, nu ca opțiuni de bifat. Oricare dintre ele blochează participarea la procedură, indiferent de scorul financiar, și se dovedește cu documentul oficial corespunzător înainte de atribuire.
+							</p>
+							<ul className="mt-3 divide-y divide-divider">
 								{EXCLUSION_GROUNDS.map((g) => (
-									<Checkbox key={g.key} label={g.label} checked={exclusions[g.key]} onChange={(e) => setExclusions((prev) => ({ ...prev, [g.key]: e.target.checked }))} />
+									<li key={g.key} className="font-body py-2.5 text-sm text-stock-700">
+										{g.label}
+									</li>
 								))}
-							</div>
-							{flaggedCount > 0 && (
-								<p className="font-mono mt-2 text-[11px] uppercase tracking-wider text-editorial">
-									{flaggedCount} motiv{flaggedCount > 1 ? "e" : ""} bifat{flaggedCount > 1 ? "e" : ""}
-								</p>
+							</ul>
+							{exclusions.has_unpaid_taxes && (
+								<p className="font-mono mt-2 text-[11px] uppercase tracking-wider text-editorial">Semnalat automat: ANAF declară firma inactivă fiscal (Art. 165).</p>
 							)}
 						</div>
 
@@ -399,30 +407,6 @@ function EligibilityContent() {
 													</li>
 												))}
 											</ul>
-										</div>
-									)}
-
-									{/* The honest half: what was checked vs what cannot be. */}
-									{qualification.exclusion_review && (
-										<div className="mt-5 border-t border-divider pt-4">
-											<span className="flex items-center gap-1.5">
-												<Eyebrow className="mb-2">Motive de excludere</Eyebrow>
-												<Explain k="exclusionGrounds" className="mb-2" />
-											</span>
-											<ul className="divide-y divide-divider">
-												{qualification.exclusion_review.grounds.map((g) => (
-													<li key={g.ground} className="flex items-start gap-3 py-2.5">
-														<Badge tone={g.status === "pass" ? "positive" : g.status === "fail" ? "negative" : "neutral"}>{g.status === "pass" ? "Verificat" : g.status === "fail" ? "Blocant" : "Neverificabil"}</Badge>
-														<span className="min-w-0 flex-1">
-															<span className="font-body block text-sm">{g.ground}</span>
-															<span className="font-mono block text-[10px] leading-relaxed text-stock-500">
-																{g.detail} · {g.evidence_document}
-															</span>
-														</span>
-													</li>
-												))}
-											</ul>
-											<p className="font-mono mt-3 text-[10px] leading-relaxed text-stock-500">{qualification.exclusion_review.note}</p>
 										</div>
 									)}
 
