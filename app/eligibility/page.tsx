@@ -23,6 +23,12 @@ const EXCLUSION_GROUNDS = [
 
 type ExclusionKey = (typeof EXCLUSION_GROUNDS)[number]["key"];
 
+// Shared Input/NumberInput's own default (min-h-[44px]) is a deliberate
+// site-wide touch-target floor — overridden here, on this page only, via
+// twMerge-aware className so these particular fields read as compact
+// without changing that default anywhere else.
+const COMPACT_FIELD = "min-h-9 py-1.5";
+
 function EligibilityContent() {
 	const { profile } = useAuth();
 	const [companyName, setCompanyName] = useState("");
@@ -225,25 +231,29 @@ function EligibilityContent() {
 			<div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
 				<Panel className="p-4 sm:p-5">
 					<Eyebrow className="mb-5 border-b border-divider pb-2">Profil companie</Eyebrow>
-					<div className="space-y-5">
+					<div className="space-y-4">
 						<Field label="Denumire companie">
-							<Input value={companyName} onChange={(e) => setCompanyName(e.target.value)} autoComplete="organization" />
+							<Input className={COMPACT_FIELD} value={companyName} onChange={(e) => setCompanyName(e.target.value)} autoComplete="organization" />
 						</Field>
-						<Field label="CUI / cod fiscal">
-							<Input value={cui} onChange={(e) => setCui(e.target.value)} onBlur={handleCuiBlur} placeholder="RO12345678" />
-						</Field>
-						<Field label="Cod CAEN principal">
-							<Input value={caen} onChange={(e) => setCaen(e.target.value)} inputMode="numeric" />
-						</Field>
+						<div className="grid grid-cols-2 gap-4">
+							<Field label="CUI / cod fiscal">
+								<Input className={COMPACT_FIELD} value={cui} onChange={(e) => setCui(e.target.value)} onBlur={handleCuiBlur} placeholder="RO12345678" />
+							</Field>
+							<Field label="Cod CAEN principal">
+								<Input className={COMPACT_FIELD} value={caen} onChange={(e) => setCaen(e.target.value)} inputMode="numeric" />
+							</Field>
+						</div>
 						<Field label="Cifră de afaceri (RON)">
-							<NumberInput min={0} value={turnover} onValueChange={setTurnover} />
+							<NumberInput className={COMPACT_FIELD} min={0} value={turnover} onValueChange={setTurnover} />
 						</Field>
-						<Field label="Număr angajați">
-							<NumberInput min={0} value={employees} onValueChange={setEmployees} />
-						</Field>
-						<Field label="Județ sediu">
-							<Input value={county} onChange={(e) => setCounty(e.target.value)} placeholder="ex. Cluj" />
-						</Field>
+						<div className="grid grid-cols-2 gap-4">
+							<Field label="Număr angajați">
+								<NumberInput className={COMPACT_FIELD} min={0} value={employees} onValueChange={setEmployees} />
+							</Field>
+							<Field label="Județ sediu">
+								<Input className={COMPACT_FIELD} value={county} onChange={(e) => setCounty(e.target.value)} placeholder="ex. Cluj" />
+							</Field>
+						</div>
 					</div>
 
 					{/* Feedback from the CUI field's own onBlur lookup (or
@@ -306,12 +316,12 @@ function EligibilityContent() {
 						<Eyebrow className="mb-5 border-b border-divider pb-2">Participare la o procedură</Eyebrow>
 						<Explain k="qualificationRoutes" className="mb-5" />
 					</span>
-					<div className="space-y-5">
+					<div className="space-y-4">
 						<Field label="Valoarea estimată a contractului (RON)">
-							<NumberInput min={0} value={contractValue} onValueChange={setContractValue} />
+							<NumberInput className={COMPACT_FIELD} min={0} value={contractValue} onValueChange={setContractValue} />
 						</Field>
 						<Field label="Cifra de afaceri cerută (opțional)" hint="Din fișa de date, dacă o cunoașteți.">
-							<Input type="number" inputMode="numeric" min={0} value={requiredTurnover} onChange={(e) => setRequiredTurnover(e.target.value)} placeholder="ex. 20000000" />
+							<Input className={COMPACT_FIELD} type="number" inputMode="numeric" min={0} value={requiredTurnover} onChange={(e) => setRequiredTurnover(e.target.value)} placeholder="ex. 20000000" />
 						</Field>
 					</div>
 					<Button onClick={handleQualification} variant="outline" fullWidth disabled={qualLoading} className="mt-6">
@@ -347,7 +357,15 @@ function EligibilityContent() {
 
 			<div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
 				<section className="space-y-6">
-					{qualification && (
+					{qualLoading ? (
+						<Loading label="Se verifică criteriile de participare" />
+					) : !qualification ? (
+						<div className="flex h-full min-h-[16rem] flex-col items-center justify-center neu-pressed rounded-3xl px-6 py-14 text-center">
+							<Eyebrow className="text-stock-400">Criterii de participare</Eyebrow>
+							<p className="font-display mt-3 max-w-sm text-xl font-semibold leading-snug">Completați contractul și lansați verificarea</p>
+							<p className="font-body mt-2 max-w-md text-sm leading-relaxed text-stock-600">Rezultatul include traseele de participare disponibile (ofertant individual, asociere, subcontractare) pentru valoarea contractului introdusă.</p>
+						</div>
+					) : (
 						<Panel className="p-4 sm:p-6">
 							{!qualification.available ? (
 								<Notice tone="alert" title="Compania nu a putut fi identificată">
