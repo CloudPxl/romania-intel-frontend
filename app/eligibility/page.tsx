@@ -3,7 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import AuthGate from "@/components/AuthGate";
 import Explain from "@/components/Explain";
-import { ApiError, evaluateBusinessEligibility, fetchQualificationScenarios, verifyCompany, type CompanyVerification, type QualificationScenarios, type EligibilityResult } from "@/lib/api";
+import GrantDetailPanel from "@/components/GrantDetailPanel";
+import { ApiError, evaluateBusinessEligibility, fetchQualificationScenarios, verifyCompany, type CompanyVerification, type EligibilityGrant, type QualificationScenarios, type EligibilityResult } from "@/lib/api";
 import { formatNumber, formatRon } from "@/lib/format";
 import { Badge, Button, Eyebrow, Field, Input, Loading, Notice, NumberInput, PageHeader, Panel, SectionTitle } from "@/components/newsprint";
 
@@ -64,6 +65,9 @@ function EligibilityContent() {
 	const [qualification, setQualification] = useState<QualificationScenarios | null>(null);
 	const [qualLoading, setQualLoading] = useState(false);
 	const [qualError, setQualError] = useState<string | null>(null);
+	// Opens the matching GrantDetailPanel in place, same slide-over-from-
+	// the-right pattern as LeadDossierPanel elsewhere in the app.
+	const [selectedGrant, setSelectedGrant] = useState<EligibilityGrant | null>(null);
 	// Guards the CUI field's onBlur auto-lookup against re-firing for a CUI
 	// it already looked up — e.g. tabbing through the field without typing,
 	// or the blur that follows a manual "Caută firma" click on the same
@@ -193,7 +197,7 @@ function EligibilityContent() {
 
 	const handleScan = async () => {
 		if (!companyName.trim() || !cui.trim()) {
-			setError("Completați denumirea companiei și CUI-ul.");
+			setError("Completați CUI-ul.");
 			return;
 		}
 		setLoading(true);
@@ -447,9 +451,14 @@ function EligibilityContent() {
 											// a certainty the data does not support.
 											const uncertain = g.caen_match && g.caen_match.depth !== "exact";
 											return (
-												<div key={g.program_id} className="p-4">
+												<button key={g.program_id} type="button" onClick={() => setSelectedGrant(g)} className="group w-full p-4 text-left transition-all duration-[var(--duration-base)] ease-[var(--ease-glide)] hover:neu-pressed-sm active:scale-[0.99]">
 													<div className="flex flex-wrap items-baseline justify-between gap-2">
-														<h3 className="font-display text-lg font-semibold leading-snug">{g.program_name}</h3>
+														<h3 className="font-display flex items-center gap-1.5 text-lg font-semibold leading-snug">
+															<span>{g.program_name}</span>
+															<span aria-hidden="true" className="shrink-0 text-editorial opacity-0 transition-all duration-[var(--duration-base)] ease-[var(--ease-spring)] group-hover:translate-x-0.5 group-hover:opacity-100">
+																→
+															</span>
+														</h3>
 														<span className="font-display shrink-0 text-lg font-semibold">{g.eligible_grant_up_to}</span>
 													</div>
 
@@ -466,7 +475,7 @@ function EligibilityContent() {
 													)}
 
 													<p className="font-mono mt-2 text-[11px] text-stock-400">{g.legal_basis}</p>
-												</div>
+												</button>
 											);
 										})}
 									</div>
@@ -561,6 +570,8 @@ function EligibilityContent() {
 					)}
 				</section>
 			</div>
+
+			{selectedGrant && <GrantDetailPanel grant={selectedGrant} onClose={() => setSelectedGrant(null)} />}
 		</main>
 	);
 }
