@@ -68,6 +68,34 @@ function EligibilityContent() {
   const [qualification, setQualification] = useState<QualificationScenarios | null>(null);
   const [qualLoading, setQualLoading] = useState(false);
 
+  /**
+   * Overwrites the form with whatever a registry lookup just returned —
+   * shared by all three actions that can produce one (Verifică,
+   * Participare la o procedură, and Scanează, which runs its own lookup
+   * server-side by default). The register is authoritative, so this
+   * always overwrites rather than only filling blanks: seeing a typed
+   * CAEN or turnover replaced by ANAF's own figure is the point, not a
+   * one-time autofill that a scan with the box already full skips.
+   */
+  const applyRegistryFields = (fields: {
+    name?: string | null;
+    caen?: string | null;
+    county?: string | null;
+    turnover?: number | null;
+    employees?: number | null;
+    isInactive?: boolean;
+  }) => {
+    if (fields.name) setCompanyName(fields.name);
+    if (fields.caen) setCaen(fields.caen);
+    if (fields.county) setCounty(fields.county);
+    if (typeof fields.turnover === "number") setTurnover(fields.turnover);
+    if (typeof fields.employees === "number") setEmployees(fields.employees);
+    // ANAF declaring the taxpayer inactive is itself an Art. 165 exclusion
+    // ground, so it ticks the box rather than leaving the user to notice
+    // something the state already published.
+    if (fields.isInactive) setExclusions((prev) => ({ ...prev, has_unpaid_taxes: true }));
+  };
+
   const handleQualification = async () => {
     if (!cui.trim()) {
       setError("Introduceți CUI-ul — analiza pornește de la datele reale ale firmei, nu de la cele completate manual.");
@@ -81,14 +109,26 @@ function EligibilityContent() {
     setError(null);
     try {
       const parsed = requiredTurnover.trim() === "" ? undefined : Number(requiredTurnover);
-      setQualification(
-        await fetchQualificationScenarios({
-          cui_fiscal: cui.trim(),
-          estimated_value_ron: contractValue,
-          required_turnover_ron: Number.isFinite(parsed as number) ? (parsed as number) : undefined,
-          company_name: companyName.trim() || undefined,
-        })
-      );
+      const qual = await fetchQualificationScenarios({
+        cui_fiscal: cui.trim(),
+        estimated_value_ron: contractValue,
+        required_turnover_ron: Number.isFinite(parsed as number) ? (parsed as number) : undefined,
+        company_name: companyName.trim() || undefined,
+      });
+      setQualification(qual);
+      // This route also verifies the CUI against ANAF server-side — reuse
+      // that lookup to fill the form instead of requiring a separate
+      // Verifică click first.
+      if (qual.available && qual.company) {
+        applyRegistryFields({
+          name: qual.company.name,
+          caen: qual.company.caen_code,
+          county: qual.company.county,
+          turnover: qual.company.turnover_ron,
+          employees: qual.company.employee_count,
+          isInactive: qual.company.is_inactive_taxpayer,
+        });
+      }
     } catch (e) {
       setError(e instanceof ApiError ? e.detail : "Analiza traseelor de participare a eșuat.");
       setQualification(null);
@@ -115,22 +155,14 @@ function EligibilityContent() {
       const found = await verifyCompany(cui.trim(), companyName.trim() || undefined);
       setVerification(found);
       if (found.verified && found.company) {
-        // The register is authoritative, so it overwrites the form rather
-        // than only filling the blanks — seeing your own typed CAEN
-        // replaced by the one ANAF has on file is the point of the button.
-        if (found.company.company_name) setCompanyName(found.company.company_name);
-        if (found.company.caen_code) setCaen(found.company.caen_code);
-        if (found.company.county) setCounty(found.company.county);
-        if (found.financials?.found) {
-          if (typeof found.financials.turnover_ron === "number") setTurnover(found.financials.turnover_ron);
-          if (typeof found.financials.employee_count === "number") setEmployees(found.financials.employee_count);
-        }
-        // ANAF declaring the taxpayer inactive is itself an Art. 165
-        // exclusion ground, so it ticks the box rather than leaving the
-        // user to self-declare something the state already published.
-        if (found.company.is_inactive_taxpayer) {
-          setExclusions((prev) => ({ ...prev, has_unpaid_taxes: true }));
-        }
+        applyRegistryFields({
+          name: found.company.company_name,
+          caen: found.company.caen_code,
+          county: found.company.county,
+          turnover: found.financials?.found ? found.financials.turnover_ron : undefined,
+          employees: found.financials?.found ? found.financials.employee_count : undefined,
+          isInactive: found.company.is_inactive_taxpayer,
+        });
       }
     } catch (e) {
       setError(e instanceof ApiError ? e.detail : "Căutarea în registre nu a putut fi finalizată.");
@@ -158,17 +190,31 @@ function EligibilityContent() {
     setLoading(true);
     setError(null);
     try {
-      setResult(
-        await evaluateBusinessEligibility({
-          company_name: companyName,
-          cui_fiscal: cui,
-          caen_code: caen,
-          turnover_ron: Number(turnover),
-          employee_count: Number(employees),
-          county,
-          ...exclusions,
-        })
-      );
+      const scan = await evaluateBusinessEligibility({
+        company_name: companyName,
+        cui_fiscal: cui,
+        caen_code: caen,
+        turnover_ron: Number(turnover),
+        employee_count: Number(employees),
+        county,
+        ...exclusions,
+      });
+      setResult(scan);
+      // Scanează runs its own ANAF lookup server-side by default
+      // (verify_with_registry), so if it found the company, sync the form
+      // to what the registry actually says rather than leaving it to show
+      // whatever was typed (or left blank) before the scan.
+      const reg = scan.registry_verification;
+      if (reg?.verified && reg.company) {
+        applyRegistryFields({
+          name: reg.company.company_name,
+          caen: reg.company.caen_code,
+          county: reg.company.county,
+          turnover: reg.financials?.found ? reg.financials.turnover_ron : undefined,
+          employees: reg.financials?.found ? reg.financials.employee_count : undefined,
+          isInactive: reg.company.is_inactive_taxpayer,
+        });
+      }
     } catch (e) {
       setError(e instanceof ApiError ? e.detail : "Scanarea nu a putut fi finalizată.");
       setResult(null);
