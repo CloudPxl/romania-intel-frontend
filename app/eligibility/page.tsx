@@ -327,7 +327,7 @@ function EligibilityContent() {
             card beside it: for a contract of THIS value, can this
             company bid alone — and if not, what does the law leave open. */}
 				<Panel className="p-4 sm:p-5">
-					<Eyebrow className="mb-5 flex items-center gap-1.5 border-b border-divider pb-2">
+					<Eyebrow className="mb-5 flex h-[13px] items-center gap-1.5 border-b border-divider pb-2">
 						Participare la o procedură
 						<Explain k="qualificationRoutes" />
 					</Eyebrow>
@@ -536,7 +536,7 @@ function EligibilityContent() {
                       because "ineligible as leader" is not "ineligible". */}
 									{qualification.scenario_b_partnership && (
 										<div className="mt-5">
-											<Eyebrow className="mb-2 flex items-center gap-1.5">
+											<Eyebrow className="mb-2 flex h-[13px] items-center gap-1.5">
 												{qualification.scenario_b_partnership.label}
 												<Explain k="partnershipRoutes" />
 											</Eyebrow>
