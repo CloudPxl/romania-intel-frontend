@@ -372,89 +372,6 @@ function EligibilityContent() {
 
 			<div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
 				<section className="space-y-6">
-					{qualLoading ? (
-						<Loading label="Se verifică criteriile de participare" />
-					) : !qualification ? (
-						<div className="flex h-full min-h-[16rem] flex-col items-center justify-center neu-pressed rounded-3xl px-6 py-14 text-center">
-							<Eyebrow className="text-stock-400">Criterii de participare</Eyebrow>
-							<p className="font-display mt-3 max-w-sm text-xl font-semibold leading-snug">Completați contractul și lansați verificarea</p>
-							<p className="font-body mt-2 max-w-md text-sm leading-relaxed text-stock-600">Rezultatul include criteriile de participare disponibile (ofertant individual, asociere, subcontractare) pentru valoarea contractului introdusă.</p>
-						</div>
-					) : (
-						<Panel className="p-4 sm:p-6">
-							{!qualification.available ? (
-								<Notice tone="alert" title="Compania nu a putut fi identificată">
-									{qualification.reason}
-								</Notice>
-							) : (
-								<>
-									<SectionTitle note={qualification.company?.name}>criterii de participare</SectionTitle>
-
-									{/* Scenario A — can they lead. Status drives the tone, so
-                      "blocked" and "eligible" are never mistakable. */}
-									{qualification.scenario_a_leader && (
-										<div className={"neu-pressed rounded-2xl bg-paper p-4 border-l-[3px] " + (qualification.scenario_a_leader.status === "eligible" ? "border-positive" : qualification.scenario_a_leader.status === "blocked" ? "border-negative" : "border-warning")}>
-											<div className="flex flex-wrap items-center gap-2">
-												<Badge tone={qualification.scenario_a_leader.status === "eligible" ? "positive" : qualification.scenario_a_leader.status === "blocked" ? "negative" : "neutral"}>{qualification.scenario_a_leader.label}</Badge>
-												<span className="font-mono text-[11px] uppercase tracking-widest text-stock-500">{qualification.scenario_a_leader.status.replace(/_/g, " ")}</span>
-											</div>
-											{qualification.scenario_a_leader.blockers.map((b, i) => (
-												<p key={i} className="font-body mt-2 text-sm font-medium leading-relaxed text-negative">
-													{b}
-												</p>
-											))}
-											{qualification.scenario_a_leader.findings.map((f, i) => (
-												<p key={i} className="font-body mt-2 text-sm leading-relaxed text-stock-600">
-													{f}
-												</p>
-											))}
-											{qualification.contract?.max_lawful_turnover_requirement_ron != null && (
-												<p className="font-mono mt-3 border-t border-divider pt-2 text-[11px] leading-relaxed text-stock-500">
-													Plafon legal maxim al cerinței de cifră de afaceri: {formatRon(qualification.contract.max_lawful_turnover_requirement_ron)} — {qualification.contract.ceiling_basis}
-												</p>
-											)}
-										</div>
-									)}
-
-									{/* Scenario B — what the law leaves open. Shown always,
-                      because "ineligible as leader" is not "ineligible". */}
-									{qualification.scenario_b_partnership && (
-										<div className="mt-5">
-											<span className="flex items-center gap-1.5">
-												<Eyebrow className="mb-2">{qualification.scenario_b_partnership.label}</Eyebrow>
-												<Explain k="partnershipRoutes" className="mb-2" />
-											</span>
-											{qualification.scenario_b_partnership.findings.map((f, i) => (
-												<p key={i} className="font-body mb-2 text-sm leading-relaxed text-stock-600">
-													{f}
-												</p>
-											))}
-											<ul className="divide-y divide-divider">
-												{qualification.scenario_b_partnership.routes.map((r) => (
-													<li key={r.route} className="py-3">
-														<p className="font-body text-sm font-semibold">{r.label}</p>
-														<p className="font-body mt-1 text-sm leading-relaxed text-stock-600">{r.note}</p>
-														{r.legal_basis?.length > 0 && <p className="font-mono mt-1.5 text-[10px] text-stock-500">{r.legal_basis.map((a) => a.citation).join(" · ")}</p>}
-													</li>
-												))}
-											</ul>
-										</div>
-									)}
-
-									{qualification.recommendation && (
-										<div className="neu-pressed mt-5 rounded-r-lg border-l-2 border-editorial bg-editorial-soft px-4 py-3">
-											<Eyebrow className="text-editorial">Recomandare</Eyebrow>
-											<p className="font-body mt-1.5 text-sm leading-relaxed">{qualification.recommendation}</p>
-										</div>
-									)}
-									{qualification.method_note && <p className="font-mono mt-4 text-[10px] leading-relaxed text-stock-500">{qualification.method_note}</p>}
-								</>
-							)}
-						</Panel>
-					)}
-				</section>
-
-				<section className="space-y-6">
 					{loading ? (
 						<Loading label="Se verifică criteriile de eligibilitate" />
 					) : !result ? (
@@ -558,6 +475,89 @@ function EligibilityContent() {
 
 							<p className="font-mono text-[11px] leading-relaxed text-stock-500">Evaluare orientativă pe baza datelor introduse. Nu înlocuiește verificarea documentelor oficiale (certificat fiscal, cazier judiciar, situații financiare) cerute de autoritatea contractantă.</p>
 						</div>
+					)}
+				</section>
+
+				<section className="space-y-6">
+					{qualLoading ? (
+						<Loading label="Se verifică criteriile de participare" />
+					) : !qualification ? (
+						<div className="flex h-full min-h-[16rem] flex-col items-center justify-center neu-pressed rounded-3xl px-6 py-14 text-center">
+							<Eyebrow className="text-stock-400">Criterii de participare</Eyebrow>
+							<p className="font-display mt-3 max-w-sm text-xl font-semibold leading-snug">Completați contractul și lansați verificarea</p>
+							<p className="font-body mt-2 max-w-md text-sm leading-relaxed text-stock-600">Rezultatul include criteriile de participare disponibile (ofertant individual, asociere, subcontractare) pentru valoarea contractului introdusă.</p>
+						</div>
+					) : (
+						<Panel className="p-4 sm:p-6">
+							{!qualification.available ? (
+								<Notice tone="alert" title="Compania nu a putut fi identificată">
+									{qualification.reason}
+								</Notice>
+							) : (
+								<>
+									<SectionTitle note={qualification.company?.name}>criterii de participare</SectionTitle>
+
+									{/* Scenario A — can they lead. Status drives the tone, so
+                      "blocked" and "eligible" are never mistakable. */}
+									{qualification.scenario_a_leader && (
+										<div className={"neu-pressed rounded-2xl bg-paper p-4 border-l-[3px] " + (qualification.scenario_a_leader.status === "eligible" ? "border-positive" : qualification.scenario_a_leader.status === "blocked" ? "border-negative" : "border-warning")}>
+											<div className="flex flex-wrap items-center gap-2">
+												<Badge tone={qualification.scenario_a_leader.status === "eligible" ? "positive" : qualification.scenario_a_leader.status === "blocked" ? "negative" : "neutral"}>{qualification.scenario_a_leader.label}</Badge>
+												<span className="font-mono text-[11px] uppercase tracking-widest text-stock-500">{qualification.scenario_a_leader.status.replace(/_/g, " ")}</span>
+											</div>
+											{qualification.scenario_a_leader.blockers.map((b, i) => (
+												<p key={i} className="font-body mt-2 text-sm font-medium leading-relaxed text-negative">
+													{b}
+												</p>
+											))}
+											{qualification.scenario_a_leader.findings.map((f, i) => (
+												<p key={i} className="font-body mt-2 text-sm leading-relaxed text-stock-600">
+													{f}
+												</p>
+											))}
+											{qualification.contract?.max_lawful_turnover_requirement_ron != null && (
+												<p className="font-mono mt-3 border-t border-divider pt-2 text-[11px] leading-relaxed text-stock-500">
+													Plafon legal maxim al cerinței de cifră de afaceri: {formatRon(qualification.contract.max_lawful_turnover_requirement_ron)} — {qualification.contract.ceiling_basis}
+												</p>
+											)}
+										</div>
+									)}
+
+									{/* Scenario B — what the law leaves open. Shown always,
+                      because "ineligible as leader" is not "ineligible". */}
+									{qualification.scenario_b_partnership && (
+										<div className="mt-5">
+											<span className="flex items-center gap-1.5">
+												<Eyebrow className="mb-2">{qualification.scenario_b_partnership.label}</Eyebrow>
+												<Explain k="partnershipRoutes" className="mb-2" />
+											</span>
+											{qualification.scenario_b_partnership.findings.map((f, i) => (
+												<p key={i} className="font-body mb-2 text-sm leading-relaxed text-stock-600">
+													{f}
+												</p>
+											))}
+											<ul className="divide-y divide-divider">
+												{qualification.scenario_b_partnership.routes.map((r) => (
+													<li key={r.route} className="py-3">
+														<p className="font-body text-sm font-semibold">{r.label}</p>
+														<p className="font-body mt-1 text-sm leading-relaxed text-stock-600">{r.note}</p>
+														{r.legal_basis?.length > 0 && <p className="font-mono mt-1.5 text-[10px] text-stock-500">{r.legal_basis.map((a) => a.citation).join(" · ")}</p>}
+													</li>
+												))}
+											</ul>
+										</div>
+									)}
+
+									{qualification.recommendation && (
+										<div className="neu-pressed mt-5 rounded-r-lg border-l-2 border-editorial bg-editorial-soft px-4 py-3">
+											<Eyebrow className="text-editorial">Recomandare</Eyebrow>
+											<p className="font-body mt-1.5 text-sm leading-relaxed">{qualification.recommendation}</p>
+										</div>
+									)}
+									{qualification.method_note && <p className="font-mono mt-4 text-[10px] leading-relaxed text-stock-500">{qualification.method_note}</p>}
+								</>
+							)}
+						</Panel>
 					)}
 				</section>
 			</div>
