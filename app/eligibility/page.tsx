@@ -29,6 +29,13 @@ type ExclusionKey = (typeof EXCLUSION_GROUNDS)[number]["key"];
 // without changing that default anywhere else.
 const COMPACT_FIELD = "min-h-9 py-1.5";
 
+// Both action buttons read the same fixed color on this page regardless
+// of variant ("Evaluează profilul" is primary/bg-editorial, "Verifică
+// criteriile de participare" is outline/bg-paper by default) or theme —
+// editorial itself differs between light and dark mode, and these two
+// are meant to look identical in either.
+const ACTION_BUTTON = "bg-[#006494] text-white hover:text-white";
+
 function EligibilityContent() {
 	const { profile } = useAuth();
 	const [companyName, setCompanyName] = useState("");
@@ -45,6 +52,10 @@ function EligibilityContent() {
 	});
 	const [result, setResult] = useState<EligibilityResult | null>(null);
 	const [loading, setLoading] = useState(false);
+	// Each action button gets its own error, shown directly above itself —
+	// a shared error used to mean a failed "Verifică criteriile de
+	// participare" click rendered under "Evaluează profilul" instead,
+	// in the wrong card entirely.
 	const [error, setError] = useState<string | null>(null);
 	const [verification, setVerification] = useState<CompanyVerification | null>(null);
 	const [verifying, setVerifying] = useState(false);
@@ -52,6 +63,7 @@ function EligibilityContent() {
 	const [requiredTurnover, setRequiredTurnover] = useState("");
 	const [qualification, setQualification] = useState<QualificationScenarios | null>(null);
 	const [qualLoading, setQualLoading] = useState(false);
+	const [qualError, setQualError] = useState<string | null>(null);
 	// Guards the CUI field's onBlur auto-lookup against re-firing for a CUI
 	// it already looked up — e.g. tabbing through the field without typing,
 	// or the blur that follows a manual "Caută firma" click on the same
@@ -81,15 +93,15 @@ function EligibilityContent() {
 
 	const handleQualification = async () => {
 		if (!cui.trim()) {
-			setError("Introduceți CUI-ul — analiza pornește de la datele reale ale firmei, nu de la cele completate manual.");
+			setQualError("Introduceți CUI-ul — analiza pornește de la datele reale ale firmei, nu de la cele completate manual.");
 			return;
 		}
 		if (contractValue <= 0) {
-			setError("Introduceți valoarea estimată a contractului.");
+			setQualError("Introduceți valoarea estimată a contractului.");
 			return;
 		}
 		setQualLoading(true);
-		setError(null);
+		setQualError(null);
 		try {
 			const parsed = requiredTurnover.trim() === "" ? undefined : Number(requiredTurnover);
 			const qual = await fetchQualificationScenarios({
@@ -113,7 +125,7 @@ function EligibilityContent() {
 				});
 			}
 		} catch (e) {
-			setError(e instanceof ApiError ? e.detail : "Analiza criteriilor de participare a eșuat.");
+			setQualError(e instanceof ApiError ? e.detail : "Analiza criteriilor de participare a eșuat.");
 			setQualification(null);
 		} finally {
 			setQualLoading(false);
@@ -302,8 +314,7 @@ function EligibilityContent() {
 							<Notice tone="alert">{error}</Notice>
 						</div>
 					)}
-
-					<Button onClick={handleScan} disabled={loading} fullWidth className="mt-6">
+					<Button onClick={handleScan} disabled={loading} fullWidth className={`mt-6 ${ACTION_BUTTON}`}>
 						{loading ? "Se evaluează…" : "Evaluează profilul"}
 					</Button>
 				</Panel>
@@ -324,13 +335,18 @@ function EligibilityContent() {
 							<Input className={COMPACT_FIELD} type="number" inputMode="numeric" min={0} value={requiredTurnover} onChange={(e) => setRequiredTurnover(e.target.value)} placeholder="ex. 20000000" />
 						</Field>
 					</div>
-					<Button onClick={handleQualification} variant="outline" fullWidth disabled={qualLoading} className="mt-6">
+					{qualError && (
+						<div className="mt-5">
+							<Notice tone="alert">{qualError}</Notice>
+						</div>
+					)}
+					<Button onClick={handleQualification} fullWidth disabled={qualLoading} className={`mt-6 ${ACTION_BUTTON}`}>
 						{qualLoading ? "Se analizează…" : "Verifică criteriile de participare"}
 					</Button>
 				</Panel>
 
 				<Panel className="p-4 sm:p-5">
-					<Eyebrow className="mb-5 border-b border-divider pb-2 text-editorial">Motive de excludere · Legea 98/2016</Eyebrow>
+					<Eyebrow className="mb-5 border-b border-divider pb-2">Motive de excludere · Legea 98/2016</Eyebrow>
 					{/* Informative only, deliberately not checkboxes: niciunul dintre
               aceste patru motive nu poate fi verificat dintr-un API
               public (cazier judiciar, certificat fiscal, insolvență,
@@ -340,7 +356,8 @@ function EligibilityContent() {
               îl avem — contribuabil inactiv la ANAF — vine automat din
               verificarea CUI-ului, nu dintr-o bifă. */}
 					<p className="font-body text-xs leading-relaxed text-stock-600">
-						Niciunul dintre aceste motive nu poate fi verificat automat dintr-un registru public — sunt prezentate informativ, nu ca opțiuni de bifat. Oricare dintre ele blochează participarea la procedură, indiferent de scorul financiar, și se dovedește cu documentul oficial corespunzător înainte de atribuire.
+						Niciunul dintre aceste motive nu poate fi verificat automat dintr-un registru public — sunt prezentate informativ, nu ca opțiuni de bifat. Oricare dintre ele blochează participarea la procedură, indiferent de scorul financiar, și se dovedește cu documentul oficial
+						corespunzător înainte de atribuire.
 					</p>
 					<ul className="mt-3 divide-y divide-divider">
 						{EXCLUSION_GROUNDS.map((g) => (
@@ -349,9 +366,7 @@ function EligibilityContent() {
 							</li>
 						))}
 					</ul>
-					{exclusions.has_unpaid_taxes && (
-						<p className="font-mono mt-2 text-[11px] uppercase tracking-wider text-editorial">Semnalat automat: ANAF declară firma inactivă fiscal (Art. 165).</p>
-					)}
+					{exclusions.has_unpaid_taxes && <p className="font-mono mt-2 text-[11px] uppercase tracking-wider text-editorial">Semnalat automat: ANAF declară firma inactivă fiscal (Art. 165).</p>}
 				</Panel>
 			</div>
 
@@ -363,7 +378,7 @@ function EligibilityContent() {
 						<div className="flex h-full min-h-[16rem] flex-col items-center justify-center neu-pressed rounded-3xl px-6 py-14 text-center">
 							<Eyebrow className="text-stock-400">Criterii de participare</Eyebrow>
 							<p className="font-display mt-3 max-w-sm text-xl font-semibold leading-snug">Completați contractul și lansați verificarea</p>
-							<p className="font-body mt-2 max-w-md text-sm leading-relaxed text-stock-600">Rezultatul include traseele de participare disponibile (ofertant individual, asociere, subcontractare) pentru valoarea contractului introdusă.</p>
+							<p className="font-body mt-2 max-w-md text-sm leading-relaxed text-stock-600">Rezultatul include criteriile de participare disponibile (ofertant individual, asociere, subcontractare) pentru valoarea contractului introdusă.</p>
 						</div>
 					) : (
 						<Panel className="p-4 sm:p-6">
