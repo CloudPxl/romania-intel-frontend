@@ -247,7 +247,11 @@ function EligibilityContent() {
 
 	return (
 		<main className="mx-auto w-full max-w-screen-xl flex-1 px-4 py-6 sm:py-8">
-			<PageHeader eyebrow="Eligibilitate finanțări" title="Verificarea profilului companiei" standfirst="Evaluează profilul financiar față de liniile de finanțare active și verifică motivele de excludere obligatorii din Legea 98/2016 înainte de a angaja resurse într-o procedură." />
+			<PageHeader
+				eyebrow="Eligibilitate finanțări"
+				title="Verificarea profilului companiei"
+				standfirst="Evaluează profilul financiar față de liniile de finanțare active și verifică motivele de excludere obligatorii din Legea 98/2016 înainte de a angaja resurse într-o procedură. Verificarea se face la nivel de linie de finanțare (program), nu la nivel de apel sau proiect individual — pentru oportunități concrete, consultați Analiza de piață sau Căutarea avansată."
+			/>
 
 			{/* Three cards in one row, same convention as /analysis's filter
           cards — each a self-contained step rather than one long form,
