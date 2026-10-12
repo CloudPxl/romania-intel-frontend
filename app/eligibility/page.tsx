@@ -142,6 +142,15 @@ function EligibilityContent() {
 	 * code, county, turnover, headcount — which are exactly the four figures
 	 * the eligibility verdict is computed from, and the ones an applicant is
 	 * most likely to get wrong about themselves.
+	 *
+	 * Deliberately does NOT pass the current companyName as the declared
+	 * name to compare against the registry's answer. This only ever runs
+	 * from the CUI field's own onBlur now (the manual "Verifică" button is
+	 * gone), so companyName at call time is whatever the *previous* lookup
+	 * filled in — checking a second company after a first one leaves the
+	 * first company's name sitting in the field until this very call
+	 * overwrites it, which produced a "DAS SRL ≠ CONEST SA" mismatch
+	 * warning against a name the user never typed for this CUI at all.
 	 */
 	const handleVerify = async () => {
 		const trimmedCui = cui.trim();
@@ -153,7 +162,7 @@ function EligibilityContent() {
 		setVerifying(true);
 		setError(null);
 		try {
-			const found = await verifyCompany(trimmedCui, companyName.trim() || undefined);
+			const found = await verifyCompany(trimmedCui);
 			setVerification(found);
 			if (found.verified && found.company) {
 				applyRegistryFields({
