@@ -14,6 +14,13 @@
  * what it does NOT tell you.
  */
 export const EXPLAINERS = {
+	/* -------------------------------------------------------------- drafting */
+	legalRegime: {
+		title: "Regimul legal și termenele de contestare",
+		body:
+			"Calculat din valoarea estimată fără TVA, tipul contractului și autoritatea, pe baza textelor consolidate de pe legislatie.just.ro: legea aplicabilă (98/2016 clasic sau 99/2016 sectorial), procedura, termenul de contestare la CNSC (7 zile sub pragurile UE, 10 zile peste — art. 8 din Legea 101/2016) și cauțiunea (2% din valoarea estimată, plafonată — art. 61^1). " +
+			"Pragurile UE s-au schimbat la 1 ianuarie 2026. Confirmați întotdeauna procedura din anunțul publicat; nu este asistență juridică.",
+	},
 	/* ------------------------------------------------------ feed & scoring */
 	relevanceScore: {
 		title: "Scorul de potrivire",

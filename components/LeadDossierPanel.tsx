@@ -226,34 +226,25 @@ export default function LeadDossierPanel({ lead, onClose }: { lead: Lead; onClos
                 <Button variant="outline" onClick={handleSendEmailAlert} disabled={busyAction === "email"}>
                   {busyAction === "email" ? "Se expediază…" : "Trimite alertă email"}
                 </Button>
+                {/* /drafting fetches the full record by source_id (CPV,
+                    value, authority) and computes the legal regime itself;
+                    the other params are a fallback for a lead the
+                    database doesn't have. */}
                 <Button
                   variant="outline"
+                  className="sm:col-span-2"
                   onClick={() =>
                     openTool("/drafting", {
-                      tool: "proposal",
+                      source_id: lead.source_id || "",
                       project_title: lead.project_title || "",
                       authority_name: lead.entity_name || "",
                       county: lead.county || "",
                       category: lead.category || "",
-                      source_id: lead.source_id || "",
                       budget: String(lead.financial_value_ron || ""),
                     })
                   }
                 >
-                  Propunere tehnică
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() =>
-                    openTool("/drafting", {
-                      tool: "clarification",
-                      project_title: lead.project_title || "",
-                      authority_name: lead.entity_name || "",
-                      source_id: lead.source_id || "",
-                    })
-                  }
-                >
-                  Solicitare clarificări
+                  Redactează documente
                 </Button>
                 <Button
                   variant="outline"

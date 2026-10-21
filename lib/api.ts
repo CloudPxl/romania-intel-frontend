@@ -1146,6 +1146,105 @@ export async function evaluateBusinessEligibility(payload: EligibilityRequest): 
 
 /* ------------------------------------------------------------- drafting */
 
+/* ------------------------------------------------------------- drafting */
+
+export type ContractType = "lucrari" | "produse" | "servicii" | "servicii_sociale";
+export type LegalRegime = "L98" | "L99";
+export type AuthorityLevel = "central" | "local";
+export type DeclarationId = "env_social" | "conflict_of_interest" | "confidentiality" | "exclusion";
+export type LetterType = "clarification" | "evaluation_response" | "abnormally_low_price" | "dossier_access" | "foia";
+
+/** The "Subscrisa" block — who is bidding, as the authority must see it. */
+export interface BidderIdentity {
+  company_name?: string;
+  cui?: string;
+  trade_register_no?: string;
+  headquarters?: string;
+  legal_representative?: string;
+  representative_role?: string;
+}
+
+/**
+ * legal_kb.legal_metadata — computed server-side from the consolidated law,
+ * never client-side: thresholds change by EU regulation (last on
+ * 2026-01-01) and a second copy of the table here would drift.
+ */
+export interface LegalMetadata {
+  regime: LegalRegime;
+  regime_source: "auto" | "manual";
+  regime_reason: string;
+  regime_label: string;
+  applicable_law: string;
+  norme_metodologice: string;
+  contract_type: ContractType;
+  authority_level: AuthorityLevel;
+  authority_level_source: "auto" | "manual" | "default";
+  thresholds: {
+    direct_award_ron: number;
+    direct_award_basis: string;
+    eu_ron: number;
+    eu_basis: string;
+    effective_from: string;
+  };
+  estimated_value_ron: number | null;
+  band: "direct" | "simplified" | "eu" | null;
+  procedure_name: string | null;
+  procedure_basis: string | null;
+  above_eu_threshold: boolean | null;
+  cnsc_deadline_days: number;
+  cnsc_deadline_basis: string;
+  cnsc_deadline_note?: string;
+  cnsc_cautiune_ron: number | null;
+  cautiune: {
+    pre_submission_ron: number;
+    pre_submission_cap_ron: number;
+    post_submission_ron: number;
+    post_submission_cap_ron: number;
+    basis: string;
+    note: string;
+  } | null;
+  warnings: string[];
+}
+
+export interface LegalRegimeRequest {
+  estimated_value_ron?: number;
+  contract_type?: ContractType;
+  regime?: LegalRegime;
+  authority_name?: string;
+  authority_level?: AuthorityLevel;
+  stage?: "pre_submission" | "post_submission";
+}
+
+export async function fetchLegalRegime(payload: LegalRegimeRequest): Promise<LegalMetadata> {
+  return apiFetch("/api/v1/addons/legal-regime", { method: "POST", body: payload });
+}
+
+/** A quoted provision from the knowledge base (legal_kb.cite_with_text). */
+export interface StatutoryCitation {
+  key: string;
+  citation: string;
+  text: string;
+  source_url: string;
+}
+
+/** One block of a generated document — the shape the .docx export writes. */
+export interface DocumentSection {
+  heading?: string;
+  paragraphs: string[];
+  table?: { caption?: string; columns: string[]; rows: string[][] };
+  closing?: boolean;
+  id?: string;
+  ai_expanded?: boolean;
+}
+
+export interface ComplianceRow {
+  requirement: string;
+  response: string;
+  reference: string;
+  source?: "caiet";
+  ai_grounded?: boolean;
+}
+
 export interface TechnicalProposalRequest {
   project_title: string;
   authority_name: string;
@@ -1156,7 +1255,17 @@ export interface TechnicalProposalRequest {
   estimated_value_ron?: number;
   cpv_code?: string;
   source_id?: string;
-  /** Deepens methodology/risk sections via the LLM chain. Adds latency. */
+  contract_type?: ContractType;
+  regime?: LegalRegime;
+  authority_level?: AuthorityLevel;
+  bidder?: BidderIdentity;
+  include_declarations?: DeclarationId[];
+  decision_makers?: { name: string; role?: string }[];
+  /** Populates the conformity matrix. Empty + source_id set = the backend
+   *  uses the caiet already extracted for that notice, if any. */
+  cerinte_caiet?: string;
+  /** Deepens methodology/risk sections and drafts a "mod de îndeplinire"
+   *  per caiet requirement via the LLM chain. Adds latency. */
   use_ai_expansion?: boolean;
   caiet_text?: string;
 }
@@ -1168,9 +1277,15 @@ export interface TechnicalProposalResult {
   cui?: string;
   source_id?: string;
   dossier_text: string;
-  structured_sections?: { heading: string; paragraphs: string[] }[];
-  compliance_rows?: unknown[];
+  structured_sections?: DocumentSection[];
+  compliance_rows?: ComplianceRow[];
+  declarations?: (DocumentSection & { legal_basis?: StatutoryCitation[] })[];
+  legal_metadata?: LegalMetadata;
+  requirements_count?: number;
+  requirements_source?: string | null;
+  statutory_basis?: Record<string, StatutoryCitation[]>;
   disclaimer?: string;
+  ai_expanded?: boolean;
   [key: string]: unknown;
 }
 
@@ -1186,21 +1301,40 @@ export interface ClarificationRequest {
   cui_fiscal: string;
   clarification_points: string;
   /**
-   * "clarification" = Legea 98/2016 request inside a live procedure.
-   * "foia" = Legea 544/2001 public-information request. Different
-   * instruments, different deadlines and appeal paths — not interchangeable.
+   * One instrument per stage of a procedure — different legal bases,
+   * deadlines and consequences, not variants of one letter. See
+   * foia_generator.REQUEST_TYPES on the backend.
    */
-  request_type?: "clarification" | "foia";
+  request_type?: LetterType;
   contact_email?: string;
   procedure_deadline?: string;
+  estimated_value_ron?: number;
+  contract_type?: ContractType;
+  regime?: LegalRegime;
+  authority_level?: AuthorityLevel;
+  bidder?: BidderIdentity;
+  evaluation_request_ref?: string;
+  result_communication_date?: string;
+  offered_price_ron?: number;
+  price_breakdown?: Record<string, number>;
+  foia_presets?: string[];
   use_ai_expansion?: boolean;
   caiet_text?: string;
 }
 
 export interface ClarificationResult {
   generated_letter: string;
+  document_type?: string;
+  doc_title?: string;
   recipient?: string;
   reference_id?: string;
+  sections?: DocumentSection[];
+  legal_basis?: string[];
+  legal_basis_verified?: StatutoryCitation[];
+  /** What the bidder must know but must NOT send — e.g. that a
+   *  clarification request does not stop the challenge clock. */
+  counsel_notes?: string[];
+  legal_metadata?: LegalMetadata;
   disclaimer?: string;
   [key: string]: unknown;
 }
