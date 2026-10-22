@@ -3,6 +3,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import AuthGate from "@/components/AuthGate";
+import AiCredits from "@/components/AiCredits";
 import Explain from "@/components/Explain";
 import {
   ApiError,
@@ -55,7 +56,9 @@ type ToolId = (typeof TOOLS)[number]["id"];
 
 function CopilotTool() {
   const [report, setReport] = useState<MacroReport | null>(null);
-  const [messages, setMessages] = useState<{ sender: "user" | "ai"; text: string; degraded?: boolean }[]>([
+  const [messages, setMessages] = useState<
+    { sender: "user" | "ai"; text: string; degraded?: boolean; deep?: boolean; note?: string | null }[]
+  >([
     {
       sender: "ai",
       text: "Bună ziua. Pot analiza oportunitățile din registru, cerințele de calificare și strategia de ofertare. Cu ce începem?",
@@ -63,6 +66,10 @@ function CopilotTool() {
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  // Flagship model (gemini-4-argon) for this turn. Included in subscriptions;
+  // a free account asking for it is answered on the standard model and told so.
+  const [deep, setDeep] = useState(false);
+  const [creditsKey, setCreditsKey] = useState(0);
   const [reportError, setReportError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -96,8 +103,18 @@ function CopilotTool() {
     setMessages((prev) => [...prev, { sender: "user", text: question }]);
     setLoading(true);
     try {
-      const data = await askCopilotChat(question, history);
-      setMessages((prev) => [...prev, { sender: "ai", text: data.reply, degraded: data.degraded }]);
+      const data = await askCopilotChat(question, history, deep);
+      setMessages((prev) => [
+        ...prev,
+        {
+          sender: "ai",
+          text: data.reply,
+          degraded: data.degraded || Boolean(data.ai_quota),
+          deep: data.deep,
+          note: data.ai_quota || data.notice,
+        },
+      ]);
+      setCreditsKey((k) => k + 1);
     } catch (e) {
       setMessages((prev) => [
         ...prev,
@@ -168,10 +185,11 @@ function CopilotTool() {
                 >
                   {m.sender === "ai" && (
                     <span className="label-eyebrow mb-1 block text-stock-500">
-                      {m.degraded ? "Răspuns degradat" : "Copilot"}
+                      {m.degraded ? "Răspuns degradat" : m.deep ? "Copilot · analiză aprofundată" : "Copilot"}
                     </span>
                   )}
                   <p className="whitespace-pre-wrap">{m.text}</p>
+                  {m.note && <p className="font-body mt-2 border-t border-divider pt-2 text-xs text-warning">{m.note}</p>}
                 </div>
               </div>
             ))}
@@ -200,6 +218,15 @@ function CopilotTool() {
             <Button onClick={handleSend} disabled={loading || !input.trim()}>
               Trimite
             </Button>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-divider px-3 py-2">
+            <Checkbox
+              label="Analiză aprofundată (model flagship)"
+              checked={deep}
+              onChange={(e) => setDeep(e.target.checked)}
+              className="min-h-8 text-xs"
+            />
+            <AiCredits refreshKey={creditsKey} />
           </div>
         </Panel>
       </div>

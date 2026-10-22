@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { X } from "lucide-react";
-import type { ComplianceRow, DocumentSection, LegalMetadata, StatutoryCitation } from "@/lib/api";
+import type { ComplianceRow, DocumentSection, LegalIssue, LegalMetadata, StatutoryCitation } from "@/lib/api";
 import { Badge, Button, Eyebrow, Notice } from "@/components/newsprint";
 import { formatNumber } from "@/lib/format";
 
@@ -81,6 +81,8 @@ export default function DocumentPreviewPanel({
   legalMetadata,
   disclaimer,
   plainText,
+  aiNotice,
+  legalIssues,
   onExport,
   onClose,
 }: {
@@ -95,6 +97,10 @@ export default function DocumentPreviewPanel({
   legalMetadata?: LegalMetadata;
   disclaimer?: string;
   plainText: string;
+  /** Why an AI pass that was asked for did not happen (a credit or budget limit). */
+  aiNotice?: string | null;
+  /** Citations the post-check found missing or repealed in the AI text. */
+  legalIssues?: LegalIssue[];
   onExport: () => Promise<void>;
   onClose: () => void;
 }) {
@@ -195,6 +201,22 @@ export default function DocumentPreviewPanel({
               <span>{legalMetadata.applicable_law} · {legalMetadata.procedure_name}</span>
               <span>CNSC: {legalMetadata.cnsc_deadline_days} zile</span>
               {legalMetadata.cnsc_cautiune_ron != null && <span>Cauțiune: {formatNumber(legalMetadata.cnsc_cautiune_ron)} lei</span>}
+            </div>
+          )}
+
+          {aiNotice && (
+            <div className="mb-5">
+              <Notice tone="warning" title="Fără extindere AI">
+                {aiNotice}
+              </Notice>
+            </div>
+          )}
+          {legalIssues && legalIssues.length > 0 && (
+            <div className="mb-5">
+              <Notice tone="alert" title="Verificare automată a citărilor">
+                Textul generat cu AI trimite la: {legalIssues.map((i) => i.message).join("; ")}. Corectați înainte de
+                utilizare — restul documentului folosește doar texte legale verificate.
+              </Notice>
             </div>
           )}
 

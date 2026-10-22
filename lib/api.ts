@@ -586,14 +586,75 @@ export interface CopilotTurn {
  * were the first one and a follow-up ("și în Cluj?") had nothing to
  * resolve against. The backend caps it at 12 turns.
  */
+export interface CopilotReply {
+  reply: string;
+  degraded?: boolean;
+  /** True when the flagship model answered. */
+  deep?: boolean;
+  /** Set when "deep" was asked for on a plan that does not include it. */
+  notice?: string | null;
+  /** Set when a credit or budget limit stopped the AI call — the reply is
+   *  then the deterministic answer, and this says why. */
+  ai_quota?: string | null;
+}
+
 export async function askCopilotChat(
   query: string,
-  history: CopilotTurn[] = []
-): Promise<{ reply: string; degraded?: boolean }> {
+  history: CopilotTurn[] = [],
+  deep = false
+): Promise<CopilotReply> {
   return apiFetch("/api/v1/copilot/chat", {
     method: "POST",
-    body: { query, history: history.slice(-12) },
+    body: { query, history: history.slice(-12), deep },
   });
+}
+
+/* --------------------------------------------------------- AI credits */
+
+/** This month's AI credits (backend ai_budget.ai_status). */
+export interface AiUsage {
+  plan: string;
+  plan_label: string;
+  limits: { deliverable: number; copilot: number };
+  used: { deliverable: number; copilot: number };
+  remaining: { deliverable: number; copilot: number };
+  deep_copilot: boolean;
+  resets_at: string;
+  free_pool_exhausted: boolean;
+  platform_paused: boolean;
+}
+
+export async function fetchAiUsage(): Promise<AiUsage> {
+  return apiFetch("/api/v1/me/ai-usage");
+}
+
+/** A citation the post-check found missing or repealed in AI output. */
+export interface LegalIssue {
+  key: string;
+  citation: string;
+  problem: "missing" | "repealed";
+  message: string;
+}
+
+/** One shared AI brief per tender (backend addons/tender_briefs.py). */
+export interface TenderBrief {
+  status: "ready" | "pending" | "missing" | "unavailable";
+  brief: string | null;
+  legal_issues?: LegalIssue[];
+  /** Deterministic — computed from the law, never by the model. */
+  legal_regime: LegalMetadata;
+  /** True when another user's generation or the nightly batch paid for it. */
+  shared?: boolean;
+  model?: string;
+  ai_quota?: string | null;
+}
+
+export async function fetchTenderBrief(sourceId: string): Promise<TenderBrief> {
+  return apiFetch(`/api/v1/me/opportunities/${encodeURIComponent(sourceId)}/brief`);
+}
+
+export async function generateTenderBrief(sourceId: string): Promise<TenderBrief> {
+  return apiFetch(`/api/v1/me/opportunities/${encodeURIComponent(sourceId)}/brief`, { method: "POST" });
 }
 
 /* -------------------------------------------------------------- support */
@@ -925,6 +986,8 @@ export interface JustificationDossier {
   narrative: string | null;
   narrative_available: boolean;
   narrative_note: string | null;
+  ai_quota?: string | null;
+  legal_issues?: LegalIssue[];
 }
 
 /** The Art. 210 defence. The outline is complete on its own — `narrative`
@@ -1286,6 +1349,8 @@ export interface TechnicalProposalResult {
   statutory_basis?: Record<string, StatutoryCitation[]>;
   disclaimer?: string;
   ai_expanded?: boolean;
+  ai_quota?: string | null;
+  legal_issues?: LegalIssue[];
   [key: string]: unknown;
 }
 
@@ -1336,6 +1401,8 @@ export interface ClarificationResult {
   counsel_notes?: string[];
   legal_metadata?: LegalMetadata;
   disclaimer?: string;
+  ai_quota?: string | null;
+  legal_issues?: LegalIssue[];
   [key: string]: unknown;
 }
 

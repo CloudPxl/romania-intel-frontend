@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
@@ -7,10 +7,13 @@ import {
   ApiError,
   PROCEDURE_TYPE_LABELS,
   addLeadToPipeline,
+  fetchTenderBrief,
+  generateTenderBrief,
   triggerEmailAlert,
   type Lead,
+  type TenderBrief,
 } from "@/lib/api";
-import { formatDate, formatLeadValue } from "@/lib/format";
+import { formatDate, formatLeadValue, formatNumber } from "@/lib/format";
 import { Button, Eyebrow } from "@/components/newsprint";
 
 // Matches --duration-base in globals.css. The exit keyframes are that
@@ -27,6 +30,73 @@ const CLOSE_ANIMATION_MS = 320;
  * state, reads the user/preferences it needs from useAuth itself) so any
  * page can drop it in with just a lead and a close handler.
  */
+/**
+ * The shared AI brief for this tender. Reading one is free — it was paid for
+ * once, by the nightly batch or by whoever generated it first — so it loads
+ * on open; generating one spends one of the user's AI documents and then
+ * serves everyone after them. The legal regime beside it is computed from
+ * the law, never by the model.
+ */
+function TenderBriefSection({ sourceId }: { sourceId: string }) {
+  const [brief, setBrief] = useState<TenderBrief | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    fetchTenderBrief(sourceId)
+      .then((b) => mounted && setBrief(b))
+      .catch(() => mounted && setBrief(null));
+    return () => {
+      mounted = false;
+    };
+  }, [sourceId]);
+
+  const handleGenerate = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const b = await generateTenderBrief(sourceId);
+      setBrief(b);
+      if (b.status !== "ready") setError(b.ai_quota || "Brief-ul nu a putut fi generat acum.");
+    } catch (e) {
+      setError(e instanceof ApiError ? e.detail : "Brief-ul nu a putut fi generat acum.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!brief) return null;
+  const regime = brief.legal_regime;
+
+  return (
+    <div className="mt-5">
+      <Eyebrow className="mb-1.5">Brief AI al licitației</Eyebrow>
+      {regime?.procedure_name && (
+        <p className="font-mono mb-2 text-[11px] text-stock-500">
+          {regime.applicable_law} · {regime.procedure_name} · contestație CNSC {regime.cnsc_deadline_days} zile
+          {regime.cautiune && ` · cauțiune ${formatNumber(regime.cautiune.pre_submission_ron)} lei`}
+        </p>
+      )}
+      {brief.status === "ready" && brief.brief ? (
+        <div className="neu-pressed rounded-2xl bg-paper px-4 py-3">
+          <p className="font-body whitespace-pre-wrap text-sm leading-relaxed text-stock-600">{brief.brief}</p>
+          <p className="font-mono mt-2 text-[10px] uppercase tracking-widest text-stock-400">
+            Generat cu AI din datele publicate — verificați în documentația oficială
+          </p>
+        </div>
+      ) : brief.status === "pending" ? (
+        <p className="font-body text-sm text-stock-500">În pregătire în lotul de noapte — disponibil în câteva ore.</p>
+      ) : (
+        <Button variant="outline" onClick={handleGenerate} disabled={busy} fullWidth>
+          {busy ? "Se generează brief-ul…" : "Generează brief AI (1 credit)"}
+        </Button>
+      )}
+      {error && <p className="font-body mt-1.5 text-xs text-warning">{error}</p>}
+    </div>
+  );
+}
+
 export default function LeadDossierPanel({ lead, onClose }: { lead: Lead; onClose: () => void }) {
   const { user, preferences } = useAuth();
   const router = useRouter();
@@ -202,6 +272,8 @@ export default function LeadDossierPanel({ lead, onClose }: { lead: Lead; onClos
                   .join(", ")}
               </p>
             )}
+
+            {lead.source_id && <TenderBriefSection sourceId={lead.source_id} />}
 
             {lead.sales_pitch_angle && (
               <div className="neu-pressed mt-5 rounded-r-lg border-l-2 border-editorial bg-editorial-soft px-4 py-3">

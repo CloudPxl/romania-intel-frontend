@@ -3,6 +3,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import AuthGate from "@/components/AuthGate";
+import AiCredits from "@/components/AiCredits";
 import Explain from "@/components/Explain";
 import DocumentPreviewPanel from "@/components/DocumentPreviewPanel";
 import {
@@ -764,6 +765,12 @@ function DraftingContent() {
   const [legalMeta, setLegalMeta] = useState<LegalMetadata | null>(null);
   const [legalLoading, setLegalLoading] = useState(false);
   const [preview, setPreview] = useState<Preview | null>(null);
+  // Re-reads the credits meter after each generation, which may have spent one.
+  const [creditsKey, setCreditsKey] = useState(0);
+  const openPreview = (p: Preview) => {
+    setPreview(p);
+    setCreditsKey((k) => k + 1);
+  };
 
   // The company is entered once: localStorage first, then the profile's
   // own billing identity as a fallback for a first visit.
@@ -886,6 +893,7 @@ function DraftingContent() {
         eyebrow="Redactare documente"
         title="Documente de procedură"
         standfirst="Propuneri tehnice cu declarațiile obligatorii și adrese către autoritate pentru fiecare etapă a procedurii, cu temeiul legal citat din textele consolidate. Previzualizați, apoi exportați în .docx."
+        action={<AiCredits refreshKey={creditsKey} />}
       />
 
       <div className="space-y-5">
@@ -949,12 +957,12 @@ function DraftingContent() {
         <TabBar tabs={TOOLS} active={activeTool} onChange={setActiveTool} label="Instrument de redactare" />
 
         {activeTool === "proposal" ? (
-          <ProposalTool buildBase={buildProposalBase} onPreview={(result, payload) => setPreview({ kind: "proposal", result, payload })} />
+          <ProposalTool buildBase={buildProposalBase} onPreview={(result, payload) => openPreview({ kind: "proposal", result, payload })} />
         ) : (
           <LetterTool
             initialType="clarification"
             buildBase={buildLetterBase}
-            onPreview={(result, payload) => setPreview({ kind: "letter", result, payload })}
+            onPreview={(result, payload) => openPreview({ kind: "letter", result, payload })}
           />
         )}
       </div>
@@ -974,6 +982,8 @@ function DraftingContent() {
           legalMetadata={preview.result.legal_metadata}
           disclaimer={preview.result.disclaimer}
           plainText={preview.result.dossier_text}
+          aiNotice={preview.result.ai_quota}
+          legalIssues={preview.result.legal_issues}
           onExport={() => exportDossierDocx(preview.payload)}
           onClose={() => setPreview(null)}
         />
@@ -989,6 +999,8 @@ function DraftingContent() {
           legalMetadata={preview.result.legal_metadata}
           disclaimer={preview.result.disclaimer}
           plainText={preview.result.generated_letter}
+          aiNotice={preview.result.ai_quota}
+          legalIssues={preview.result.legal_issues}
           onExport={() => exportClarificationDocx(preview.payload)}
           onClose={() => setPreview(null)}
         />

@@ -82,11 +82,16 @@ export default function PrivacyPage() {
             <p>Nu vindem datele dvs. Le partajăm strict cu furnizorii tehnici necesari funcționării serviciului:</p>
             <ul className="mt-2 list-disc space-y-1.5 pl-5">
               <li><b>Supabase</b> (autentificare și bază de date) — găzduiește contul dvs. și datele de profil.</li>
-              <li><b>Render</b> (găzduirea aplicației backend).</li>
+              <li><b>Serverul privat (VPS)</b> pe care rulează aplicația — găzduirea backend-ului și a interfeței web.</li>
               <li>
-                <b>Furnizori de modele lingvistice</b> (Groq, Google Gemini, OpenAI sau xAI, în funcție de
-                configurația activă) — primesc doar conținutul specific al cererii dvs. către funcțiile AI
-                (întrebarea din chat sau textul documentului de extins), nu întregul dvs. profil.
+                <b>Google (Gemini API, serviciu plătit)</b> — furnizorul principal al funcțiilor AI. Primește doar
+                conținutul specific al cererii dvs. (întrebarea din chat sau textul documentului de extins), nu
+                întregul dvs. profil. Pentru serviciile plătite, Google nu folosește aceste date pentru a-și
+                îmbunătăți produsele și le prelucrează ca persoană împuternicită.
+              </li>
+              <li>
+                <b>Groq</b> — furnizor de rezervă, folosit doar pentru Copilot și asistentul de suport atunci când
+                Gemini nu răspunde; primește același conținut limitat.
               </li>
               <li><b>Telegram</b> — dacă operatorul are configurat un canal de alerte, notificările automate pot tranzita API-ul Telegram.</li>
             </ul>
