@@ -14,7 +14,9 @@ import {
   type TenderBrief,
 } from "@/lib/api";
 import { formatDate, formatLeadValue, formatNumber } from "@/lib/format";
+import { analyticsHref, draftingHref } from "@/lib/toolLinks";
 import { Button, Eyebrow } from "@/components/newsprint";
+import AuthorityProfilePanel from "@/components/AuthorityProfilePanel";
 
 // Matches --duration-base in globals.css. The exit keyframes are that
 // long; onClose (which actually unmounts this component, via the
@@ -74,7 +76,8 @@ function TenderBriefSection({ sourceId }: { sourceId: string }) {
       <Eyebrow className="mb-1.5">Brief AI al licitației</Eyebrow>
       {regime?.procedure_name && (
         <p className="font-mono mb-2 text-[11px] text-stock-500">
-          {regime.applicable_law} · {regime.procedure_name} · contestație CNSC {regime.cnsc_deadline_days} zile
+          {regime.applicable_law} · {regime.procedure_name} ·{" "}
+          {regime.cnsc_deadline_days ? `contestație CNSC ${regime.cnsc_deadline_days} zile` : "contestare în instanță (L554/2004)"}
           {regime.cautiune && ` · cauțiune ${formatNumber(regime.cautiune.pre_submission_ron)} lei`}
         </p>
       )}
@@ -106,14 +109,21 @@ export default function LeadDossierPanel({ lead, onClose }: { lead: Lead; onClos
   // previously an instant disappearance, since the caller's conditional
   // render gives the panel nothing to animate against once it's gone.
   const [closing, setClosing] = useState(false);
+  const [authorityOpen, setAuthorityOpen] = useState(false);
   const requestClose = () => {
     if (closing) return;
     setClosing(true);
     setTimeout(onClose, CLOSE_ANIMATION_MS);
   };
 
-  const openTool = (path: string, params: Record<string, string>) => {
-    router.push(`${path}?${new URLSearchParams(params).toString()}`);
+  // Every tool fetches the full record by source_id; the extra params are
+  // a fallback for a lead the database doesn't hold.
+  const fallback = {
+    project_title: lead.project_title || "",
+    authority_name: lead.entity_name || "",
+    county: lead.county || "",
+    category: lead.category || "",
+    budget: String(lead.financial_value_ron || ""),
   };
 
   const handleSaveToPipeline = async () => {
@@ -193,7 +203,16 @@ export default function LeadDossierPanel({ lead, onClose }: { lead: Lead; onClos
                 {lead.project_title}
               </h2>
               <p className="font-body mt-1 text-sm text-stock-600">
-                {lead.entity_name} · {lead.county}
+                {lead.entity_name ? (
+                  <button
+                    onClick={() => setAuthorityOpen(true)}
+                    className="underline decoration-divider underline-offset-4 transition-colors hover:text-editorial"
+                    title="Profilul autorității: atribuiri reale, concentrare, câștigători"
+                  >
+                    {lead.entity_name}
+                  </button>
+                ) : null}
+                {lead.county ? ` · ${lead.county}` : ""}
               </p>
             </div>
             <button
@@ -298,50 +317,36 @@ export default function LeadDossierPanel({ lead, onClose }: { lead: Lead; onClos
                 <Button variant="outline" onClick={handleSendEmailAlert} disabled={busyAction === "email"}>
                   {busyAction === "email" ? "Se expediază…" : "Trimite alertă email"}
                 </Button>
-                {/* /drafting fetches the full record by source_id (CPV,
-                    value, authority) and computes the legal regime itself;
-                    the other params are a fallback for a lead the
-                    database doesn't have. */}
+                <Button
+                  variant="outline"
+                  onClick={() => router.push(draftingHref(lead.source_id, "propunere", fallback))}
+                >
+                  Propunere tehnică
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => router.push(draftingHref(lead.source_id, "clarificari", fallback))}
+                >
+                  Clarificări & acces dosar
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => router.push(analyticsHref(lead.source_id, "caiet", fallback))}
+                >
+                  Scanează caietul de sarcini
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => router.push(analyticsHref(lead.source_id, "win", fallback))}
+                >
+                  Poziționare preț
+                </Button>
                 <Button
                   variant="outline"
                   className="sm:col-span-2"
-                  onClick={() =>
-                    openTool("/drafting", {
-                      source_id: lead.source_id || "",
-                      project_title: lead.project_title || "",
-                      authority_name: lead.entity_name || "",
-                      county: lead.county || "",
-                      category: lead.category || "",
-                      budget: String(lead.financial_value_ron || ""),
-                    })
-                  }
-                >
-                  Redactează documente
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() =>
-                    openTool("/analytics", {
-                      tool: "competitor",
-                      category: lead.category || "",
-                      county: lead.county || "",
-                      budget: String(lead.financial_value_ron || ""),
-                    })
-                  }
+                  onClick={() => router.push(analyticsHref(lead.source_id, "competitor", fallback))}
                 >
                   Profil de piață
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() =>
-                    openTool("/analytics", {
-                      tool: "win",
-                      budget: String(lead.financial_value_ron || ""),
-                      project_title: lead.project_title || "",
-                    })
-                  }
-                >
-                  Poziționare preț
                 </Button>
               </div>
             </div>
@@ -359,6 +364,10 @@ export default function LeadDossierPanel({ lead, onClose }: { lead: Lead; onClos
           </div>
         </div>
       </div>
+
+      {authorityOpen && (
+        <AuthorityProfilePanel cui={lead.authority_cui} name={lead.entity_name} onClose={() => setAuthorityOpen(false)} />
+      )}
 
       {toast && (
         <div

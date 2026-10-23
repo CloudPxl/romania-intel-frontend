@@ -4,6 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import AuthGate from "@/components/AuthGate";
 import Explain from "@/components/Explain";
 import GrantDetailPanel from "@/components/GrantDetailPanel";
+import { useCompanyProfile } from "@/context/CompanyProfileContext";
 import { ApiError, evaluateBusinessEligibility, fetchQualificationScenarios, verifyCompany, type CompanyVerification, type EligibilityGrant, type QualificationScenarios, type EligibilityResult } from "@/lib/api";
 import { formatNumber, formatRon } from "@/lib/format";
 import { Badge, Button, Eyebrow, Field, Input, Loading, Notice, NumberInput, PageHeader, Panel, SectionTitle } from "@/components/newsprint";
@@ -39,6 +40,7 @@ const ACTION_BUTTON = "bg-[#006494] text-white hover:text-white";
 
 function EligibilityContent() {
 	const { profile } = useAuth();
+	const company = useCompanyProfile();
 	const [companyName, setCompanyName] = useState("");
 	const [cui, setCui] = useState("");
 	const [caen, setCaen] = useState("4211");
@@ -165,6 +167,15 @@ function EligibilityContent() {
 			const found = await verifyCompany(trimmedCui);
 			setVerification(found);
 			if (found.verified && found.company) {
+				// The registry identity becomes the workspace's: Redactare
+				// fills its document headers from it without asking again.
+				company.save({
+					cui: String(found.company.cui ?? trimmedCui),
+					company_name: found.company.company_name,
+					registration_number: found.company.trade_registry_number,
+					address: found.company.address || [found.company.locality, found.company.county].filter(Boolean).join(", ") || null,
+					caen_code: found.company.caen_code,
+				});
 				applyRegistryFields({
 					name: found.company.company_name,
 					caen: found.company.caen_code,
@@ -199,9 +210,11 @@ function EligibilityContent() {
 	// editable and simply start empty when unset.
 	useEffect(() => {
 		if (!profile) return;
-		setCompanyName(profile.company_name || "");
-		setCui(profile.cui || "");
+		setCompanyName(company.profile?.company_name || profile.company_name || "");
+		setCui(company.profile?.cui || profile.cui || "");
+		if (company.profile?.caen_code) setCaen(company.profile.caen_code);
 		setCounty(profile.target_counties?.[0] || "");
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [profile]);
 
 	const handleScan = async () => {

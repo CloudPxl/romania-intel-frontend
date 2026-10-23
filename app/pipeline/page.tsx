@@ -1,17 +1,24 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import AuthGate from "@/components/AuthGate";
 import Explain from "@/components/Explain";
+import LeadDossierPanel from "@/components/LeadDossierPanel";
 import {
   ApiError,
   deletePipelineDeal,
+  fetchOpportunity,
   fetchPipelineMetrics,
   fetchMyPipeline,
   updatePipelineDeal,
+  type ArtifactSummary,
   type Deal,
+  type Lead,
   type PipelineMetrics,
+  type TenderDeadline,
 } from "@/lib/api";
+import { analyticsHref, draftingHref } from "@/lib/toolLinks";
 import { formatDate, formatLeadValue, formatNumber, formatPercent, formatRon, stageLabel } from "@/lib/format";
 import { EXPLAINERS } from "@/lib/explainers";
 import {
@@ -34,12 +41,70 @@ import {
 
 const TERMINAL = new Set(["won", "lost"]);
 
+/** The one-click tools each stage actually needs. Order is priority: the
+ *  first action of a stage is the thing to do next. */
+type StageAction = { label: string; href: (id: string | null | undefined) => string };
+const STAGE_ACTIONS: Record<string, StageAction[]> = {
+  discovery: [
+    { label: "Scanează caietul", href: (id) => analyticsHref(id, "caiet") },
+    { label: "Solicitare clarificări", href: (id) => draftingHref(id, "clarificari") },
+  ],
+  consultation_drafted: [
+    { label: "Solicitare clarificări", href: (id) => draftingHref(id, "clarificari") },
+    { label: "Scanează caietul", href: (id) => analyticsHref(id, "caiet") },
+  ],
+  consultation_submitted: [
+    { label: "Scanează caietul", href: (id) => analyticsHref(id, "caiet") },
+    { label: "Profil de piață", href: (id) => analyticsHref(id, "competitor") },
+  ],
+  caiet_sarcini_analysis: [
+    { label: "Scanează caietul", href: (id) => analyticsHref(id, "caiet") },
+    { label: "Clarificări / remediere", href: (id) => draftingHref(id, "clarificari") },
+  ],
+  offer_prepared: [
+    { label: "Propunere tehnică", href: (id) => draftingHref(id, "propunere") },
+    { label: "Poziționare preț", href: (id) => analyticsHref(id, "win") },
+  ],
+  bid_submitted: [
+    { label: "Răspuns comisie", href: (id) => draftingHref(id, "clarificari", { letter: "evaluation_response" }) },
+    { label: "Justificare preț", href: (id) => draftingHref(id, "clarificari", { letter: "abnormally_low_price" }) },
+    { label: "Acces dosar (1 zi)", href: (id) => draftingHref(id, "clarificari", { letter: "dossier_access" }) },
+  ],
+  lost: [{ label: "Acces dosar (1 zi)", href: (id) => draftingHref(id, "clarificari", { letter: "dossier_access" }) }],
+  won: [],
+};
+
+function DeadlinePill({ d }: { d: TenderDeadline }) {
+  const past = d.days_left < 0;
+  const urgent = !past && d.days_left <= 3;
+  return (
+    <span
+      title={`${d.basis}${d.note ? ` — ${d.note}` : ""}`}
+      className={
+        "neu-pressed-sm inline-flex items-center gap-1.5 rounded-full bg-paper px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider " +
+        (past ? "text-stock-400 line-through" : urgent ? "text-warning" : "text-stock-600")
+      }
+    >
+      {d.label}: {formatDate(d.date)}
+      <span className="normal-case tracking-normal">
+        {past ? "· expirat" : d.days_left === 0 ? "· azi" : `· ${d.days_left} zile`}
+      </span>
+    </span>
+  );
+}
+
+function artifactHref(a: ArtifactSummary): string {
+  if (a.kind === "caiet_scan") return analyticsHref(a.source_id, "caiet", { artifact: a.artifact_id });
+  return draftingHref(a.source_id, a.kind === "propunere_tehnica" ? "propunere" : "clarificari", { artifact: a.artifact_id });
+}
+
 function DealCard({
   deal,
   stages,
   onMove,
   onSaveDetails,
   onDelete,
+  onOpen,
   busy,
 }: {
   deal: Deal;
@@ -47,8 +112,13 @@ function DealCard({
   onMove: (dealId: string, stage: string) => void;
   onSaveDetails: (dealId: string, price: number | undefined, notes: string) => Promise<void>;
   onDelete: (dealId: string) => void;
+  onOpen: (deal: Deal) => void;
   busy: boolean;
 }) {
+  const router = useRouter();
+  const opp = deal.opportunity;
+  const actions = STAGE_ACTIONS[deal.stage] ?? [];
+  const p = deal.win_probability;
   const value = deal.proposed_price || deal.estimated_value_ron || 0;
   const history = deal.stage_history ?? [];
   // The card displayed "Preț ofertat" and the backend accepted one, but
@@ -83,15 +153,81 @@ function DealCard({
             <span className="font-mono text-[11px] text-stock-400">{deal.deal_id}</span>
           </div>
 
-          <h3 className="font-display mt-2 text-xl font-bold leading-snug tracking-tight">
-            {deal.project_title || "Dosar fără titlu"}
-          </h3>
+          {/* The whole header is the way in: the tender, in place, with
+              every tool one click away. A card that only displays its title
+              made the reader go and search the register for it. */}
+          <button
+            onClick={() => onOpen(deal)}
+            disabled={!deal.opportunity_id}
+            className="mt-2 block w-full text-left disabled:cursor-default"
+            aria-label={`Deschide dosarul ${deal.project_title}`}
+          >
+            <h3 className="font-display text-xl font-bold leading-snug tracking-tight transition-colors hover:text-editorial">
+              {deal.project_title || "Dosar fără titlu"}
+            </h3>
+            {opp?.entity_name && (
+              <p className="font-body mt-1 text-sm text-stock-600">
+                {opp.entity_name}
+                {opp.county ? ` · ${opp.county}` : ""}
+                {opp.cpv_code ? ` · CPV ${opp.cpv_code}` : ""}
+              </p>
+            )}
+          </button>
 
           <div className="font-mono mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] uppercase tracking-wider text-stock-500">
             <span>Creat: {formatDate(deal.created_at)}</span>
             {deal.updated_at && <span>Modificat: {formatDate(deal.updated_at)}</span>}
             {deal.target_margin_pct != null && <span>Marjă țintă: {deal.target_margin_pct}%</span>}
+            {opp?.source_url && (
+              <a
+                href={opp.source_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="normal-case tracking-normal text-editorial hover:brightness-110"
+              >
+                Anunțul oficial ↗
+              </a>
+            )}
           </div>
+
+          {deal.deadlines && deal.deadlines.length > 0 && !TERMINAL.has(deal.stage) && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {deal.deadlines.map((d) => (
+                <DeadlinePill key={d.key} d={d} />
+              ))}
+            </div>
+          )}
+
+          {deal.artifacts && deal.artifacts.length > 0 && (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <Eyebrow className="text-stock-500">Documente</Eyebrow>
+              {deal.artifacts.map((a) => (
+                <button
+                  key={a.artifact_id}
+                  onClick={() => router.push(artifactHref(a))}
+                  title={`${a.title} — ${formatDate(a.created_at)}. Redeschide cu aceleași date.`}
+                  className="neu-flat-sm rounded-full bg-paper px-2.5 py-1 font-sans text-[11px] font-semibold text-editorial transition-all hover:-translate-y-0.5"
+                >
+                  {a.label || a.kind} · {formatDate(a.created_at)}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {actions.length > 0 && deal.opportunity_id && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {actions.map((a, i) => (
+                <Button
+                  key={a.label}
+                  variant={i === 0 ? "primary" : "outline"}
+                  className="min-h-9 px-3 py-1 text-xs"
+                  onClick={() => router.push(a.href(deal.opportunity_id))}
+                >
+                  {a.label}
+                </Button>
+              ))}
+            </div>
+          )}
 
           {editing ? (
             <div className="neu-pressed mt-3 rounded-2xl bg-paper p-3">
@@ -163,6 +299,14 @@ function DealCard({
             >
               {formatLeadValue(value)}
             </p>
+            {p && !TERMINAL.has(deal.stage) && (
+              <p
+                className="font-mono mt-2 text-[11px] text-stock-500"
+                title={`${p.formula}\nw = ${p.stage_weight} · potrivire = ${p.fit_factor}${p.match_score != null ? ` (scor ${p.match_score}/10)` : " (fără scor)"} · φ = ${p.competition_factor} (${p.competition_basis})`}
+              >
+                P câștig estimată <span className="tabular text-ink">{(p.probability * 100).toFixed(1)}%</span>
+              </p>
+            )}
           </div>
           <label className="block">
             <Eyebrow className="mb-1 text-stock-600">Mută în etapa</Eyebrow>
@@ -205,6 +349,20 @@ function PipelineContent() {
   const [toast, setToast] = useState<string | null>(null);
   const [movingDeal, setMovingDeal] = useState<string | null>(null);
   const [stageFilter, setStageFilter] = useState("all");
+  const [openLead, setOpenLead] = useState<Lead | null>(null);
+
+  const handleOpen = async (deal: Deal) => {
+    if (!deal.opportunity_id) return;
+    try {
+      setOpenLead(await fetchOpportunity(deal.opportunity_id));
+    } catch (e) {
+      setToast(
+        e instanceof ApiError && e.status === 404
+          ? "Anunțul nu mai există în registru — dosarul rămâne în pipeline cu datele salvate."
+          : "Dosarul nu a putut fi deschis."
+      );
+    }
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -365,7 +523,11 @@ function PipelineContent() {
                 <StatCell
                   label="Valoare ponderată"
                   value={formatRon(metrics.weighted_pipeline_value_ron)}
-                  hint="Ponderată cu probabilitatea pe etapă"
+                  hint={
+                    metrics.stage_weighted_value_ron != null
+                      ? `etapă × potrivire × concurență · doar pe etapă: ${formatRon(metrics.stage_weighted_value_ron)}`
+                      : "Ponderată cu probabilitatea pe etapă"
+                  }
                   tooltip={EXPLAINERS.weightedPipeline.body}
                 />
                 <StatCell
@@ -475,6 +637,7 @@ function PipelineContent() {
                     onMove={handleMove}
                     onSaveDetails={handleSaveDetails}
                     onDelete={handleDelete}
+                    onOpen={handleOpen}
                     busy={movingDeal === deal.deal_id}
                   />
                 ))}
@@ -483,6 +646,8 @@ function PipelineContent() {
           </div>
         </>
       )}
+
+      {openLead && <LeadDossierPanel lead={openLead} onClose={() => setOpenLead(null)} />}
 
       {toast && (
         <div

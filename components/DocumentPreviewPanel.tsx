@@ -199,7 +199,7 @@ export default function DocumentPreviewPanel({
           {legalMetadata?.procedure_name && (
             <div className="neu-pressed mb-5 flex flex-wrap gap-x-5 gap-y-1 rounded-2xl bg-paper px-4 py-3 font-mono text-[11px] text-stock-600">
               <span>{legalMetadata.applicable_law} · {legalMetadata.procedure_name}</span>
-              <span>CNSC: {legalMetadata.cnsc_deadline_days} zile</span>
+              <span>{legalMetadata.cnsc_deadline_days ? `CNSC: ${legalMetadata.cnsc_deadline_days} zile` : "Contestare: instanța (L554/2004)"}</span>
               {legalMetadata.cnsc_cautiune_ron != null && <span>Cauțiune: {formatNumber(legalMetadata.cnsc_cautiune_ron)} lei</span>}
             </div>
           )}

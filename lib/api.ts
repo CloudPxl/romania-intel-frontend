@@ -280,6 +280,154 @@ export interface Deal {
   created_at?: string;
   updated_at?: string | null;
   stage_history?: { from: string | null; to: string; at: string }[];
+  /** The tender's own facts, joined from the register (null when the deal
+   *  was saved from a source the database no longer holds). */
+  opportunity?: {
+    source_url?: string | null;
+    action_deadline?: string | null;
+    published_date?: string | null;
+    opportunity_score?: number | null;
+    authority_cui?: string | null;
+    entity_name?: string | null;
+    county?: string | null;
+    cpv_code?: string | null;
+    category?: string | null;
+    procedure_type?: string | null;
+    award_criterion?: string | null;
+  } | null;
+  /** Statutory countdowns computed from the facts above — see
+   *  legal_kb.tender_deadlines. Never a guess at a date only the authority
+   *  knows. */
+  deadlines?: TenderDeadline[];
+  /** Documents generated for this tender (exports, caiet scans). */
+  artifacts?: ArtifactSummary[];
+  win_probability?: {
+    probability: number;
+    stage_weight: number;
+    fit_factor: number;
+    match_score: number | null;
+    competition_factor: number;
+    competition_basis: string;
+    formula: string;
+  };
+}
+
+export interface TenderDeadline {
+  key: "submission" | "clarification_answers" | "documentation_challenge";
+  label: string;
+  date: string;
+  days_left: number;
+  basis: string;
+  note?: string | null;
+}
+
+export type ArtifactKind =
+  | "propunere_tehnica" | "clarification" | "evaluation_response" | "abnormally_low_price"
+  | "dossier_access" | "foia" | "caiet_scan" | "price_justification";
+
+export interface ArtifactSummary {
+  artifact_id: string;
+  source_id: string | null;
+  kind: ArtifactKind;
+  title: string;
+  created_at: string;
+  label?: string;
+}
+
+export interface Artifact extends ArtifactSummary {
+  payload: Record<string, unknown>;
+}
+
+export async function fetchArtifacts(sourceId?: string): Promise<{ available: boolean; artifacts: ArtifactSummary[] }> {
+  const q = sourceId ? `?source_id=${encodeURIComponent(sourceId)}` : "";
+  return apiFetch(`/api/v1/me/artifacts${q}`);
+}
+
+export async function fetchArtifact(artifactId: string): Promise<Artifact> {
+  return apiFetch(`/api/v1/me/artifacts/${encodeURIComponent(artifactId)}`);
+}
+
+export async function deleteArtifact(artifactId: string): Promise<{ status: string }> {
+  return apiFetch(`/api/v1/me/artifacts/${encodeURIComponent(artifactId)}`, { method: "DELETE" });
+}
+
+/** The bidder's own identity, looked up once and reused in every header. */
+export interface CompanyProfile {
+  cui?: string | null;
+  company_name?: string | null;
+  registration_number?: string | null;
+  address?: string | null;
+  legal_representative?: string | null;
+  representative_role?: string | null;
+  caen_code?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  updated_at?: string | null;
+}
+
+export async function fetchCompanyProfile(): Promise<{ available: boolean; profile: CompanyProfile | null }> {
+  return apiFetch("/api/v1/me/company-profile");
+}
+
+export async function saveCompanyProfile(profile: CompanyProfile): Promise<{ status: string; persisted: boolean }> {
+  return apiFetch("/api/v1/me/company-profile", { method: "PUT", body: profile });
+}
+
+/** Price percentiles of awarded / estimated value over comparable real
+ *  awards (SEAP award notices), at the most specific CPV level and
+ *  geography with a usable sample. */
+export interface AwardBenchmark {
+  available: boolean;
+  sample_size: number;
+  reason?: string;
+  scope_label?: string;
+  geography?: "county" | "national";
+  cpv_prefix?: string | null;
+  ratio_pct?: { p5: number; p25: number; p50: number; p75: number; p95: number; iqr: number; mean: number };
+  discount_pct?: { p5: number; p25: number; p50: number; p75: number; p95: number };
+  below_80pct_share?: number;
+  excluded_outliers?: number;
+  single_offer?: { rate_pct: number | null; sample_size: number; note: string };
+}
+
+export interface AuthorityProfile {
+  available?: boolean;
+  reason?: string;
+  authority_cui: string | null;
+  authority_name: string | null;
+  window_months: number;
+  concentration: {
+    available: boolean;
+    awards: number;
+    distinct_winners: number;
+    total_awarded_ron?: number;
+    hhi?: number;
+    hhi_label?: string;
+    hhi_note?: string;
+    top_winner_share_pct?: number;
+    top_winners?: { name: string; cui: string | null; awards: number; value_ron: number; share_pct: number }[];
+  };
+  single_offer: { rate_pct: number | null; sample_size: number; note: string };
+  discount: AwardBenchmark;
+  recent_awards: {
+    published_at: string | null;
+    title: string | null;
+    winner_name: string | null;
+    winner_cui: string | null;
+    awarded_value_ron: number | null;
+    estimated_value_ron: number | null;
+    procedure_type: string | null;
+    source_url: string | null;
+  }[];
+  by_contract_type: Record<string, number>;
+  competition_factor?: { phi: number; basis: string };
+}
+
+export async function fetchAuthorityProfile(query: { cui?: string | null; name?: string | null }): Promise<AuthorityProfile> {
+  const params = new URLSearchParams();
+  if (query.cui) params.set("cui", query.cui);
+  else if (query.name) params.set("name", query.name);
+  return apiFetch(`/api/v1/market/authority-profile?${params.toString()}`);
 }
 
 export interface PipelineResponse {
@@ -294,6 +442,8 @@ export interface PipelineMetrics {
   lost_deals: number;
   active_pipeline_value_ron: number;
   weighted_pipeline_value_ron: number;
+  /** The same total weighted by stage alone, for comparison. */
+  stage_weighted_value_ron?: number;
   won_value_ron: number;
   stage_breakdown: Record<string, { count: number; value_ron: number }>;
   average_days_in_stage: Record<string, number>;
@@ -745,6 +895,7 @@ export interface ObservedProcedure {
   county?: string | null;
   financial_value_ron?: number | null;
   published_date?: string | null;
+  authority_cui?: string | null;
 }
 
 /** Real outcomes, from ingested SEAP award notices (CAN). `available` is
@@ -793,14 +944,31 @@ export interface CompetitorAnalysis {
     scope?: "county" | "national";
     scope_note?: string;
     contracting_authorities_observed: string[];
+    /** The same authorities with CUI and procedure count, to open their
+     *  award profile in place. */
+    authorities?: { name: string; cui: string | null; procedures: number }[];
     procedures?: ObservedProcedure[];
     value_distribution_ron: { min: number; median: number; max: number; count: number };
   };
   pricing: {
     guidance: string;
     sector_technical_note?: string;
-    reference_points_ron: Record<string, number>;
+    /** Percentiles of what winners bid, applied to the user's value. Null
+     *  until enough comparable awards are ingested — there is no fallback
+     *  ladder, by design. */
+    reference_points_ron: Record<string, number> | null;
     reference_points_note: string;
+    /** Art. 136 alin. (4) HG 395/2016: always shown, it is law, not data. */
+    statutory_threshold?: { ratio_pct: number; price_ron: number; basis: string; note: string } | null;
+    percentiles?: {
+      ratio_pct: NonNullable<AwardBenchmark["ratio_pct"]>;
+      discount_pct: NonNullable<AwardBenchmark["discount_pct"]>;
+      prices_ron: Record<string, number>;
+      sample_size: number;
+      scope_label: string;
+      below_80pct_share?: number;
+      single_offer?: AwardBenchmark["single_offer"];
+    } | null;
     observed_winning_price_ron?: {
       at_median_observed_discount: number;
       median_discount_pct: number;
@@ -809,13 +977,23 @@ export interface CompetitorAnalysis {
     observed_winning_price_note?: string;
   };
   award_intelligence?: AwardIntelligence;
+  award_benchmark?: AwardBenchmark;
   data_limitations: string;
 }
 
-export async function fetchCompetitorAnalysis(category: string, county: string, budgetRon: number): Promise<CompetitorAnalysis> {
+export async function fetchCompetitorAnalysis(
+  category: string,
+  county: string,
+  budgetRon: number,
+  opts: { cpvCode?: string | null; contractType?: "lucrari" | "produse" | "servicii" | null } = {}
+): Promise<CompetitorAnalysis> {
   return apiFetch("/api/v1/addons/competitor-analysis", {
     method: "POST",
-    body: { category, county, budget_ron: budgetRon },
+    body: {
+      category, county, budget_ron: budgetRon,
+      cpv_code: opts.cpvCode || undefined,
+      contract_type: opts.contractType || undefined,
+    },
   });
 }
 
@@ -830,7 +1008,7 @@ export interface CaietAnalysis {
    * severity "OK" rather than an empty list — rendering that as a finding
    * would report a clean document as a restrictive one.
    */
-  detected_red_flags?: { pattern: string; severity: string; tactical_advisory: string; matched_terms?: string[] }[];
+  detected_red_flags?: CaietFlag[];
   qualification_criteria?: {
     turnover_requirements?: string[];
     required_certifications?: string[];
@@ -841,21 +1019,52 @@ export interface CaietAnalysis {
   coverage_note?: string;
 }
 
+/** One flagged clause. `clarification_paragraph` is ready to paste into
+ *  an Art. 160 request — the clause, the objection, the provision. */
+export interface CaietFlag {
+  flag_id?: string;
+  pattern: string;
+  severity: string;
+  tactical_advisory: string;
+  matched_terms?: string[];
+  excerpt?: string | null;
+  legal_citations?: string[];
+  clarification_paragraph?: string;
+  legal_basis?: { citation: string; text: string; source_url: string }[];
+}
+
+export interface CaietContext {
+  sourceId?: string | null;
+  estimatedValueRon?: number | null;
+  contractType?: ContractType | null;
+  authorityName?: string | null;
+}
+
 export async function analyzeCaietSarcini(
   projectTitle: string,
   specificationText?: string,
-  docId?: string
+  docId?: string,
+  context: CaietContext = {}
 ): Promise<CaietAnalysis> {
   return apiFetch("/api/v1/addons/analyze-caiet", {
     method: "POST",
-    body: { project_title: projectTitle, specification_text: specificationText, doc_id: docId },
+    body: {
+      project_title: projectTitle,
+      specification_text: specificationText,
+      doc_id: docId,
+      source_id: context.sourceId || undefined,
+      estimated_value_ron: context.estimatedValueRon || undefined,
+      contract_type: context.contractType || undefined,
+      authority_name: context.authorityName || undefined,
+    },
   });
 }
 
-export async function uploadCaietFile(file: File, projectTitle: string): Promise<CaietAnalysis> {
+export async function uploadCaietFile(file: File, projectTitle: string, sourceId?: string | null): Promise<CaietAnalysis> {
   const formData = new FormData();
   formData.append("file", file);
   formData.append("project_title", projectTitle);
+  if (sourceId) formData.append("source_id", sourceId);
   return apiFetch("/api/v1/addons/upload-caiet", { method: "POST", body: formData });
 }
 
@@ -883,47 +1092,86 @@ export async function fetchDocumentExtraction(docId: string): Promise<DocumentEx
 }
 
 /**
- * Deliberately not a probability. The engine states plainly that it holds
- * no award results and therefore cannot produce one; it returns a
- * qualitative band plus the reasoning behind it. The old UI printed
- * `win_probability_score` in 6xl type — a field this endpoint does not
- * return, so the headline number was permanently "undefined".
+ * Deliberately not a probability: an assessment built from the law (the
+ * 80% presumption, the criterion's legality) and, where enough awards are
+ * ingested, from where the price sits among real winning bids.
  */
-export type AwardCriterion = "lowest_price" | "best_value";
+export type AwardCriterion = "lowest_price" | "best_value" | "best_cost" | "lowest_cost";
 
-/** How the bid scores under the procedure's own award criterion. Under
- *  lowest price a technical advantage buys nothing, so `undercut_scenarios`
- *  is absent — the shape differs deliberately rather than sending zeros. */
+/** A rival bid at a fixed share of the estimate (85%, 80.01%, 75%). Under
+ *  quality-based criteria `technical_gap_pts` > 0 is the technical lead
+ *  you need over that rival; < 0 is the lead the rival needs over you. */
+export interface RivalScenario {
+  rival_ratio_pct: number;
+  rival_price_ron: number;
+  rival_presumed_low: boolean;
+  outcome: string;
+  your_price_points?: number;
+  rival_price_points?: number;
+  technical_gap_pts?: number;
+  technical_gap_pct_of_technical_weight?: number | null;
+  note?: string;
+}
+
+export interface ElementAuditItem {
+  key: string;
+  label: string;
+  check: string;
+  evidence: string;
+  basis: string;
+}
+
 export interface PriceStrategy {
   status: "success" | "error";
   message?: string;
+  regime?: LegalRegime;
   award_criterion?: AwardCriterion;
   award_criterion_label?: string;
   discount_pct?: number;
+  ratio_pct?: number;
   price_weight_pct?: number;
   technical_weight_pct?: number;
-  scoring_model?: {
-    formula: string;
-    note: string;
-    undercut_scenarios?: {
-      competitor_undercuts_you_by_pct: number;
-      competitor_price_ron: number;
-      your_price_points: number;
-      price_points_lost: number;
-      technical_advantage_needed_pts: number;
-      technical_advantage_needed_pct_of_technical_weight: number | null;
-    }[];
+  criterion_check?: { criterion: string | null; allowed: boolean; issues: string[]; basis: string; eu_threshold_ron?: number };
+  guarantees?: LegalMetadata["guarantees"];
+  scoring_model?: { formula: string; note: string; your_total_if_lowest?: number };
+  scenarios?: RivalScenario[];
+  lifecycle?: {
+    discount_rate?: LegalMetadata["discount_rate"] | null;
+    state_budget_funded: boolean;
+    note?: string;
+    rate_pct?: number;
+    years?: number;
+    annual_cost_ron?: number;
+    present_value_operating_ron?: number;
+    lifecycle_cost_ron?: number;
+    formula?: string;
   };
+  market_position?: {
+    your_ratio_pct: number;
+    band: "below_p5" | "p5_p25" | "p25_p75" | "above_p75";
+    label: string;
+    reference_prices_ron: Record<string, number>;
+    scope_label?: string;
+    sample_size?: number;
+  } | null;
+  /** Both statutory routes to a price clarification request: the 80%
+   *  presumption (art. 136 alin. (4) HG 395/2016) and the element-level
+   *  audit at any discount (alin. (1)). */
   abnormally_low_risk?: {
     level: string;
-    code: string;
+    code: "over_budget" | "presumption" | "near_threshold" | "no_presumption";
     detail: string;
-    trigger_used: string;
-    observed_median_discount_pct: number | null;
-    /** States that no percentage threshold exists in force. Rendered
-     *  verbatim: the 80% rule is from the repealed OUG 34/2006 and is the
-     *  single most repeated piece of wrong pricing advice in the field. */
+    presumption_pct: number;
+    threshold_ron: number | null;
+    presumption_basis: string;
+    element_audit_basis: string;
+    track1: string;
+    track2: string;
+    ratio_pct?: number;
+    presumption_triggered?: boolean;
+    margin_to_threshold_ron?: number;
     legal_position: string;
+    element_audit: ElementAuditItem[];
     requires_justification_dossier: boolean;
     legal_basis: { citation: string; text: string; source_url: string }[];
   };
@@ -938,7 +1186,24 @@ export interface WinOdds {
   factors: string[];
   methodology_note: string;
   strategy?: PriceStrategy;
+  legal_regime?: LegalMetadata;
   award_intelligence?: AwardIntelligence;
+  award_benchmark?: AwardBenchmark;
+}
+
+export interface WinRateOptions {
+  awardCriterion?: AwardCriterion;
+  priceWeightPct?: number;
+  county?: string;
+  cpvCode?: string | null;
+  regime?: LegalRegime | null;
+  contractType?: ContractType | null;
+  authorityLevel?: AuthorityLevel | null;
+  authorityName?: string | null;
+  intellectualServices?: boolean;
+  annualOperatingCostRon?: number | null;
+  lifecycleYears?: number | null;
+  stateBudgetFunded?: boolean;
 }
 
 export async function predictWinRate(
@@ -946,11 +1211,7 @@ export async function predictWinRate(
   proposedPrice: number,
   hasLocalPartner = false,
   leadTimeDays = 30,
-  opts: {
-    awardCriterion?: AwardCriterion;
-    priceWeightPct?: number;
-    county?: string;
-  } = {}
+  opts: WinRateOptions = {}
 ): Promise<WinOdds> {
   return apiFetch("/api/v1/addons/predict-win-rate", {
     method: "POST",
@@ -962,6 +1223,15 @@ export async function predictWinRate(
       award_criterion: opts.awardCriterion ?? "lowest_price",
       price_weight_pct: opts.priceWeightPct ?? 100,
       county: opts.county || undefined,
+      cpv_code: opts.cpvCode || undefined,
+      regime: opts.regime || undefined,
+      contract_type: opts.contractType || undefined,
+      authority_level: opts.authorityLevel || undefined,
+      authority_name: opts.authorityName || undefined,
+      intellectual_services: Boolean(opts.intellectualServices),
+      annual_operating_cost_ron: opts.annualOperatingCostRon || undefined,
+      lifecycle_years: opts.lifecycleYears || undefined,
+      state_budget_funded: opts.stateBudgetFunded ?? true,
     },
   });
 }
@@ -1212,6 +1482,17 @@ export async function evaluateBusinessEligibility(payload: EligibilityRequest): 
 /* ------------------------------------------------------------- drafting */
 
 export type ContractType = "lucrari" | "produse" | "servicii" | "servicii_sociale";
+
+/** CPV division 45 is works; 03-44 and 48 supplies; the rest services —
+ *  the CPV regulation's own split, mirrored from legal_kb.contract_type_from_cpv. */
+export function contractTypeFromCpv(cpv: string | null | undefined): ContractType | null {
+  const digits = (cpv || "").replace(/\D/g, "").slice(0, 2);
+  if (digits.length < 2) return null;
+  const division = Number(digits);
+  if (division === 45) return "lucrari";
+  if (division <= 44 || division === 48) return "produse";
+  return "servicii";
+}
 export type LegalRegime = "L98" | "L99";
 export type AuthorityLevel = "central" | "local";
 export type DeclarationId = "env_social" | "conflict_of_interest" | "confidentiality" | "exclusion";
@@ -1254,9 +1535,11 @@ export interface LegalMetadata {
   procedure_name: string | null;
   procedure_basis: string | null;
   above_eu_threshold: boolean | null;
-  cnsc_deadline_days: number;
-  cnsc_deadline_basis: string;
-  cnsc_deadline_note?: string;
+  /** Null for a direct award: its acts go to the administrative court
+   *  (Legea 554/2004), not to the CNSC — see `direct_award`. */
+  cnsc_deadline_days: number | null;
+  cnsc_deadline_basis: string | null;
+  cnsc_deadline_note?: string | null;
   cnsc_cautiune_ron: number | null;
   cautiune: {
     pre_submission_ron: number;
@@ -1267,6 +1550,44 @@ export interface LegalMetadata {
     note: string;
   } | null;
   warnings: string[];
+  direct_award?: {
+    tier: string;
+    tiers: { direct_payment_below_ron: number; single_offer_max_ron: number; catalog_or_notice_above_ron: number };
+    basis: string;
+    challenge_forum: string;
+    challenge_basis: string;
+  };
+  transitional_note?: string;
+  guarantees?: {
+    participation_max_pct: number;
+    participation_max_ron: number | null;
+    performance_max_pct: number;
+    performance_max_ron: number | null;
+    basis: string;
+    note: string;
+  };
+  /** Art. 136 alin. (4) HG 395/2016 / art. 142 alin. (4) HG 394/2016. */
+  abnormally_low?: {
+    presumption_pct: number;
+    threshold_ron: number | null;
+    presumption_basis: string;
+    element_audit_basis: string;
+    track1: string;
+    track2: string;
+  };
+  lowest_price_allowed?: boolean;
+  lowest_price_basis?: string;
+  /** Rata de actualizare (Ord. ANAP 12/2026) — life-cycle cost only. */
+  discount_rate?: { year: number; rate_pct: number; basis: string; scope: string };
+  /** When the legal data behind this strip was last verified against the
+   *  portal, and whether the thresholds still match the law's text. */
+  verification?: {
+    checked_at: string | null;
+    source: string;
+    status: "ok" | "mismatch" | "partial";
+    thresholds_match: boolean | null;
+    issues: string[];
+  };
 }
 
 export interface LegalRegimeRequest {

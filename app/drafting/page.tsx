@@ -2,6 +2,7 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import { useCompanyProfile } from "@/context/CompanyProfileContext";
 import AuthGate from "@/components/AuthGate";
 import AiCredits from "@/components/AiCredits";
 import Explain from "@/components/Explain";
@@ -10,6 +11,7 @@ import {
   ApiError,
   exportClarificationDocx,
   exportDossierDocx,
+  fetchArtifact,
   fetchLegalRegime,
   fetchOpportunitiesPage,
   fetchOpportunity,
@@ -28,7 +30,8 @@ import {
   type TechnicalProposalRequest,
   type TechnicalProposalResult,
 } from "@/lib/api";
-import { CATEGORIES, formatNumber, formatRon } from "@/lib/format";
+import { CATEGORIES, formatDate, formatNumber, formatRon } from "@/lib/format";
+import { takeClauses } from "@/lib/toolLinks";
 import {
   Badge,
   Button,
@@ -161,15 +164,6 @@ function readStoredBidder(): BidderIdentity | null {
   }
 }
 
-function storeBidder(bidder: BidderIdentity) {
-  try {
-    window.localStorage.setItem(BIDDER_STORAGE_KEY, JSON.stringify(bidder));
-  } catch {
-    // Private mode / blocked storage: the form still works, it just won't
-    // remember the company next time.
-  }
-}
-
 /* ------------------------------------------------------------ tender pick */
 
 type PickResult = { source_id?: string; project_title: string; entity_name: string; county: string; financial_value_ron: number };
@@ -283,9 +277,18 @@ function LegalRegimeStrip({
               <dd className="font-mono text-[10px] text-stock-500">{meta.procedure_basis}</dd>
             </div>
             <div>
-              <dt className="font-sans text-[10px] font-semibold uppercase tracking-widest text-stock-500">Termen contestație CNSC</dt>
-              <dd className="font-display text-sm font-semibold">{meta.cnsc_deadline_days} zile</dd>
-              <dd className="font-mono text-[10px] text-stock-500">{meta.cnsc_deadline_basis.replace("din Legea nr. 101/2016", "L101/2016")}</dd>
+              <dt className="font-sans text-[10px] font-semibold uppercase tracking-widest text-stock-500">Termen contestație</dt>
+              {meta.cnsc_deadline_days ? (
+                <>
+                  <dd className="font-display text-sm font-semibold">CNSC · {meta.cnsc_deadline_days} zile</dd>
+                  <dd className="font-mono text-[10px] text-stock-500">{(meta.cnsc_deadline_basis || "").replace("din Legea nr. 101/2016", "L101/2016")}</dd>
+                </>
+              ) : (
+                <>
+                  <dd className="font-display text-sm font-semibold">Instanța de contencios</dd>
+                  <dd className="font-mono text-[10px] text-stock-500">{meta.direct_award?.challenge_basis || "Legea nr. 554/2004"}</dd>
+                </>
+              )}
             </div>
             <div>
               <dt className="font-sans text-[10px] font-semibold uppercase tracking-widest text-stock-500">Cauțiune CNSC (art. 61¹)</dt>
@@ -301,6 +304,44 @@ function LegalRegimeStrip({
               )}
             </div>
           </dl>
+          {/* The money side of the bid, from the same statute: what the
+              guarantees can cost, where the 80% presumption starts, and the
+              rate a life-cycle cost is discounted at. */}
+          <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2 border-t border-divider pt-2.5 sm:grid-cols-4">
+            {meta.guarantees && (
+              <>
+                <div>
+                  <dt className="font-sans text-[10px] font-semibold uppercase tracking-widest text-stock-500">Garanție participare</dt>
+                  <dd className="font-display text-sm font-semibold tabular">max {formatNumber(meta.guarantees.participation_max_ron)} lei</dd>
+                  <dd className="font-mono text-[10px] text-stock-500">≤ 1% · dacă e cerută</dd>
+                </div>
+                <div>
+                  <dt className="font-sans text-[10px] font-semibold uppercase tracking-widest text-stock-500">Garanție bună execuție</dt>
+                  <dd className="font-display text-sm font-semibold tabular">max {formatNumber(meta.guarantees.performance_max_ron)} lei</dd>
+                  <dd className="font-mono text-[10px] text-stock-500">≤ 10% din preț</dd>
+                </div>
+              </>
+            )}
+            {meta.abnormally_low?.threshold_ron != null && (
+              <div>
+                <dt className="font-sans text-[10px] font-semibold uppercase tracking-widest text-stock-500">Prag preț 80%</dt>
+                <dd className="font-display text-sm font-semibold tabular">{formatNumber(meta.abnormally_low.threshold_ron)} lei</dd>
+                <dd className="font-mono text-[10px] text-stock-500" title={meta.abnormally_low.presumption_basis}>sub el: prezumție art. 210</dd>
+              </div>
+            )}
+            {meta.discount_rate && (
+              <div>
+                <dt className="font-sans text-[10px] font-semibold uppercase tracking-widest text-stock-500">Rată de actualizare {meta.discount_rate.year}</dt>
+                <dd className="font-display text-sm font-semibold tabular">{String(meta.discount_rate.rate_pct).replace(".", ",")}%</dd>
+                <dd className="font-mono text-[10px] text-stock-500" title={meta.discount_rate.scope}>Ord. ANAP 12/2026 · cost ciclu de viață</dd>
+              </div>
+            )}
+          </dl>
+          {meta.direct_award && (
+            <p className="font-body mt-2 text-xs leading-relaxed text-stock-600">
+              Achiziție directă: <span className="font-semibold">{meta.direct_award.tier}</span> ({meta.direct_award.basis}).
+            </p>
+          )}
           <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-divider pt-2.5">
             <Select
               className="min-h-8 w-auto py-1 text-xs"
@@ -334,6 +375,19 @@ function LegalRegimeStrip({
               {w}
             </p>
           ))}
+          {meta.verification && (
+            <p
+              className={
+                "font-mono mt-2 text-[10px] leading-relaxed " +
+                (meta.verification.status === "mismatch" ? "text-negative" : "text-stock-500")
+              }
+              title={meta.verification.issues.join("\n") || meta.transitional_note}
+            >
+              {meta.verification.status === "mismatch"
+                ? `Atenție: verificarea automată a găsit diferențe față de textul legii — ${meta.verification.issues[0]}`
+                : `✓ Praguri și texte verificate pe legislatie.just.ro · ${meta.verification.checked_at ? formatDate(meta.verification.checked_at) : "—"}`}
+            </p>
+          )}
         </>
       )}
     </div>
@@ -442,19 +496,42 @@ function parseDecisionMakers(text: string) {
     });
 }
 
+interface ProposalState {
+  declarations: DeclarationId[];
+  decisionMakers: string;
+  requirements: string;
+  aiMode: boolean;
+}
+
+const EMPTY_PROPOSAL: ProposalState = {
+  declarations: DECLARATIONS.map((d) => d.id),
+  decisionMakers: "",
+  requirements: "",
+  aiMode: false,
+};
+
 function ProposalTool({
+  initial,
+  onChange,
   buildBase,
   onPreview,
 }: {
+  initial: ProposalState;
+  onChange: (state: ProposalState) => void;
   buildBase: () => Omit<TechnicalProposalRequest, "include_declarations">;
   onPreview: (result: TechnicalProposalResult, payload: TechnicalProposalRequest) => void;
 }) {
-  const [declarations, setDeclarations] = useState<DeclarationId[]>(DECLARATIONS.map((d) => d.id));
-  const [decisionMakers, setDecisionMakers] = useState("");
-  const [requirements, setRequirements] = useState("");
-  const [aiMode, setAiMode] = useState(false);
+  const [declarations, setDeclarations] = useState<DeclarationId[]>(initial.declarations);
+  const [decisionMakers, setDecisionMakers] = useState(initial.decisionMakers);
+  const [requirements, setRequirements] = useState(initial.requirements);
+  const [aiMode, setAiMode] = useState(initial.aiMode);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    onChange({ declarations, decisionMakers, requirements, aiMode });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [declarations, decisionMakers, requirements, aiMode]);
 
   const toggle = (id: DeclarationId) =>
     setDeclarations((prev) => (prev.includes(id) ? prev.filter((d) => d !== id) : [...prev, id]));
@@ -558,26 +635,61 @@ function ProposalTool({
 
 /* ------------------------------------------------------------- letters */
 
+interface LetterState {
+  type: LetterType;
+  points: string;
+  deadline: string;
+  evalRef: string;
+  resultDate: string;
+  offeredPrice: number;
+  breakdown: Record<string, number>;
+  presets: string[];
+  useAi: boolean;
+}
+
+const EMPTY_LETTER: LetterState = {
+  type: "clarification",
+  points: "",
+  deadline: "",
+  evalRef: "",
+  resultDate: "",
+  offeredPrice: 0,
+  breakdown: {},
+  presets: ["paap"],
+  useAi: false,
+};
+
 function LetterTool({
-  initialType,
+  initial,
+  onChange,
+  handoffNote,
   buildBase,
   onPreview,
 }: {
-  initialType: LetterType;
+  initial: LetterState;
+  onChange: (state: LetterState) => void;
+  /** Set when clauses arrived from the caiet scanner, so the user knows
+   *  where the pre-filled points came from. */
+  handoffNote?: string | null;
   buildBase: () => Omit<ClarificationRequest, "clarification_points" | "request_type">;
   onPreview: (result: ClarificationResult, payload: ClarificationRequest) => void;
 }) {
-  const [type, setType] = useState<LetterType>(initialType);
-  const [points, setPoints] = useState("");
-  const [deadline, setDeadline] = useState("");
-  const [evalRef, setEvalRef] = useState("");
-  const [resultDate, setResultDate] = useState("");
-  const [offeredPrice, setOfferedPrice] = useState(0);
-  const [breakdown, setBreakdown] = useState<Record<string, number>>({});
-  const [presets, setPresets] = useState<string[]>(["paap"]);
-  const [useAi, setUseAi] = useState(false);
+  const [type, setType] = useState<LetterType>(initial.type);
+  const [points, setPoints] = useState(initial.points);
+  const [deadline, setDeadline] = useState(initial.deadline);
+  const [evalRef, setEvalRef] = useState(initial.evalRef);
+  const [resultDate, setResultDate] = useState(initial.resultDate);
+  const [offeredPrice, setOfferedPrice] = useState(initial.offeredPrice);
+  const [breakdown, setBreakdown] = useState<Record<string, number>>(initial.breakdown);
+  const [presets, setPresets] = useState<string[]>(initial.presets);
+  const [useAi, setUseAi] = useState(initial.useAi);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    onChange({ type, points, deadline, evalRef, resultDate, offeredPrice, breakdown, presets, useAi });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [type, points, deadline, evalRef, resultDate, offeredPrice, breakdown, presets, useAi]);
 
   const spec = LETTERS.find((l) => l.id === type)!;
   const breakdownTotal = Object.values(breakdown).reduce((a, b) => a + (b || 0), 0);
@@ -703,13 +815,36 @@ function LetterTool({
       )}
 
       <div className="mt-4">
+        {handoffNote && (
+          <div className="mb-3">
+            <Notice tone="neutral">{handoffNote}</Notice>
+          </div>
+        )}
         <Field label={spec.pointsLabel}>
           <Textarea value={points} onChange={(e) => setPoints(e.target.value)} className="min-h-[7rem]" placeholder={spec.placeholder} />
         </Field>
       </div>
 
       <div className="mt-3 flex flex-col gap-3 border-t border-divider pt-3 sm:flex-row sm:items-center sm:justify-between">
-        <Checkbox label="Adaugă fundamentare redactată cu AI" checked={useAi} onChange={(e) => setUseAi(e.target.checked)} className="min-h-9" />
+        <div className="neu-pressed-sm inline-flex rounded-2xl bg-paper p-1" role="group" aria-label="Mod de generare">
+          {[
+            { on: false, label: "Șablon · fără AI" },
+            { on: true, label: "Fundamentare cu AI" },
+          ].map((opt) => (
+            <button
+              key={opt.label}
+              type="button"
+              onClick={() => setUseAi(opt.on)}
+              aria-pressed={useAi === opt.on}
+              className={
+                "min-h-9 rounded-xl px-3 font-body text-xs transition-all duration-300 " +
+                (useAi === opt.on ? "neu-flat-sm bg-paper font-semibold text-ink" : "text-stock-500 hover:text-ink")
+              }
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
         <Button className={ACTION_BUTTON} onClick={handleGenerate} disabled={loading}>
           {loading ? "Se redactează…" : "Previzualizează adresa"}
         </Button>
@@ -734,14 +869,47 @@ type Preview =
   | { kind: "proposal"; result: TechnicalProposalResult; payload: TechnicalProposalRequest }
   | { kind: "letter"; result: ClarificationResult; payload: ClarificationRequest };
 
+const LETTER_IDS = new Set<LetterType>(["clarification", "evaluation_response", "abnormally_low_price", "dossier_access", "foia"]);
+const AUTOSAVE_PREFIX = "ro_intel_drafting_autosave:";
+
+interface Autosave {
+  form: ProcedureForm;
+  proposal: ProposalState;
+  letter: LetterState;
+  saved_at: string;
+}
+
+function readAutosave(key: string): Autosave | null {
+  try {
+    const raw = window.localStorage.getItem(AUTOSAVE_PREFIX + key);
+    return raw ? (JSON.parse(raw) as Autosave) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeAutosave(key: string, data: Autosave) {
+  try {
+    window.localStorage.setItem(AUTOSAVE_PREFIX + key, JSON.stringify(data));
+  } catch {
+    // Quota or private mode: nothing to recover later, the form still works.
+  }
+}
+
 function DraftingContent() {
   const { profile, user } = useAuth();
+  const company = useCompanyProfile();
   const searchParams = useSearchParams();
-  const requested = searchParams.get("tool");
-  const [activeTool, setActiveTool] = useState<ToolId>(requested === "clarification" ? "clarification" : "proposal");
+  // ?tab=propunere|clarificari is the link every other tool builds; ?tool=
+  // is the older spelling and still honoured.
+  const tabParam = searchParams.get("tab") || searchParams.get("tool");
+  const letterParam = searchParams.get("letter") as LetterType | null;
+  const [activeTool, setActiveTool] = useState<ToolId>(
+    tabParam === "clarificari" || tabParam === "clarification" || letterParam ? "clarification" : "proposal"
+  );
 
-  const budget = Number(searchParams.get("budget") || 0);
-  const [form, setForm] = useState<ProcedureForm>({
+  const budget = Number(searchParams.get("budget") || searchParams.get("estimated") || 0);
+  const emptyForm: ProcedureForm = {
     project_title: searchParams.get("project_title") || "",
     authority_name: searchParams.get("authority_name") || "",
     county: searchParams.get("county") || "",
@@ -752,14 +920,37 @@ function DraftingContent() {
     source_id: searchParams.get("source_id") || "",
     regime: "",
     authority_level: "",
-  });
+  };
+  const [form, setForm] = useState<ProcedureForm>(emptyForm);
   const [tenderLoading, setTenderLoading] = useState(false);
   const [tenderNotice, setTenderNotice] = useState<string | null>(null);
 
-  const [bidder, setBidderState] = useState<BidderIdentity>({});
+  // What the two tools start from — restored from an autosave, a reopened
+  // document or a hand-off from another page. `toolsKey` remounts them when
+  // it changes, since their own state is initialised once.
+  const [proposalInit, setProposalInit] = useState<ProposalState>(EMPTY_PROPOSAL);
+  const [letterInit, setLetterInit] = useState<LetterState>({
+    ...EMPTY_LETTER,
+    type: letterParam && LETTER_IDS.has(letterParam) ? letterParam : "clarification",
+    offeredPrice: Number(searchParams.get("offered") || 0) || 0,
+  });
+  const [toolsKey, setToolsKey] = useState(0);
+  const [handoffNote, setHandoffNote] = useState<string | null>(null);
+  const [restoredNote, setRestoredNote] = useState<string | null>(null);
+  const latest = useRef<{ proposal: ProposalState; letter: LetterState }>({ proposal: proposalInit, letter: letterInit });
+
+  // The bidder lives in the shared company profile: looked up on
+  // Eligibilitate or here, it fills every header after that.
+  const bidder: BidderIdentity = company.bidder || {};
   const setBidder = (b: BidderIdentity) => {
-    setBidderState(b);
-    storeBidder(b);
+    company.save({
+      cui: b.cui || null,
+      company_name: b.company_name || null,
+      registration_number: b.trade_register_no || null,
+      address: b.headquarters || null,
+      legal_representative: b.legal_representative || null,
+      representative_role: b.representative_role || null,
+    });
   };
 
   const [legalMeta, setLegalMeta] = useState<LegalMetadata | null>(null);
@@ -772,17 +963,15 @@ function DraftingContent() {
     setCreditsKey((k) => k + 1);
   };
 
-  // The company is entered once: localStorage first, then the profile's
-  // own billing identity as a fallback for a first visit.
+  // First visit after this change: the identity typed into the old
+  // drafting-only store moves into the shared profile once.
   useEffect(() => {
+    if (company.profile?.company_name || company.profile?.cui) return;
     const stored = readStoredBidder();
-    if (stored && (stored.cui || stored.company_name)) {
-      setBidderState(stored);
-    } else if (profile?.company_name || profile?.cui) {
-      setBidderState({ company_name: profile.company_name || "", cui: profile.cui || "" });
-    }
-  }, [profile]);
-
+    if (stored && (stored.cui || stored.company_name)) setBidder(stored);
+    else if (profile?.company_name || profile?.cui) setBidder({ company_name: profile.company_name || "", cui: profile.cui || "" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile, company.profile]);
   const loadTender = async (sourceId: string | undefined, fallback?: PickResult) => {
     setTenderNotice(null);
     const apply = (t: { project_title?: string; entity_name?: string; county?: string; category?: string; financial_value_ron?: number; cpv_code?: string; source_id?: string }) =>
@@ -817,12 +1006,110 @@ function DraftingContent() {
     }
   };
 
-  // /drafting?source_id=… (from the lead dossier) fills itself once.
-  const initialSourceId = useRef(searchParams.get("source_id"));
+  // Arrival: a reopened document wins, then clauses handed over from the
+  // caiet scanner, then the autosave for this tender, then the tender's own
+  // record. Each later source only fills what the earlier ones left empty.
+  const initialised = useRef(false);
   useEffect(() => {
-    if (initialSourceId.current) loadTender(initialSourceId.current);
+    if (initialised.current) return;
+    initialised.current = true;
+    const sourceId = searchParams.get("source_id");
+    const artifactId = searchParams.get("artifact");
+    const clausesKey = searchParams.get("clauses");
+    (async () => {
+      if (artifactId) {
+        try {
+          const art = await fetchArtifact(artifactId);
+          const pl = art.payload as Record<string, unknown>;
+          setForm((f) => ({
+            ...f,
+            project_title: (pl.project_title as string) || f.project_title,
+            authority_name: (pl.authority_name as string) || f.authority_name,
+            county: (pl.county as string) || f.county,
+            category: (pl.category as string) || f.category,
+            estimated_value_ron: (pl.estimated_value_ron as number) || f.estimated_value_ron,
+            contract_type: (pl.contract_type as ContractType) || f.contract_type,
+            cpv_code: (pl.cpv_code as string) || f.cpv_code,
+            source_id: (pl.source_id as string) || f.source_id,
+            regime: (pl.regime as LegalRegime) || "",
+            authority_level: (pl.authority_level as AuthorityLevel) || "",
+          }));
+          if (art.kind === "propunere_tehnica") {
+            setActiveTool("proposal");
+            setProposalInit({
+              declarations: (pl.include_declarations as DeclarationId[]) || EMPTY_PROPOSAL.declarations,
+              decisionMakers: ((pl.decision_makers as { name: string; role?: string }[]) || [])
+                .map((d) => (d.role ? `${d.name} — ${d.role}` : d.name))
+                .join("\n"),
+              requirements: (pl.cerinte_caiet as string) || "",
+              aiMode: Boolean(pl.use_ai_expansion),
+            });
+          } else {
+            setActiveTool("clarification");
+            setLetterInit({
+              type: (pl.request_type as LetterType) || "clarification",
+              points: (pl.clarification_points as string) || "",
+              deadline: (pl.procedure_deadline as string) || "",
+              evalRef: (pl.evaluation_request_ref as string) || "",
+              resultDate: (pl.result_communication_date as string) || "",
+              offeredPrice: (pl.offered_price_ron as number) || 0,
+              breakdown: (pl.price_breakdown as Record<string, number>) || {},
+              presets: (pl.foia_presets as string[]) || ["paap"],
+              useAi: Boolean(pl.use_ai_expansion),
+            });
+          }
+          setToolsKey((k) => k + 1);
+          setRestoredNote(`Redeschis din documentul „${art.title}” (${formatDate(art.created_at)}).`);
+          return;
+        } catch {
+          setRestoredNote("Documentul salvat nu a putut fi încărcat — formularul pornește din datele licitației.");
+        }
+      }
+
+      const handoff = takeClauses(clausesKey);
+      if (handoff?.points.length) {
+        setActiveTool("clarification");
+        setLetterInit((l) => ({
+          ...l,
+          type: "clarification",
+          points: handoff.points.map((pt, i) => `${i + 1}. ${pt}`).join("\n\n"),
+        }));
+        setToolsKey((k) => k + 1);
+        setHandoffNote(
+          `${handoff.points.length} ${handoff.points.length === 1 ? "clauză preluată" : "clauze preluate"} din scanerul de caiet` +
+            (handoff.citations.length ? `, cu temeiurile: ${handoff.citations.slice(0, 4).join("; ")}${handoff.citations.length > 4 ? "…" : ""}` : "") +
+            ". Verificați formularea înainte de transmitere."
+        );
+      } else {
+        const saved = readAutosave(sourceId || "nou");
+        if (saved && !letterParam) {
+          setForm(saved.form);
+          setProposalInit(saved.proposal);
+          setLetterInit(saved.letter);
+          setToolsKey((k) => k + 1);
+          setRestoredNote(`Ciorna salvată automat pe ${formatDate(saved.saved_at)} a fost restaurată.`);
+          return;
+        }
+      }
+      if (sourceId) await loadTender(sourceId);
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Autosave, debounced, per tender: a refresh or a closed tab must not cost
+  // an evaluation response written over an hour.
+  const autosaveKey = form.source_id || "nou";
+  const scheduleAutosave = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autosave = () => {
+    if (scheduleAutosave.current) clearTimeout(scheduleAutosave.current);
+    scheduleAutosave.current = setTimeout(() => {
+      writeAutosave(autosaveKey, { form, ...latest.current, saved_at: new Date().toISOString() });
+    }, 600);
+  };
+  useEffect(() => {
+    if (initialised.current) autosave();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form]);
 
   // Live regime strip — debounced, since the value field fires per keystroke.
   useEffect(() => {
@@ -956,15 +1243,39 @@ function DraftingContent() {
 
         <TabBar tabs={TOOLS} active={activeTool} onChange={setActiveTool} label="Instrument de redactare" />
 
-        {activeTool === "proposal" ? (
-          <ProposalTool buildBase={buildProposalBase} onPreview={(result, payload) => openPreview({ kind: "proposal", result, payload })} />
-        ) : (
+        {restoredNote && (
+          <p className="font-mono text-[11px] text-stock-500" role="status">
+            {restoredNote}
+          </p>
+        )}
+
+        {/* Both tools stay mounted so switching tabs keeps what was typed;
+            the inactive one is only hidden. */}
+        <div hidden={activeTool !== "proposal"}>
+          <ProposalTool
+            key={`p-${toolsKey}`}
+            initial={proposalInit}
+            onChange={(state) => {
+              latest.current.proposal = state;
+              autosave();
+            }}
+            buildBase={buildProposalBase}
+            onPreview={(result, payload) => openPreview({ kind: "proposal", result, payload })}
+          />
+        </div>
+        <div hidden={activeTool !== "clarification"}>
           <LetterTool
-            initialType="clarification"
+            key={`l-${toolsKey}`}
+            initial={letterInit}
+            handoffNote={handoffNote}
+            onChange={(state) => {
+              latest.current.letter = state;
+              autosave();
+            }}
             buildBase={buildLetterBase}
             onPreview={(result, payload) => openPreview({ kind: "letter", result, payload })}
           />
-        )}
+        </div>
       </div>
 
       {preview?.kind === "proposal" && (

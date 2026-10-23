@@ -1,9 +1,9 @@
 "use client";
 import { useState } from "react";
 import { X } from "lucide-react";
-import type { EligibilityGrant } from "@/lib/api";
+import { ApiError, addLeadToPipeline, type EligibilityGrant } from "@/lib/api";
 import { formatRon } from "@/lib/format";
-import { Badge, Eyebrow } from "@/components/newsprint";
+import { Badge, Button, Eyebrow } from "@/components/newsprint";
 
 // Matches --duration-base in globals.css — same reasoning as
 // LeadDossierPanel's identical constant: the exit keyframes run this
@@ -17,11 +17,31 @@ const CLOSE_ANIMATION_MS = 320;
  * LeadDossierPanel (Prima Pagina, /analysis, Căutare Avansată), so
  * opening a result reads the same way across the whole app. A grant has
  * no backend route of its own to re-fetch (the row already carries
- * everything the scan computed), so this is just a detail view, not a
- * dossier with its own actions.
+ * everything the scan computed), so its one action is the one that
+ * carries it forward: tracking the application in Pipeline ofertare.
  */
 export default function GrantDetailPanel({ grant, onClose }: { grant: EligibilityGrant; onClose: () => void }) {
 	const [closing, setClosing] = useState(false);
+	const [saveState, setSaveState] = useState<string | null>(null);
+	const [saving, setSaving] = useState(false);
+
+	const handleSave = async () => {
+		setSaving(true);
+		try {
+			const res = await addLeadToPipeline({
+				source_id: `GRANT-${grant.program_id}`,
+				project_title: grant.program_name,
+				notes: [grant.eligible_grant_up_to && `Grant: ${grant.eligible_grant_up_to}`, grant.legal_basis].filter(Boolean).join(" · "),
+			});
+			setSaveState(
+				res.status === "already_saved" ? "Programul este deja în pipeline." : res.status === "success" ? "Program salvat în pipeline." : res.message || "Nu s-a putut salva."
+			);
+		} catch (e) {
+			setSaveState(e instanceof ApiError ? e.detail : "Nu s-a putut salva.");
+		} finally {
+			setSaving(false);
+		}
+	};
 	const requestClose = () => {
 		if (closing) return;
 		setClosing(true);
@@ -100,6 +120,13 @@ export default function GrantDetailPanel({ grant, onClose }: { grant: Eligibilit
 							<p className="font-body mt-2 text-sm leading-relaxed text-stock-600">{grant.action_required}</p>
 						</div>
 					)}
+
+					<div className="mt-6">
+						<Button onClick={handleSave} disabled={saving} fullWidth>
+							{saving ? "Se salvează…" : "Urmărește aplicarea în Pipeline ofertare"}
+						</Button>
+						{saveState && <p className="font-body mt-2 text-xs text-stock-600">{saveState}</p>}
+					</div>
 				</div>
 			</div>
 		</div>

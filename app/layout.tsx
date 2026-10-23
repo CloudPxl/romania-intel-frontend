@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans, DM_Sans, JetBrains_Mono } from "next/font/google";
 import { AuthProvider } from "@/context/AuthContext";
+import { CompanyProfileProvider } from "@/context/CompanyProfileContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import Sidebar from "@/components/Sidebar";
 import InstallPrompt from "@/components/InstallPrompt";
@@ -93,6 +94,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <ThemeProvider>
           <AuthProvider>
+          <CompanyProfileProvider>
             {/* Ambient colour behind everything. A real element rather than a
                 body::before, so its stacking context is explicit: the shell
                 below sits at z-10 and is never painted underneath it. */}
@@ -115,6 +117,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 installed PWA, so on iPhone this is the path to notifications
                 working at all. Renders nothing anywhere else. */}
             <InstallPrompt />
+          </CompanyProfileProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

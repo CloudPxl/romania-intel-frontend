@@ -57,8 +57,10 @@ export const EXPLAINERS = {
 	weightedPipeline: {
 		title: "Valoarea ponderată",
 		body:
-			"Suma dosarelor active, fiecare înmulțit cu o probabilitate standard de câștig pentru etapa în care se află (10% la descoperire, 70% la ofertă depusă). " +
-			"Este o convenție de vânzări transparentă, nu un model antrenat pe rezultate reale — sistemul vă arată exact ce coeficient a folosit.",
+			"Suma dosarelor active, fiecare înmulțit cu P = w_etapă × (0,5 + 0,05 × scorul de potrivire) × φ. " +
+			"w este probabilitatea convențională a etapei (10% la descoperire, 70% la ofertă depusă), scorul de potrivire (0-10) vine din registru, " +
+			"iar φ scade când un singur furnizor a câștigat mare parte din valoarea atribuită de aceeași autoritate (anunțuri de atribuire SEAP). " +
+			"Este o euristică transparentă, nu un model antrenat — formula și factorii fiecărui dosar sunt afișați pe card.",
 	},
 	stageProbability: {
 		title: "Probabilitatea pe etapă",
@@ -88,7 +90,11 @@ export const EXPLAINERS = {
 	},
 	priceReferences: {
 		title: "Reperele de preț",
-		body: "Pur și simplu valoarea estimată minus 5%, 10% și 15% — o riglă pentru discuția internă despre marjă. " + "NU sunt prețuri câștigătoare și nu sunt prognoze. Sunt procente aplicate la o singură cifră, cea publicată de autoritate.",
+		body:
+			"Percentilele raportului dintre prețul atribuit și valoarea estimată, din contracte reale atribuite (anunțuri de atribuire SEAP), " +
+			"pentru cel mai specific nivel CPV și cea mai apropiată zonă cu suficiente date — aplicate valorii dvs. " +
+			"P25-P75 este intervalul în care s-a situat jumătatea din mijloc a câștigătorilor. Observații istorice, nu prognoze. " +
+			"Linia de 80% este pragul legal al prezumției de preț aparent neobișnuit de scăzut.",
 	},
 	competitivePressure: {
 		title: "Presiunea concurențială",
@@ -116,18 +122,20 @@ export const EXPLAINERS = {
 
 	/* ------------------------------------------------------------- legal */
 	abnormallyLowPrice: {
-		title: "Prețul neobișnuit de scăzut",
+		title: "Prețul aparent neobișnuit de scăzut",
 		body:
-			"Dacă prețul dvs. pare neobișnuit de mic față de prețurile pieței, comisia este obligată să vă ceară explicații (art. 210 din Legea 98/2016, art. 136 din normele HG 395/2016) " +
-			"și vă respinge oferta doar dacă nu le puteți susține cu dovezi. Practic: puteți oferta sub estimare, dar trebuie să demonstrați din ce se compune prețul.",
+			"Două căi duc la o cerere de justificare. Prima: prețul ofertat, fără TVA, sub 80% din valoarea estimată — oferta este prezumată ca având un preț aparent neobișnuit de scăzut (art. 136 alin. (4) din normele HG 395/2016) și autoritatea trebuie să ceară clarificări (art. 210 din Legea 98/2016). " +
+			"A doua, la orice discount: comisia poate cere explicații pentru orice element de preț care pare prea mic față de piață (art. 136 alin. (1)). " +
+			"Oferta se respinge doar dacă dovezile nu justifică prețul.",
 	},
 	eightyPercentMyth: {
-		title: "Pragul de 80% nu mai există",
+		title: "Pragul de 80%",
 		body:
-			"Regula „sub 80% din valoarea estimată oferta e automat neobișnuit de scăzută” provine din OUG 34/2006, abrogată. " +
-			"Nici Legea 98/2016 (art. 210), nici normele HG 395/2016 (art. 136) nu conțin vreun procent — testul actual este calitativ, prin raportare la prețurile pieței. " +
-			"Noi folosim 80% doar ca semnal intern de risc, ca să vă pregătiți justificarea din timp. Nu este un prag legal.",
+			"Pragul există: art. 136 alin. (4) din normele aprobate prin HG 395/2016, introdus prin HG 375/2022 (art. 142 alin. (4) din HG 394/2016 la achizițiile sectoriale). " +
+			"Sub 80% din valoarea estimată, fără TVA, oferta este prezumată ca având un preț aparent neobișnuit de scăzut — strict sub: 80,00% nu intră în prezumție. " +
+			"Prezumția obligă autoritatea să ceară clarificări; nu înseamnă respingere automată.",
 	},
+
 	clarificationRequest: {
 		title: "Solicitarea de clarificări",
 		body: "O adresă oficială către autoritate prin care cereți lămuriri sau contestați o cerință din caietul de sarcini, înainte de termenul de depunere (art. 160-161 din Legea 98/2016). " + "Este instrumentul ieftin: rezolvă problema fără contestație și fără taxe.",
