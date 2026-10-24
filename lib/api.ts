@@ -391,6 +391,8 @@ export interface AwardBenchmark {
   discount_pct?: { p5: number; p25: number; p50: number; p75: number; p95: number };
   below_80pct_share?: number;
   excluded_outliers?: number;
+  /** Framework agreements left out of the price ratios (estimate = framework maximum). */
+  excluded_frameworks?: number;
   single_offer?: { rate_pct: number | null; sample_size: number; note: string };
 }
 
