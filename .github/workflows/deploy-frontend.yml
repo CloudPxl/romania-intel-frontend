@@ -18,10 +18,23 @@ jobs:
           script: |
             set -e
             cd /root/ro-intel/romania-intel-frontend
-            git pull --ff-only origin main
+            # fetch + checkout rather than pull: this directory is also the
+            # monorepo's submodule, so it can be on a detached HEAD, and
+            # `next build` rewrites the tracked next-env.d.ts, which -f
+            # discards. Untracked files (.env.production) are kept.
+            git fetch -q origin main
+            git checkout -q -f -B main origin/main
+            git log --oneline -1
             npm ci
             npm run build
             systemctl restart ro-intel-frontend
-            sleep 3
-            systemctl is-active ro-intel-frontend
-            curl -sf -o /dev/null 127.0.0.1:3000
+            for i in $(seq 1 30); do
+              if curl -sf -o /dev/null 127.0.0.1:3000; then
+                systemctl is-active ro-intel-frontend
+                exit 0
+              fi
+              sleep 1
+            done
+            echo "frontend did not answer on :3000 within 30s"
+            journalctl -u ro-intel-frontend -n 30 --no-pager
+            exit 1
