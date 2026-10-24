@@ -12,7 +12,16 @@ import { fetchAiUsage, type AiUsage } from "@/lib/api";
  * credit. Renders nothing until it has a real answer — a meter showing
  * zeros while loading reads as "you have nothing left".
  */
-export default function AiCredits({ refreshKey = 0, className = "" }: { refreshKey?: number; className?: string }) {
+export default function AiCredits({
+  refreshKey = 0,
+  className = "",
+  compact = false,
+}: {
+  refreshKey?: number;
+  className?: string;
+  /** One line, no plan name — for the copilot's footer. */
+  compact?: boolean;
+}) {
   const [usage, setUsage] = useState<AiUsage | null>(null);
 
   useEffect(() => {
@@ -29,6 +38,20 @@ export default function AiCredits({ refreshKey = 0, className = "" }: { refreshK
 
   const renews = usage.resets_at.split("-").reverse().join(".");
   const low = (k: "deliverable" | "copilot") => usage.remaining[k] <= Math.max(1, Math.floor(usage.limits[k] * 0.1));
+
+  if (compact) {
+    return (
+      <span className={"font-mono text-[10px] text-stock-500 " + className} aria-label="Credite AI rămase luna aceasta">
+        <span className={low("copilot") ? "text-warning" : ""}>
+          Copilot {usage.remaining.copilot}/{usage.limits.copilot}
+        </span>
+        {" · "}
+        <span className={low("deliverable") ? "text-warning" : ""}>
+          Documente {usage.remaining.deliverable}/{usage.limits.deliverable}
+        </span>
+      </span>
+    );
+  }
 
   return (
     <div

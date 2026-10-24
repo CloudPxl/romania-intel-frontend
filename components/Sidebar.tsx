@@ -34,7 +34,7 @@ const NAV_LINKS = [
   { href: "/cautare-avansata", label: "Căutare avansată", section: "", icon: Search },
   { href: "/eligibility", label: "Eligibilitate finanțări", section: "Instrumente", icon: ShieldCheck },
   { href: "/drafting", label: "Redactare documente", section: "Instrumente", icon: FileText },
-  { href: "/analytics", label: "Strategie & Copilot", section: "Instrumente", icon: Sparkles },
+  { href: "/analytics", label: "Strategie", section: "Instrumente", icon: Sparkles },
   { href: "/pipeline", label: "Pipeline ofertare", section: "Instrumente", icon: Kanban },
   { href: "/suport", label: "Suport & Asistență", section: "Instrumente", icon: LifeBuoy },
 ];

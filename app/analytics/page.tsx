@@ -1,35 +1,32 @@
 "use client";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { ChevronDown } from "lucide-react";
 import AuthGate from "@/components/AuthGate";
-import AiCredits from "@/components/AiCredits";
 import AuthorityProfilePanel from "@/components/AuthorityProfilePanel";
 import Explain from "@/components/Explain";
 import LeadDossierPanel from "@/components/LeadDossierPanel";
+import { useActiveTender, useCopilot } from "@/context/CopilotContext";
 import {
   ApiError,
   analyzeCaietSarcini,
-  askCopilotChat,
   contractTypeFromCpv,
-  fetch72hMarketReport,
   fetchArtifact,
+  fetchCaietInsight,
   fetchCompetitorAnalysis,
   fetchDocumentExtraction,
   fetchOpportunity,
-  generateJustificationDossier,
   predictWinRate,
   uploadCaietFile,
   uploadCaietFileAsync,
   type AwardCriterion,
   type CaietAnalysis,
   type CaietFlag,
+  type CaietInsight,
   type CompetitorAnalysis,
   type ContractType,
-  type CopilotTurn,
-  type JustificationDossier,
   type Lead,
   type LegalRegime,
-  type MacroReport,
   type WinOdds,
 } from "@/lib/api";
 import { draftingHref, stashClauses } from "@/lib/toolLinks";
@@ -50,10 +47,12 @@ import {
   Select,
   TabBar,
   Textarea,
+  Tooltip,
 } from "@/components/newsprint";
 
+// The copilot is no longer a tab here: it floats on every page
+// (components/CopilotWidget.tsx), where it can see the dossier being read.
 const TOOLS = [
-  { id: "copilot", label: "Copilot & Radar 72h" },
   { id: "competitor", label: "Profil de piață" },
   { id: "caiet", label: "Scanner caiet sarcini" },
   { id: "win", label: "Poziționare preț" },
@@ -61,186 +60,15 @@ const TOOLS = [
 
 type ToolId = (typeof TOOLS)[number]["id"];
 
-/* ---------------------------------------------------------------- copilot */
+/** Case- and diacritics-insensitive key, for merging the regex and AI
+ *  requirement lists without showing the same requirement twice. */
+function fold(text: string): string {
+  return text.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
 
-function CopilotTool() {
-  const [report, setReport] = useState<MacroReport | null>(null);
-  const [messages, setMessages] = useState<
-    { sender: "user" | "ai"; text: string; degraded?: boolean; deep?: boolean; note?: string | null }[]
-  >([
-    {
-      sender: "ai",
-      text: "Bună ziua. Pot analiza oportunitățile din registru, cerințele de calificare și strategia de ofertare. Cu ce începem?",
-    },
-  ]);
-  const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
-  // Flagship model (gemini-4-argon) for this turn. Included in subscriptions;
-  // a free account asking for it is answered on the standard model and told so.
-  const [deep, setDeep] = useState(false);
-  const [creditsKey, setCreditsKey] = useState(0);
-  const [reportError, setReportError] = useState<string | null>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    let mounted = true;
-    fetch72hMarketReport()
-      .then((d) => mounted && setReport(d))
-      .catch((e) => mounted && setReportError(e instanceof ApiError ? e.detail : "Raportul macro nu este disponibil."));
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  // Keep the newest turn in view without yanking the whole page.
-  useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages, loading]);
-
-  const handleSend = async () => {
-    const question = input.trim();
-    if (!question || loading) return;
-    setInput("");
-    // Snapshot the transcript *before* appending this turn — the backend
-    // takes the question separately, and sending it twice would have the
-    // model answer a message it can already see as the newest turn.
-    // The opening canned greeting is dropped: it is UI copy, not
-    // something the model said.
-    const history: CopilotTurn[] = messages
-      .slice(1)
-      .map((m) => ({ role: m.sender === "user" ? ("user" as const) : ("assistant" as const), content: m.text }));
-    setMessages((prev) => [...prev, { sender: "user", text: question }]);
-    setLoading(true);
-    try {
-      const data = await askCopilotChat(question, history, deep);
-      setMessages((prev) => [
-        ...prev,
-        {
-          sender: "ai",
-          text: data.reply,
-          degraded: data.degraded || Boolean(data.ai_quota),
-          deep: data.deep,
-          note: data.ai_quota || data.notice,
-        },
-      ]);
-      setCreditsKey((k) => k + 1);
-    } catch (e) {
-      setMessages((prev) => [
-        ...prev,
-        { sender: "ai", text: e instanceof ApiError ? e.detail : "Copilotul nu a putut răspunde.", degraded: true },
-      ]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-      {/* Deliberately quiet: the copilot is the page, and this rail is a
-          short read-only digest beside it — not a dashboard competing with
-          it for attention. The market figures it used to headline live on
-          /analysis, which is the page for them. */}
-      <aside className="lg:col-span-4">
-        {reportError ? (
-          <Notice tone="alert">{reportError}</Notice>
-        ) : !report ? (
-          <Panel className="p-4">
-            <p className="font-mono text-xs uppercase tracking-widest text-stock-500">Se încarcă…</p>
-          </Panel>
-        ) : (
-          <Panel className="p-4 sm:p-5">
-            <Eyebrow className="text-stock-500">Puncte cheie</Eyebrow>
-            {report.executive_takeaways?.length ? (
-              <ol className="mt-2 divide-y divide-divider">
-                {report.executive_takeaways.map((t, i) => (
-                  <li key={i} className="flex gap-3 py-2.5 first:pt-0">
-                    <span className="tabular font-mono w-5 shrink-0 pt-0.5 text-xs text-stock-400">
-                      {String(i + 1).padStart(2, "0")}
-                    </span>
-                    <p className="font-body flex-1 text-sm leading-relaxed">{t}</p>
-                  </li>
-                ))}
-              </ol>
-            ) : (
-              <p className="font-body mt-2 text-sm leading-relaxed text-stock-600">
-                Nu există suficiente semnale noi în ultimele 72 de ore pentru o sinteză.
-              </p>
-            )}
-
-            {report.strategic_recommendation && (
-              <div className="neu-pressed mt-4 rounded-r-lg border-l-2 border-editorial bg-editorial-soft px-4 py-3">
-                <Eyebrow className="text-editorial">Recomandare strategică</Eyebrow>
-                <p className="font-body mt-1.5 text-sm leading-relaxed">{report.strategic_recommendation}</p>
-              </div>
-            )}
-          </Panel>
-        )}
-      </aside>
-
-      <div className="lg:col-span-8">
-        <Panel className="flex h-[60vh] min-h-[26rem] flex-col">
-          <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto p-4">
-            {messages.map((m, i) => (
-              <div key={i} className={"flex " + (m.sender === "user" ? "justify-end" : "justify-start")}>
-                <div
-                  className={
-                    "max-w-[88%] rounded-2xl px-3.5 py-2.5 font-body text-sm leading-relaxed " +
-                    (m.sender === "user"
-                      ? "neu-flat-sm bg-editorial text-white"
-                      : m.degraded
-                        ? "neu-pressed border-l-[3px] border-warning bg-paper"
-                        : "neu-flat-sm bg-paper")
-                  }
-                >
-                  {m.sender === "ai" && (
-                    <span className="label-eyebrow mb-1 block text-stock-500">
-                      {m.degraded ? "Răspuns degradat" : m.deep ? "Copilot · analiză aprofundată" : "Copilot"}
-                    </span>
-                  )}
-                  <p className="whitespace-pre-wrap">{m.text}</p>
-                  {m.note && <p className="font-body mt-2 border-t border-divider pt-2 text-xs text-warning">{m.note}</p>}
-                </div>
-              </div>
-            ))}
-            {loading && (
-              <div className="flex items-center gap-2" role="status" aria-live="polite">
-                <span className="h-2 w-2 animate-pulse rounded-full bg-editorial" aria-hidden="true" />
-                <span className="label-eyebrow text-stock-500">Copilotul analizează registrul…</span>
-              </div>
-            )}
-          </div>
-
-          <div className="flex gap-2 border-t border-divider p-3">
-            <Input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSend();
-                }
-              }}
-              placeholder="Întrebați despre cerințe, bugete, contestații…"
-              aria-label="Întrebare pentru copilot"
-              className="flex-1"
-            />
-            <Button onClick={handleSend} disabled={loading || !input.trim()}>
-              Trimite
-            </Button>
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-divider px-3 py-2">
-            <Checkbox
-              label="Analiză aprofundată (model flagship)"
-              checked={deep}
-              onChange={(e) => setDeep(e.target.checked)}
-              className="min-h-8 text-xs"
-            />
-            <AiCredits refreshKey={creditsKey} />
-          </div>
-        </Panel>
-      </div>
-    </div>
-  );
+/** The one-line "how to use this" above each tool's inputs. */
+function Hint({ children }: { children: React.ReactNode }) {
+  return <p className="font-body mt-1.5 text-sm leading-relaxed text-stock-600">{children}</p>;
 }
 
 /* ----------------------------------------------------------------- tender */
@@ -292,6 +120,16 @@ function TenderBanner({ tender }: { tender: Tender }) {
 }
 
 /* ------------------------------------------------------------- competitor */
+
+/** The five points of what winners actually bid, as a share of the
+ *  estimate. P5/P95 stay in the API for the price-position bands. */
+const PRICE_POINTS = [
+  { key: "p10", label: "P10", tip: "Doar 10% dintre câștigători au ofertat mai jos — ofertă foarte agresivă." },
+  { key: "p25", label: "P25", tip: "Ofertă agresivă: un sfert dintre câștigători au fost sub acest preț (cuartila de top)." },
+  { key: "p50", label: "Mediana", tip: "Oferta câștigătoare tipică: jumătate dintre câștigători au fost sub, jumătate peste." },
+  { key: "p75", label: "P75", tip: "Trei sferturi dintre câștigători au ofertat sub acest preț." },
+  { key: "p90", label: "P90", tip: "Aproape plafonul: 90% dintre câștigători au fost sub acest preț." },
+] as const;
 function CompetitorTool({ tender }: { tender: Tender }) {
   const [category, setCategory] = useState(tender.category || "infrastructura");
   const [county, setCounty] = useState(tender.county || "");
@@ -349,11 +187,11 @@ function CompetitorTool({ tender }: { tender: Tender }) {
 
   return (
     <Panel className="p-4 sm:p-6">
-      <h2 className="font-display text-2xl font-bold leading-tight tracking-tight">Profil de piață sectorial</h2>
-      <p className="font-body mt-1.5 text-sm leading-relaxed text-stock-600">
-        Anunțurile colectate de acest sistem pentru domeniul și județul selectate, plus prețurile câștigătoare reale din
-        anunțurile de atribuire SEAP.
-      </p>
+      <h2 className="font-display text-2xl font-bold leading-tight tracking-tight">Profil de piață</h2>
+      <Hint>
+        Selectați domeniul și județul, introduceți valoarea estimată a licitației și vedeți cu ce % din buget s-au câștigat
+        contractele reale și ce companii domină autoritatea.
+      </Hint>
 
       <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-3">
         <Field label="Domeniu">
@@ -393,10 +231,10 @@ function CompetitorTool({ tender }: { tender: Tender }) {
         <div className="mt-8 space-y-8">
           <section>
             <SectionTitle note={`${data.sector} · ${data.county}`}>Piața observată</SectionTitle>
-            {market?.scope_note && (
-              <div className="mb-4">
-                <Notice tone={market.scope === "county" ? "neutral" : "warning"}>{market.scope_note}</Notice>
-              </div>
+            {/* Said only when it changes how to read the figures: a national
+                fallback must never pass for a local finding. */}
+            {market?.scope === "national" && market.scope_note && (
+              <p className="font-mono -mt-2 mb-3 text-[11px] text-warning">{market.scope_note}</p>
             )}
             {/* Both counts come from the same set — procedures in this domain
                 with a published value — so the county figure is always a
@@ -445,51 +283,43 @@ function CompetitorTool({ tender }: { tender: Tender }) {
               </span>
 
               {pct ? (
-                <>
-                  <p className="font-body mb-3 text-sm leading-relaxed text-stock-600">
-                    Prețuri câștigătoare reale, exprimate ca procent din valoarea estimată și aplicate valorii dvs. de{" "}
-                    {formatRon(budget)}:
-                  </p>
-                  <div className="rule-grid grid grid-cols-2 sm:grid-cols-5">
-                    {(["p5", "p25", "p50", "p75", "p95"] as const).map((k) => (
-                      <div key={k} className="p-4">
-                        <Eyebrow>{k === "p50" ? "Median" : k.toUpperCase()}</Eyebrow>
-                        <p className="tabular font-display mt-1.5 text-lg font-semibold leading-none">
-                          {formatRon(pct.prices_ron[k])}
-                        </p>
-                        <p className="font-mono mt-1 text-[10px] text-stock-500">{pct.ratio_pct[k].toFixed(1)}% din estimare</p>
-                      </div>
-                    ))}
-                  </div>
-                  <p className="font-mono mt-3 text-[11px] leading-relaxed text-stock-500">
-                    Interval intercuartilic {pct.ratio_pct.iqr.toFixed(1)} puncte procentuale ·{" "}
-                    {pct.below_80pct_share != null && `${pct.below_80pct_share}% dintre câștigători au fost sub 80% · `}
-                    {pct.single_offer?.rate_pct != null &&
-                      `ofertă unică probabilă în ${pct.single_offer.rate_pct}% din ${pct.single_offer.sample_size} contracte`}
-                  </p>
-                </>
+                <div className="rule-grid grid grid-cols-2 sm:grid-cols-5">
+                  {PRICE_POINTS.map(({ key, label, tip }) => (
+                    <div key={key} className={"p-4 " + (key === "p50" ? "neu-pressed-sm rounded-2xl" : "")}>
+                      <Tooltip label={tip}>
+                        <Eyebrow className={key === "p50" ? "text-editorial" : undefined}>{label}</Eyebrow>
+                      </Tooltip>
+                      <p className="tabular font-display mt-1.5 text-lg font-semibold leading-none">
+                        {formatRon(pct.prices_ron[key] ?? null)}
+                      </p>
+                      <p className="font-mono mt-1 text-[10px] text-stock-500">
+                        {pct.ratio_pct[key] != null ? `${pct.ratio_pct[key].toFixed(1)}% din buget` : "—"}
+                      </p>
+                    </div>
+                  ))}
+                </div>
               ) : (
-                <Notice tone="neutral" title="Încă nu avem un eșantion de atribuiri">
-                  {pricing.reference_points_note}
-                </Notice>
+                <p className="font-body text-sm leading-relaxed text-stock-600">{pricing.reference_points_note}</p>
               )}
 
+              {/* The 80% rule, once: the figure and how often real winners
+                  went under it. The law itself is one tap away. */}
               {statutory && (
-                <div className="neu-pressed mt-4 rounded-r-lg border-l-2 border-warning bg-paper px-4 py-3">
-                  <Eyebrow className="text-warning">Pragul legal de 80%</Eyebrow>
-                  <p className="font-body mt-1 text-sm leading-relaxed">
-                    Sub <span className="tabular font-semibold">{formatRon(statutory.price_ron)}</span> (fără TVA) oferta este
-                    prezumată ca având un preț aparent neobișnuit de scăzut — {statutory.basis}.
-                  </p>
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                  <span className="neu-pressed-sm inline-flex flex-wrap items-center gap-x-2 gap-y-0.5 rounded-full px-3.5 py-1.5 font-mono text-[11px] text-ink">
+                    <span className="font-sans font-semibold text-warning">Prag 80% · art. 136 alin. (4) HG 395/2016</span>
+                    <span className="tabular font-semibold">{formatRon(statutory.price_ron)}</span>
+                    {pct?.below_80pct_share != null && (
+                      <span className="text-stock-500">· {pct.below_80pct_share}% dintre câștigători au fost sub prag</span>
+                    )}
+                  </span>
+                  <Explain k="abnormallyLowPrice" />
+                  {pct?.single_offer?.rate_pct != null && (
+                    <span className="neu-pressed-sm inline-flex rounded-full px-3.5 py-1.5 font-mono text-[11px] text-stock-600">
+                      Ofertă unică probabilă: {pct.single_offer.rate_pct}% din {pct.single_offer.sample_size} contracte
+                    </span>
+                  )}
                 </div>
-              )}
-              <p className="neu-pressed font-body mt-4 rounded-2xl bg-paper px-4 py-3 text-sm leading-relaxed text-stock-600">
-                {pricing.guidance}
-              </p>
-              {pricing.sector_technical_note && (
-                <p className="neu-pressed font-body mt-3 rounded-2xl bg-paper px-4 py-3 text-sm leading-relaxed text-stock-600">
-                  {pricing.sector_technical_note}
-                </p>
               )}
             </section>
           )}
@@ -563,9 +393,6 @@ function CompetitorTool({ tender }: { tender: Tender }) {
             </section>
           ) : null}
 
-          <Notice tone="warning" title="Limitele analizei">
-            {data.data_limitations}
-          </Notice>
         </div>
       )}
 
@@ -579,6 +406,25 @@ function CompetitorTool({ tender }: { tender: Tender }) {
 
 const SEVERITY_TONE: Record<string, "negative" | "warning" | "neutral"> = { Critic: "negative", Ridicat: "warning" };
 
+/** The regex engine's lists, mapped onto the AI pass's groups so one
+ *  requirement is shown once whichever pass found it. */
+const REQUIREMENT_GROUPS: { key: string; label: string; regex?: keyof NonNullable<CaietAnalysis["qualification_criteria"]> }[] = [
+  { key: "turnover", label: "Cifră de afaceri", regex: "turnover_requirements" },
+  { key: "similar_experience", label: "Experiență similară" },
+  { key: "certifications", label: "Certificări și autorizații", regex: "required_certifications" },
+  { key: "key_personnel", label: "Personal-cheie", regex: "key_personnel_roles" },
+  { key: "equipment", label: "Echipamente și dotări", regex: "mandatory_equipment" },
+  { key: "other", label: "Alte cerințe" },
+];
+
+function riskLabel(level?: string | null): string {
+  const folded = fold(level || "");
+  if (folded.startsWith("critic")) return "Critic";
+  if (folded.startsWith("moderat")) return "Moderat";
+  if (folded.startsWith("scazut")) return "Scăzut";
+  return level || "—";
+}
+
 function CaietTool({ tender, artifactId }: { tender: Tender; artifactId: string | null }) {
   const router = useRouter();
   const [projectTitle, setProjectTitle] = useState(tender.project_title || "");
@@ -591,6 +437,8 @@ function CaietTool({ tender, artifactId }: { tender: Tender; artifactId: string 
   const [ocrApplied, setOcrApplied] = useState<boolean | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [fromArtifact, setFromArtifact] = useState<string | null>(null);
+  const [insight, setInsight] = useState<CaietInsight | null>(null);
+  const [insightLoading, setInsightLoading] = useState(false);
   const cancelledRef = useRef(false);
 
   const context = {
@@ -613,13 +461,21 @@ function CaietTool({ tender, artifactId }: { tender: Tender; artifactId: string 
     if (!artifactId) return;
     fetchArtifact(artifactId)
       .then((a) => {
-        const payload = a.payload as { project_title?: string; bias_score?: number; bias_risk_level?: string; flags?: CaietFlag[] };
+        const payload = a.payload as {
+          project_title?: string;
+          bias_score?: number;
+          bias_risk_level?: string;
+          flags?: CaietFlag[];
+          document_sha256?: string;
+        };
         setProjectTitle(payload.project_title || projectTitle);
         setResult({
           project_title: payload.project_title,
           bias_score: payload.bias_score,
           bias_risk_level: payload.bias_risk_level,
           detected_red_flags: payload.flags || [],
+          // Lets the reopened scan show its cached AI analysis too.
+          document_sha256: payload.document_sha256,
         });
         setFromArtifact(a.created_at);
       })
@@ -628,14 +484,61 @@ function CaietTool({ tender, artifactId }: { tender: Tender; artifactId: string 
   }, [artifactId]);
 
   const realFlags = (result?.detected_red_flags ?? []).filter((f) => f.severity !== "OK");
+  const traps = insight?.status === "ready" ? insight.traps ?? [] : [];
+  const allFlags: CaietFlag[] = [...realFlags, ...traps];
   const flagKey = (f: CaietFlag, i: number) => f.flag_id || `${f.pattern}-${i}`;
 
-  // Everything flagged starts selected: the common case is "contest all of
-  // it", and unticking is one click per clause.
+  // The AI pass, as soon as the deterministic result is on screen — the
+  // user reads the regex findings while the model reads the document. One
+  // analysis per document hash: a repeat scan comes back from cache.
   useEffect(() => {
-    setSelected(new Set(realFlags.map(flagKey)));
+    setInsight(null);
+    const sha = result?.document_sha256;
+    if (!sha) {
+      setInsightLoading(false);
+      return;
+    }
+    let mounted = true;
+    setInsightLoading(true);
+    fetchCaietInsight({
+      project_title: projectTitle,
+      document_sha256: sha,
+      source_id: tender.source_id,
+      regex_flags: realFlags.map((f) => f.pattern),
+      regex_score: result?.bias_score ?? null,
+    })
+      .then((i) => mounted && setInsight(i))
+      .catch((e) => mounted && setInsight({ status: "unavailable", reason: e instanceof ApiError ? e.detail : "Analiza AI nu a răspuns." }))
+      .finally(() => mounted && setInsightLoading(false));
+    return () => {
+      mounted = false;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [result]);
+
+  // Everything flagged starts selected: the common case is "contest all of
+  // it", and unticking is one click per clause. AI findings join the
+  // selection when they arrive.
+  useEffect(() => {
+    setSelected(new Set(allFlags.map(flagKey)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [result, insight]);
+
+  const nzFlagged = realFlags.some((f) => fold(f.pattern).includes("zero net"));
+
+  // One requirement once, whichever pass found it; a group with nothing in
+  // it is not drawn at all.
+  const requirementGroups = REQUIREMENT_GROUPS.map((g) => {
+    const items: { text: string; quote: string | null }[] = [
+      ...((insight?.status === "ready" && insight.requirements?.find((r) => r.key === g.key)?.items) || []),
+    ];
+    const regexItems = g.regex ? (result?.qualification_criteria?.[g.regex] as string[] | undefined) ?? [] : [];
+    for (const raw of regexItems) {
+      const key = fold(raw);
+      if (key && !items.some((it) => fold(it.text).includes(key))) items.push({ text: raw, quote: null });
+    }
+    return { ...g, items };
+  }).filter((g) => g.items.length > 0);
 
   const runAsyncOcrFlow = async (f: File, title: string) => {
     setOcrStatus("queued");
@@ -711,8 +614,8 @@ function CaietTool({ tender, artifactId }: { tender: Tender; artifactId: string 
     }
   };
 
-  const forwardToDrafting = () => {
-    const chosen = realFlags.filter((f, i) => selected.has(flagKey(f, i)));
+  const forwardToDrafting = (only?: CaietFlag[]) => {
+    const chosen = only ?? allFlags.filter((f, i) => selected.has(flagKey(f, i)));
     if (!chosen.length) return;
     const key = stashClauses(tender.source_id, {
       project_title: projectTitle,
@@ -730,11 +633,11 @@ function CaietTool({ tender, artifactId }: { tender: Tender; artifactId: string 
 
   return (
     <Panel className="p-4 sm:p-6">
-      <h2 className="font-display text-2xl font-bold leading-tight tracking-tight">Scanner clauze restrictive</h2>
-      <p className="font-body mt-1.5 text-sm leading-relaxed text-stock-600">
-        Tipare de clauze restrictive plus verificări calculate pe textul legii (cifra de afaceri, garanțiile, criteriul de
-        atribuire, experiența personalului). Clauzele bifate pleacă direct în solicitarea de clarificări.
-      </p>
+      <h2 className="font-display text-2xl font-bold leading-tight tracking-tight">Scanner caiet de sarcini</h2>
+      <Hint>
+        Încărcați caietul (PDF, DOCX) sau lipiți textul: primiți sinteza, cerințele de calificare și clauzele restrictive,
+        fiecare gata de trimis în solicitarea de clarificări.
+      </Hint>
 
       <div className="mt-6 space-y-5">
         <Field label="Titlu proiect">
@@ -811,36 +714,90 @@ function CaietTool({ tender, artifactId }: { tender: Tender; artifactId: string 
       )}
 
       {result && !loading && (
-        <div className="mt-8 space-y-6">
-          {fromArtifact && <Badge tone="neutral">Scanare salvată din {formatDate(fromArtifact)}</Badge>}
-          {ocrApplied && <Badge tone="neutral">Document procesat prin OCR (scanare, fără strat de text digital)</Badge>}
+        <div className="mt-8 space-y-7">
+          {(fromArtifact || ocrApplied || insight?.cached) && (
+            <div className="flex flex-wrap gap-2">
+              {fromArtifact && <Badge tone="neutral">Scanare salvată din {formatDate(fromArtifact)}</Badge>}
+              {ocrApplied && <Badge tone="neutral">Document scanat, citit prin OCR</Badge>}
+              {insight?.cached && <Badge tone="neutral">Analiză AI din cache · 0 credite</Badge>}
+            </div>
+          )}
+
           <div className="neu-flat rounded-3xl bg-paper p-5">
             <div className="flex flex-wrap items-baseline justify-between gap-3">
               <div>
-                <Eyebrow className="text-editorial">Nivel de risc restrictiv</Eyebrow>
-                <p className="font-display mt-1 text-3xl font-semibold leading-tight">{result.bias_risk_level || "—"}</p>
+                <Eyebrow className="text-editorial">Risc restrictiv</Eyebrow>
+                <p className="font-display mt-1 text-3xl font-semibold leading-tight">
+                  {riskLabel(insight?.risk?.level ?? result.bias_risk_level)}
+                </p>
               </div>
-              {result.bias_score != null && (
+              {(insight?.risk?.score ?? result.bias_score) != null && (
                 <p className="tabular font-display text-4xl font-semibold">
-                  {result.bias_score}
+                  {insight?.risk?.score ?? result.bias_score}
                   <span className="font-mono text-sm font-normal tracking-widest text-stock-500"> / 10</span>
                 </p>
               )}
             </div>
-            {result.recommended_action && (
-              <p className="font-body mt-4 border-t border-divider pt-4 text-sm leading-relaxed text-stock-700">
-                {result.recommended_action}
-              </p>
-            )}
+            <p className="font-mono mt-3 border-t border-divider pt-3 text-[11px] text-stock-500">
+              {realFlags.length} {realFlags.length === 1 ? "semnalare" : "semnalări"} din verificarea legală
+              {insightLoading
+                ? " · analiza AI citește documentul…"
+                : insight?.status === "ready"
+                  ? ` · ${traps.length} ${traps.length === 1 ? "capcană identificată" : "capcane identificate"} de AI`
+                  : ""}
+            </p>
           </div>
 
-          {realFlags.length > 0 ? (
+          {insightLoading && <Loading label="Analiza AI citește documentul" />}
+          {insight?.status === "unavailable" && insight.reason && (
+            <p className="font-body text-sm text-stock-500">Analiza AI: {insight.reason}</p>
+          )}
+
+          {insight?.status === "ready" && insight.summary && insight.summary.length > 0 && (
             <section>
-              <SectionTitle note={`${selected.size} din ${realFlags.length} selectate`}>Clauze semnalate</SectionTitle>
+              <SectionTitle note={insight.truncated ? "document lung · extras" : undefined}>Pe scurt</SectionTitle>
+              <ul className="divide-y divide-divider neu-flat overflow-hidden rounded-3xl bg-paper">
+                {insight.summary.map((line) => (
+                  <li key={line.label} className="p-4">
+                    <Eyebrow>{line.label}</Eyebrow>
+                    <p className="font-body mt-1 text-sm leading-relaxed">{line.text}</p>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {requirementGroups.length > 0 && (
+            <section>
+              <SectionTitle>Cerințe de calificare și tehnice</SectionTitle>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {requirementGroups.map((g) => (
+                  <div key={g.key} className="neu-flat rounded-3xl bg-paper p-4">
+                    <Eyebrow>{g.label}</Eyebrow>
+                    <ul className="mt-1.5 space-y-1.5">
+                      {g.items.map((item, i) => (
+                        <li key={i} className="font-body text-sm leading-relaxed">
+                          {item.text}
+                          {item.quote && (
+                            <span className="mt-0.5 block border-l-2 border-divider pl-2 text-xs italic text-stock-500">„{item.quote}”</span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {allFlags.length > 0 ? (
+            <section>
+              <SectionTitle note={`${selected.size} din ${allFlags.length} selectate`}>Clauze restrictive și capcane</SectionTitle>
               <div className="divide-y divide-divider neu-flat overflow-hidden rounded-3xl bg-paper">
-                {realFlags.map((flag, i) => {
+                {allFlags.map((flag, i) => {
                   const key = flagKey(flag, i);
                   const checked = selected.has(key);
+                  const fromAi = (flag as { source?: string }).source === "ai";
                   return (
                     <div key={key} className="flex gap-3 p-4">
                       <input
@@ -857,66 +814,57 @@ function CaietTool({ tender, artifactId }: { tender: Tender; artifactId: string 
                       />
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-baseline justify-between gap-2">
-                          <h3 className="font-display text-lg font-semibold capitalize leading-snug">{flag.pattern}</h3>
-                          <Badge tone={SEVERITY_TONE[flag.severity] ?? "neutral"}>Risc {flag.severity}</Badge>
+                          <h3 className="font-display text-base font-semibold leading-snug first-letter:uppercase">{flag.pattern}</h3>
+                          <span className="flex shrink-0 gap-1.5">
+                            <Badge tone="neutral">{fromAi ? "AI" : "Verificare legală"}</Badge>
+                            <Badge tone={SEVERITY_TONE[flag.severity] ?? "neutral"}>{flag.severity}</Badge>
+                          </span>
                         </div>
                         {flag.excerpt && (
                           <p className="font-body mt-1.5 border-l-2 border-divider pl-3 text-sm italic text-stock-600">„{flag.excerpt}”</p>
                         )}
                         <p className="font-body mt-2 text-sm leading-relaxed text-stock-700">{flag.tactical_advisory}</p>
-                        {flag.legal_citations?.length ? (
-                          <p className="font-mono mt-1.5 text-[11px] text-stock-500">Temei: {flag.legal_citations.join("; ")}</p>
-                        ) : null}
+                        <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                          {flag.legal_citations?.length ? (
+                            <p className="font-mono text-[11px] text-stock-500">Temei: {flag.legal_citations.join("; ")}</p>
+                          ) : (
+                            <span />
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => forwardToDrafting([flag])}
+                            className="font-sans text-xs font-semibold text-editorial hover:brightness-110"
+                          >
+                            Clarificare art. 160 →
+                          </button>
+                        </div>
                       </div>
                     </div>
                   );
                 })}
               </div>
-              <Button onClick={forwardToDrafting} disabled={!selected.size} fullWidth className="mt-4">
-                Generează solicitare de clarificări / remediere (art. 160) cu {selected.size}{" "}
+              <Button onClick={() => forwardToDrafting()} disabled={!selected.size} fullWidth className="mt-4">
+                Generează solicitarea de clarificări (art. 160) cu {selected.size}{" "}
                 {selected.size === 1 ? "clauză" : "clauze"}
               </Button>
             </section>
           ) : (
-            <Notice title="Fără semnalări">Nu au fost detectate clauze restrictive dintre tiparele verificate.</Notice>
+            !insightLoading && (
+              <p className="font-body text-sm text-stock-600">
+                {insight?.status === "ready"
+                  ? "Nicio clauză restrictivă identificată — nici de verificarea legală, nici de analiza AI."
+                  : "Nicio clauză restrictivă dintre tiparele verificate."}
+              </p>
+            )
           )}
 
-          {result.qualification_criteria && (
+          {/* When the NZIA flag is already in the list above, this says only
+              what the bidder must prepare — not the finding a second time. */}
+          {result.net_zero && (!nzFlagged || result.net_zero.applies) && (
             <section>
-              <SectionTitle>Cerințe de calificare extrase</SectionTitle>
-              <div className="divide-y divide-divider neu-flat overflow-hidden rounded-3xl bg-paper">
-                {(
-                  [
-                    ["Cerințe cifră de afaceri", result.qualification_criteria.turnover_requirements],
-                    ["Certificări solicitate", result.qualification_criteria.required_certifications],
-                    ["Personal-cheie", result.qualification_criteria.key_personnel_roles],
-                    ["Echipamente obligatorii", result.qualification_criteria.mandatory_equipment],
-                  ] as [string, string[] | undefined][]
-                ).map(([label, values]) => (
-                  <div key={label} className="p-4">
-                    <Eyebrow>{label}</Eyebrow>
-                    <ul className="mt-1.5">
-                      {(values?.length ? values : ["—"]).map((v, i) => (
-                        <li key={i} className="font-body text-sm leading-relaxed">
-                          {v}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-              </div>
-              {result.qualification_criteria.extraction_note && (
-                <p className="font-mono mt-3 text-[11px] leading-relaxed text-stock-500">
-                  {result.qualification_criteria.extraction_note}
-                </p>
-              )}
-            </section>
-          )}
-
-          {result.net_zero && (
-            <section>
-              <SectionTitle>Tehnologii „zero net” — art. 25 NZIA</SectionTitle>
+              <SectionTitle>{nzFlagged ? "Ce pregătiți pentru art. 25 NZIA" : "Tehnologii „zero net” — art. 25 NZIA"}</SectionTitle>
               <div className="neu-flat rounded-3xl bg-paper p-4">
+                {!nzFlagged && (
                 <p className="font-body text-sm leading-relaxed">
                   Obiectul include: <strong>{result.net_zero.technologies.join(", ")}</strong>.{" "}
                   {result.net_zero.above_eu_threshold === false
@@ -927,8 +875,9 @@ function CaietTool({ tender, artifactId }: { tender: Tender; artifactId: string 
                         ? "Valoarea depășește pragul UE, iar documentația nu menționează regulamentul — vezi semnalarea de mai sus."
                         : "Valoarea nu este cunoscută: dacă depășește pragul UE, se aplică obligațiile de mai jos."}
                 </p>
+                )}
                 {result.net_zero.applies && (
-                  <ul className="mt-3 space-y-1.5">
+                  <ul className={nzFlagged ? "space-y-1.5" : "mt-3 space-y-1.5"}>
                     {result.net_zero.bidder_obligations.map((o, i) => (
                       <li key={i} className="font-body text-sm leading-relaxed text-stock-700">
                         — {o}
@@ -936,15 +885,8 @@ function CaietTool({ tender, artifactId }: { tender: Tender; artifactId: string 
                     ))}
                   </ul>
                 )}
-                <p className="font-mono mt-3 text-[11px] leading-relaxed text-stock-500">{result.net_zero.guidance.join(" · ")}</p>
               </div>
             </section>
-          )}
-
-          {result.coverage_note && (
-            <Notice tone="warning" title="Acoperirea analizei">
-              {result.coverage_note}
-            </Notice>
           )}
         </div>
       )}
@@ -987,10 +929,6 @@ function WinOddsTool({ tender }: { tender: Tender }) {
   const [result, setResult] = useState<WinOdds | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [dossier, setDossier] = useState<JustificationDossier | null>(null);
-  const [dossierLoading, setDossierLoading] = useState(false);
-  const [companyName, setCompanyName] = useState("");
-  const [costNotes, setCostNotes] = useState("");
 
   const qualityBased = criterion === "best_value" || criterion === "best_cost";
   const costBased = criterion === "best_cost" || criterion === "lowest_cost";
@@ -1002,7 +940,6 @@ function WinOddsTool({ tender }: { tender: Tender }) {
     }
     setLoading(true);
     setError(null);
-    setDossier(null);
     try {
       setResult(
         await predictWinRate(budget, price, hasPartner, leadTime, {
@@ -1026,26 +963,6 @@ function WinOddsTool({ tender }: { tender: Tender }) {
     }
   };
 
-  const handleGenerateDossier = async () => {
-    setDossierLoading(true);
-    setError(null);
-    try {
-      setDossier(
-        await generateJustificationDossier({
-          company_name: companyName.trim() || "[denumirea ofertantului]",
-          project_title: tender.project_title || "[denumirea procedurii]",
-          estimated_value_ron: budget,
-          proposed_price_ron: price,
-          cost_notes: costNotes.trim() || undefined,
-        })
-      );
-    } catch (e) {
-      setError(e instanceof ApiError ? e.detail : "Fundamentarea nu a putut fi generată.");
-    } finally {
-      setDossierLoading(false);
-    }
-  };
-
   const ratio = budget > 0 ? (price / budget) * 100 : 0;
   const strategy = result?.strategy;
   const risk = strategy?.abnormally_low_risk;
@@ -1054,11 +971,11 @@ function WinOddsTool({ tender }: { tender: Tender }) {
 
   return (
     <Panel className="p-4 sm:p-6">
-      <h2 className="font-display text-2xl font-bold leading-tight tracking-tight">Poziționare financiară</h2>
-      <p className="font-body mt-1.5 text-sm leading-relaxed text-stock-600">
-        Simulează oferta pe criteriul de atribuire al procedurii, verifică dacă acel criteriu este permis pentru valoarea
-        contractului și arată ambele căi prin care vi se poate cere justificarea prețului.
-      </p>
+      <h2 className="font-display text-2xl font-bold leading-tight tracking-tight">Poziționare preț</h2>
+      <Hint>
+        Introduceți valoarea estimată, prețul pe care vreți să-l ofertați și criteriul din fișa de date — vedeți verdictul,
+        garanțiile și cum vă situați față de un rival.
+      </Hint>
 
       <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2">
         <Field label="Valoarea estimată (RON, fără TVA)">
@@ -1141,153 +1058,55 @@ function WinOddsTool({ tender }: { tender: Tender }) {
       </Button>
 
       {result && !loading && strategy?.status === "success" && (
-        <div className="mt-8 space-y-6">
-          {check && !check.allowed && (
-            <Notice tone="alert" title="Criteriu de atribuire nepermis">
-              {check.issues.join(" ")}
-            </Notice>
-          )}
+        <div className="mt-8 space-y-7">
+          {/* 1 — Verdict and the money the bid costs before any point is scored. */}
+          <section className="neu-flat rounded-3xl bg-paper p-5 sm:p-6">
+            <Eyebrow className="text-editorial">Verdict</Eyebrow>
+            <p className="font-display mt-1.5 text-3xl font-semibold leading-tight sm:text-4xl">{result.assessment}</p>
+            <p className="font-mono mt-3 text-[11px] uppercase tracking-widest text-stock-500">
+              {strategy.ratio_pct?.toFixed(2)}% din estimare · discount {result.discount_percentage}%
+              {meta?.procedure_name ? ` · ${meta.procedure_name} · ${meta.applicable_law}` : ""}
+            </p>
+            {check && !check.allowed && <p className="font-body mt-3 text-sm font-medium text-negative">{check.issues.join(" ")}</p>}
+            <p className="font-body mt-3 text-sm text-stock-600">
+              {strategy.market_position
+                ? `Față de câștigători: ${strategy.market_position.label.charAt(0).toLowerCase()}${strategy.market_position.label.slice(1)} — tipic ${formatRon(
+                    strategy.market_position.reference_prices_ron.p25
+                  )} – ${formatRon(strategy.market_position.reference_prices_ron.p75)} (${strategy.market_position.sample_size} contracte, ${strategy.market_position.scope_label}).`
+                : "Fără reper de piață: prea puține atribuiri comparabile; verdictul se sprijină pe regulile legale."}
+            </p>
 
-          <div className="neu-flat rounded-3xl bg-paper p-6">
-            <Eyebrow className="text-editorial">Evaluare</Eyebrow>
-            <p className="font-display mt-2 text-3xl font-semibold leading-tight sm:text-4xl">{result.assessment}</p>
-            <div className="font-mono mt-4 flex flex-wrap gap-x-5 gap-y-1 border-t border-divider pt-4 text-[11px] uppercase tracking-widest text-stock-500">
-              <span>
-                Raport <span className="tabular text-ink">{strategy.ratio_pct?.toFixed(2)}%</span>
-              </span>
-              <span>
-                Discount <span className="tabular text-ink">{result.discount_percentage}%</span>
-              </span>
-              {meta?.procedure_name && <span>{meta.procedure_name} · {meta.applicable_law}</span>}
-            </div>
-          </div>
-
-          {/* The bid manager's strip: what the money side of this bid costs
-              before a single point is scored. */}
-          {strategy.guarantees && (
-            <div className="rule-grid grid grid-cols-2 sm:grid-cols-4">
-              <div className="p-4">
-                <Eyebrow>Garanție participare</Eyebrow>
-                <p className="tabular font-display mt-1.5 text-lg font-semibold leading-none">
-                  max {formatRon(strategy.guarantees.participation_max_ron)}
-                </p>
-                <p className="font-mono mt-1 text-[10px] text-stock-500">≤ 1% din estimare</p>
-              </div>
-              <div className="p-4">
-                <Eyebrow>Garanție bună execuție</Eyebrow>
-                <p className="tabular font-display mt-1.5 text-lg font-semibold leading-none">
-                  max {formatRon(strategy.guarantees.performance_max_ron)}
-                </p>
-                <p className="font-mono mt-1 text-[10px] text-stock-500">≤ 10% din prețul ofertat</p>
-              </div>
-              <div className="p-4">
-                <Eyebrow>Prag 80%</Eyebrow>
-                <p className="tabular font-display mt-1.5 text-lg font-semibold leading-none">{formatRon(risk?.threshold_ron)}</p>
-                <p className="font-mono mt-1 text-[10px] text-stock-500">sub el: prezumție</p>
-              </div>
-              <div className="p-4">
-                <Eyebrow>Cauțiune CNSC</Eyebrow>
-                <p className="tabular font-display mt-1.5 text-lg font-semibold leading-none">
-                  {meta?.cautiune ? formatRon(meta.cautiune.pre_submission_ron) : "—"}
-                </p>
-                <p className="font-mono mt-1 text-[10px] text-stock-500">
-                  {meta?.cnsc_deadline_days ? `termen ${meta.cnsc_deadline_days} zile` : "achiziție directă: instanță"}
-                </p>
-              </div>
-            </div>
-          )}
-          {strategy.guarantees && <p className="font-mono -mt-3 text-[10px] text-stock-500">{strategy.guarantees.basis}</p>}
-
-          {risk && (
-            <section>
-              <span className="flex items-center gap-1.5">
-                <SectionTitle note={risk.level}>Prețul aparent neobișnuit de scăzut</SectionTitle>
-                <Explain k="abnormallyLowPrice" className="mb-4" />
-              </span>
-              <div className={"neu-pressed rounded-2xl border-l-[3px] bg-paper p-4 " + (RISK_BORDER[risk.code] ?? "border-divider")}>
-                <p className="font-body text-sm leading-relaxed">{risk.detail}</p>
-              </div>
-              <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="neu-pressed rounded-2xl bg-paper p-4">
-                  <Eyebrow className={risk.presumption_triggered ? "text-negative" : "text-stock-500"}>
-                    Calea 1 · prezumția sub 80% {risk.presumption_triggered ? "— se aplică" : "— nu se aplică"}
-                  </Eyebrow>
-                  <p className="font-body mt-1.5 text-xs leading-relaxed text-stock-600">{risk.track1}</p>
-                  <p className="font-mono mt-1.5 text-[10px] text-stock-500">{risk.presumption_basis}</p>
-                </div>
-                <div className="neu-pressed rounded-2xl bg-paper p-4">
-                  <Eyebrow className="text-warning">Calea 2 · elementele de preț — se aplică mereu</Eyebrow>
-                  <p className="font-body mt-1.5 text-xs leading-relaxed text-stock-600">{risk.track2}</p>
-                  <p className="font-mono mt-1.5 text-[10px] text-stock-500">{risk.element_audit_basis}</p>
-                </div>
-              </div>
-
-              <details className="mt-3" open={risk.code !== "no_presumption"}>
-                <summary className="label-eyebrow cursor-pointer text-stock-500 hover:text-ink">
-                  Verificarea pe elemente înainte de depunere ({risk.element_audit.length})
-                </summary>
-                <ol className="mt-2 divide-y divide-divider">
-                  {risk.element_audit.map((e) => (
-                    <li key={e.key} className="py-2.5">
-                      <p className="font-body text-sm font-semibold">{e.label}</p>
-                      <p className="font-body mt-0.5 text-sm leading-relaxed text-stock-600">{e.check}</p>
-                      <p className="font-mono mt-1 text-[10px] leading-relaxed text-stock-500">
-                        Dovezi: {e.evidence} · {e.basis}
-                      </p>
-                    </li>
-                  ))}
-                </ol>
-              </details>
-
-              {risk.legal_basis?.length > 0 && (
-                <details className="mt-3">
-                  <summary className="label-eyebrow cursor-pointer text-stock-500 hover:text-ink">
-                    Textul articolelor ({risk.legal_basis.length})
-                  </summary>
-                  <div className="mt-2 space-y-3">
-                    {risk.legal_basis.map((a) => (
-                      <div key={a.citation} className="neu-pressed rounded-2xl bg-paper p-3">
-                        <p className="font-mono text-[11px] font-semibold text-editorial">{a.citation}</p>
-                        <p className="font-body mt-1.5 text-xs leading-relaxed text-stock-600">„{a.text}”</p>
-                      </div>
-                    ))}
+            {strategy.guarantees && (
+              <div className="mt-5 grid grid-cols-2 gap-3 border-t border-divider pt-5 sm:grid-cols-4" title={strategy.guarantees.basis}>
+                {[
+                  ["Garanție participare", `max ${formatRon(strategy.guarantees.participation_max_ron)}`, "≤ 1% din estimare"],
+                  ["Garanție bună execuție", `max ${formatRon(strategy.guarantees.performance_max_ron)}`, "≤ 10% din prețul ofertat"],
+                  ["Prag 80% · art. 136(4)", formatRon(risk?.threshold_ron), "sub el: prezumție"],
+                  [
+                    "Cauțiune CNSC 2%",
+                    meta?.cautiune ? formatRon(meta.cautiune.pre_submission_ron) : "—",
+                    meta?.cnsc_deadline_days ? `termen ${meta.cnsc_deadline_days} zile` : "achiziție directă: instanță",
+                  ],
+                ].map(([label, value, note]) => (
+                  <div key={label}>
+                    <Eyebrow>{label}</Eyebrow>
+                    <p className="tabular font-display mt-1 text-lg font-semibold leading-none">{value}</p>
+                    <p className="font-mono mt-1 text-[10px] text-stock-500">{note}</p>
                   </div>
-                </details>
-              )}
+                ))}
+              </div>
+            )}
+          </section>
 
-              {risk.requires_justification_dossier && (
-                <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-                  <Button
-                    className="flex-1"
-                    onClick={() =>
-                      router.push(
-                        draftingHref(tender.source_id, "clarificari", {
-                          letter: "abnormally_low_price",
-                          offered: String(price),
-                          estimated: String(budget),
-                        })
-                      )
-                    }
-                  >
-                    Redactează justificarea prețului (art. 210)
-                  </Button>
-                </div>
-              )}
-            </section>
-          )}
-
+          {/* 2 — What a cheaper rival does to the score. */}
           {strategy.scenarios && (
             <section>
               <SectionTitle note={strategy.award_criterion_label}>Dacă un rival ofertează…</SectionTitle>
-              <div className="neu-pressed mb-3 rounded-2xl bg-paper p-4">
-                <p className="font-mono text-xs leading-relaxed text-stock-600">{strategy.scoring_model?.formula}</p>
-                <p className="font-body mt-1.5 text-sm leading-relaxed">{strategy.scoring_model?.note}</p>
-              </div>
               <div className="scroll-x overflow-x-auto">
                 <table className="w-full min-w-[34rem] neu-pressed overflow-hidden rounded-2xl bg-paper text-left font-mono text-xs">
                   <thead>
                     <tr className="border-b border-divider">
-                      {["Rivalul la", "Prețul lui", qualityBased ? "Puncte preț (dvs. / el)" : "Rezultat", qualityBased ? "Diferență tehnică" : "Notă"].map((h) => (
+                      {["Rivalul la", "Prețul lui", qualityBased ? "Puncte preț (dvs. / el)" : "Rezultat", qualityBased ? "Punctaj tehnic necesar" : "Notă"].map((h) => (
                         <th key={h} className="px-3 py-2.5 font-sans text-[10px] font-semibold uppercase tracking-widest text-stock-500">
                           {h}
                         </th>
@@ -1299,9 +1118,7 @@ function WinOddsTool({ tender }: { tender: Tender }) {
                       <tr key={s.rival_ratio_pct} className="border-b border-divider last:border-b-0">
                         <td className="px-3 py-2.5">{s.rival_ratio_pct}% din estimare</td>
                         <td className="px-3 py-2.5">{formatRon(s.rival_price_ron)}</td>
-                        <td className="px-3 py-2.5">
-                          {qualityBased ? `${s.your_price_points} / ${s.rival_price_points}` : s.outcome}
-                        </td>
+                        <td className="px-3 py-2.5">{qualityBased ? `${s.your_price_points} / ${s.rival_price_points}` : s.outcome}</td>
                         <td className="px-3 py-2.5 text-editorial">
                           {qualityBased ? s.outcome : s.note || "—"}
                           {qualityBased && s.note && <span className="block text-stock-500">{s.note}</span>}
@@ -1311,31 +1128,13 @@ function WinOddsTool({ tender }: { tender: Tender }) {
                   </tbody>
                 </table>
               </div>
+              {qualityBased && (
+                <p className="font-mono mt-2 text-[10px] text-stock-500">
+                  Ponderi: preț {strategy.price_weight_pct ?? priceWeight}% · tehnic {strategy.technical_weight_pct ?? 100 - priceWeight}% —{" "}
+                  {strategy.scoring_model?.formula}
+                </p>
+              )}
             </section>
-          )}
-
-          {strategy.market_position ? (
-            <section>
-              <SectionTitle note={`${strategy.market_position.sample_size} atribuiri`}>Față de câștigătorii reali</SectionTitle>
-              <p className="font-body text-sm leading-relaxed">
-                {strategy.market_position.label} — {strategy.market_position.scope_label}.
-              </p>
-              <div className="rule-grid mt-3 grid grid-cols-3 sm:grid-cols-5">
-                {(["p5", "p25", "p50", "p75", "p95"] as const).map((k) => (
-                  <div key={k} className="p-3">
-                    <Eyebrow>{k === "p50" ? "Median" : k.toUpperCase()}</Eyebrow>
-                    <p className="tabular font-mono mt-1 text-xs">{formatRon(strategy.market_position?.reference_prices_ron[k])}</p>
-                  </div>
-                ))}
-              </div>
-            </section>
-          ) : (
-            result.award_benchmark && (
-              <Notice tone="neutral" title="Fără reper de piață încă">
-                {result.award_benchmark.reason ||
-                  "Prea puține atribuiri comparabile pentru percentile; evaluarea folosește doar regulile legale."}
-              </Notice>
-            )
           )}
 
           {strategy.lifecycle && (
@@ -1344,91 +1143,95 @@ function WinOddsTool({ tender }: { tender: Tender }) {
                 Costul pe ciclul de viață
               </SectionTitle>
               {strategy.lifecycle.lifecycle_cost_ron != null ? (
-                <div className="neu-pressed rounded-2xl bg-paper p-4">
-                  <p className="font-mono text-xs text-stock-600">{strategy.lifecycle.formula}</p>
-                  <p className="font-body mt-1.5 text-sm">
-                    Preț {formatRon(price)} + costuri actualizate {formatRon(strategy.lifecycle.present_value_operating_ron)} ={" "}
-                    <span className="tabular font-semibold">{formatRon(strategy.lifecycle.lifecycle_cost_ron)}</span>
-                  </p>
-                </div>
+                <p className="font-body text-sm">
+                  Preț {formatRon(price)} + costuri actualizate {formatRon(strategy.lifecycle.present_value_operating_ron)} ={" "}
+                  <span className="tabular font-semibold">{formatRon(strategy.lifecycle.lifecycle_cost_ron)}</span>
+                </p>
               ) : (
                 <p className="font-body text-sm text-stock-600">
                   {strategy.lifecycle.note || "Introduceți costul anual și durata pentru a calcula costul pe ciclul de viață."}
                 </p>
               )}
-              {strategy.lifecycle.discount_rate && (
-                <p className="font-mono mt-2 text-[10px] leading-relaxed text-stock-500">
-                  {strategy.lifecycle.discount_rate.basis}. {strategy.lifecycle.discount_rate.scope}
-                </p>
+            </section>
+          )}
+
+          {/* 3 — The legal position, once, with the way out when it bites. */}
+          {risk && (
+            <section className={"neu-pressed rounded-2xl border-l-[3px] bg-paper p-4 sm:p-5 " + (RISK_BORDER[risk.code] ?? "border-divider")}>
+              <span className="flex items-center gap-1.5">
+                <Eyebrow className={risk.code === "no_presumption" ? "text-positive" : risk.code === "near_threshold" ? "text-warning" : "text-negative"}>
+                  {risk.level} · art. {meta?.regime === "L99" ? "222" : "210"} / art. 136 alin. (1) și (4)
+                </Eyebrow>
+                <Explain k="abnormallyLowPrice" />
+              </span>
+              <p className="font-body mt-2 text-sm leading-relaxed">{risk.detail}</p>
+              {risk.requires_justification_dossier && (
+                <Button
+                  className="mt-4"
+                  fullWidth
+                  onClick={() =>
+                    router.push(
+                      draftingHref(tender.source_id, "clarificari", {
+                        letter: "abnormally_low_price",
+                        offered: String(price),
+                        estimated: String(budget),
+                      })
+                    )
+                  }
+                >
+                  Generează Justificare Preț Art. {meta?.regime === "L99" ? "222" : "210"} în Redactare →
+                </Button>
               )}
-            </section>
-          )}
 
-          {risk?.requires_justification_dossier && (
-            <section className="neu-pressed rounded-2xl bg-paper p-4">
-              <Eyebrow className="text-editorial">Schița fundamentării economice, aici</Eyebrow>
-              <p className="font-body mt-1.5 text-sm leading-relaxed text-stock-600">
-                Structura oficială pe capitolele a)–f) din art. 210 alin. (2), cu dovezile cerute de art. 136 alin. (2) din norme.
-              </p>
-              <div className="mt-4 space-y-3">
-                <Field label="Denumirea ofertantului">
-                  <Input value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="SC Exemplu SRL" />
-                </Field>
-                <Field label="Note despre structura costurilor (opțional)" hint="Utilaje proprii, distanțe, contracte-cadru cu furnizorii.">
-                  <Textarea rows={3} value={costNotes} onChange={(e) => setCostNotes(e.target.value)} />
-                </Field>
-              </div>
-              <Button onClick={handleGenerateDossier} disabled={dossierLoading} variant="outline" fullWidth className="mt-4">
-                {dossierLoading ? "Se redactează…" : "Generează fundamentarea economică"}
-              </Button>
-            </section>
-          )}
-
-          {dossier && (
-            <section>
-              <SectionTitle note={`${dossier.chapters.length} capitole`}>{dossier.title}</SectionTitle>
-              {!dossier.narrative_available && dossier.narrative_note && (
-                <div className="mb-3">
-                  <Notice tone="warning">{dossier.narrative_note}</Notice>
+              <details className="group mt-4 border-t border-divider pt-3">
+                <summary className="flex cursor-pointer list-none items-center justify-between font-sans text-xs font-semibold text-stock-600 hover:text-ink">
+                  Detalii juridice (Art. {meta?.regime === "L99" ? "222" : "210"} & Art. 136)
+                  <ChevronDown size={15} className="transition-transform group-open:rotate-180" />
+                </summary>
+                <div className="mt-3 space-y-4">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div>
+                      <Eyebrow className={risk.presumption_triggered ? "text-negative" : "text-stock-500"}>
+                        Calea 1 · prezumția sub 80% {risk.presumption_triggered ? "— se aplică" : "— nu se aplică"}
+                      </Eyebrow>
+                      <p className="font-body mt-1 text-xs leading-relaxed text-stock-600">{risk.track1}</p>
+                      <p className="font-mono mt-1 text-[10px] text-stock-500">{risk.presumption_basis}</p>
+                    </div>
+                    <div>
+                      <Eyebrow className="text-warning">Calea 2 · elementele de preț — se aplică mereu</Eyebrow>
+                      <p className="font-body mt-1 text-xs leading-relaxed text-stock-600">{risk.track2}</p>
+                      <p className="font-mono mt-1 text-[10px] text-stock-500">{risk.element_audit_basis}</p>
+                    </div>
+                  </div>
+                  <div>
+                    <Eyebrow>Verificarea pe elemente înainte de depunere</Eyebrow>
+                    <ol className="mt-1 divide-y divide-divider">
+                      {risk.element_audit.map((e) => (
+                        <li key={e.key} className="py-2">
+                          <p className="font-body text-sm font-semibold">{e.label}</p>
+                          <p className="font-body mt-0.5 text-xs leading-relaxed text-stock-600">{e.check}</p>
+                          <p className="font-mono mt-0.5 text-[10px] text-stock-500">
+                            Dovezi: {e.evidence} · {e.basis}
+                          </p>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                  {risk.legal_basis?.length > 0 && (
+                    <div className="space-y-2">
+                      <Eyebrow>Textul articolelor</Eyebrow>
+                      {risk.legal_basis.map((a) => (
+                        <div key={a.citation}>
+                          <p className="font-mono text-[11px] font-semibold text-editorial">{a.citation}</p>
+                          <p className="font-body mt-1 text-xs leading-relaxed text-stock-600">„{a.text}”</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              )}
-              {dossier.narrative && (
-                <div className="neu-pressed mb-4 rounded-2xl bg-paper p-4">
-                  <p className="font-body whitespace-pre-wrap text-sm leading-relaxed">{dossier.narrative}</p>
-                </div>
-              )}
-              <ol className="divide-y divide-divider">
-                {dossier.chapters.map((c) => (
-                  <li key={c.letter} className="py-3">
-                    <p className="font-body text-sm font-semibold">
-                      {c.letter}) {c.title}
-                    </p>
-                    <p className="font-body mt-1 text-sm leading-relaxed text-stock-600">{c.what_to_provide}</p>
-                    <p className="font-mono mt-1.5 text-[11px] leading-relaxed text-stock-500">Dovezi: {c.supporting_evidence}</p>
-                  </li>
-                ))}
-              </ol>
-              <p className="font-body mt-4 text-sm leading-relaxed text-stock-600">{dossier.closing_note}</p>
+              </details>
             </section>
           )}
-
-          {result.factors?.length > 0 && (
-            <section>
-              <SectionTitle note={`${result.factors.length} factori`}>Ce stă în spatele evaluării</SectionTitle>
-              <ol className="divide-y divide-divider">
-                {result.factors.map((f, i) => (
-                  <li key={i} className="flex gap-3 py-3">
-                    <span className="tabular font-mono w-6 shrink-0 pt-0.5 text-xs text-stock-400">{String(i + 1).padStart(2, "0")}</span>
-                    <p className="font-body flex-1 text-sm leading-relaxed">{f}</p>
-                  </li>
-                ))}
-              </ol>
-            </section>
-          )}
-
-          <Notice tone="warning" title="Metodologie">
-            {result.methodology_note}
-          </Notice>
         </div>
       )}
       {result && !loading && strategy?.status === "error" && (
@@ -1444,10 +1247,15 @@ function WinOddsTool({ tender }: { tender: Tender }) {
 
 function AnalyticsContent() {
   const searchParams = useSearchParams();
-  const requested = searchParams.get("tool") as ToolId | null;
+  const requested = searchParams.get("tool");
   const [activeTool, setActiveTool] = useState<ToolId>(
-    requested && TOOLS.some((t) => t.id === requested) ? requested : "copilot"
+    TOOLS.find((t) => t.id === requested)?.id ?? "competitor"
   );
+  const { ask } = useCopilot();
+  // Old links and bookmarks to the copilot tab open the floating copilot.
+  useEffect(() => {
+    if (requested === "copilot") ask();
+  }, [requested, ask]);
   const sourceId = searchParams.get("source_id");
   const [lead, setLead] = useState<Lead | null>(null);
   const [leadState, setLeadState] = useState<"idle" | "loading" | "ready" | "missing">(sourceId ? "loading" : "idle");
@@ -1471,10 +1279,11 @@ function AnalyticsContent() {
   // Re-mount the tools once the record arrives so their inputs start from
   // the tender rather than from the fallback URL parameters.
   const toolKey = `${tender.source_id ?? "none"}-${leadState}`;
+  useActiveTender(tender.source_id, tender.project_title || null);
 
   return (
     <main className="mx-auto w-full max-w-screen-xl flex-1 px-4 py-6 sm:py-8">
-      <PageHeader title="Strategie & Copilot" />
+      <PageHeader title="Strategie" />
 
       <TabBar tabs={TOOLS} active={activeTool} onChange={setActiveTool} label="Instrument de analiză" />
 
@@ -1487,8 +1296,7 @@ function AnalyticsContent() {
               <Notice tone="warning">Anunțul nu mai există în registru — instrumentele pornesc cu datele din link.</Notice>
             </div>
           )}
-          {activeTool !== "copilot" && <TenderBanner tender={tender} />}
-          {activeTool === "copilot" && <CopilotTool />}
+          <TenderBanner tender={tender} />
           {activeTool === "competitor" && <CompetitorTool key={toolKey} tender={tender} />}
           {activeTool === "caiet" && <CaietTool key={toolKey} tender={tender} artifactId={searchParams.get("artifact")} />}
           {activeTool === "win" && <WinOddsTool key={toolKey} tender={tender} />}
@@ -1502,7 +1310,7 @@ export default function AnalyticsPage() {
   return (
     <AuthGate
       title="Instrumentele de strategie sunt pentru abonați"
-      description="Copilotul și analizele de ofertare citesc registrul dvs. și necesită un cont autentificat."
+      description="Profilul de piață, scannerul de caiet și poziționarea prețului necesită un cont autentificat."
     >
       <Suspense
         fallback={

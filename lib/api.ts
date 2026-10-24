@@ -387,8 +387,10 @@ export interface AwardBenchmark {
   scope_label?: string;
   geography?: "county" | "national";
   cpv_prefix?: string | null;
-  ratio_pct?: { p5: number; p25: number; p50: number; p75: number; p95: number; iqr: number; mean: number };
-  discount_pct?: { p5: number; p25: number; p50: number; p75: number; p95: number };
+  /** p10/p90 are what the market profile shows; p5/p95 cut the
+   *  price-position bands. */
+  ratio_pct?: { p5: number; p10: number; p25: number; p50: number; p75: number; p90: number; p95: number; iqr: number; mean: number };
+  discount_pct?: { p5: number; p10: number; p25: number; p50: number; p75: number; p90: number; p95: number };
   below_80pct_share?: number;
   excluded_outliers?: number;
   /** Framework agreements left out of the price ratios (estimate = framework maximum). */
@@ -731,61 +733,83 @@ export async function fetchMyMarketTrends(): Promise<MarketTrends> {
   return apiFetch("/api/v1/me/market-trends");
 }
 
-export interface MacroReport {
-  period?: string;
-  /**
-   * Deterministic market figures, computed in Python over the same slice
-   * the takeaways describe. Typed rather than left as `unknown` because
-   * the panel renders them — they were being fetched and discarded.
-   */
-  telemetry?: {
-    /** Only sums values the sources actually published. */
-    published_pipeline_ron?: number;
-    signals_with_published_value?: number;
-    signals_processed?: number;
-    top_active_counties?: string[];
-    sector_breakdown?: Record<string, number>;
-    stage_breakdown?: Record<string, number>;
-  };
-  executive_takeaways?: string[];
-  strategic_recommendation?: string;
-}
-
-export async function fetch72hMarketReport(): Promise<MacroReport> {
-  return apiFetch("/api/v1/analytics/market-report-72h");
-}
-
 export interface CopilotTurn {
   role: "user" | "assistant";
   content: string;
 }
 
-/**
- * `history` is the prior turns, oldest first. The transcript used to live
- * only in component state, so the model answered every message as if it
- * were the first one and a follow-up ("și în Cluj?") had nothing to
- * resolve against. The backend caps it at 12 turns.
- */
-export interface CopilotReply {
-  reply: string;
-  degraded?: boolean;
-  /** True when the flagship model answered. */
-  deep?: boolean;
-  /** Set when "deep" was asked for on a plan that does not include it. */
-  notice?: string | null;
-  /** Set when a credit or budget limit stopped the AI call — the reply is
-   *  then the deterministic answer, and this says why. */
-  ai_quota?: string | null;
+/** What the user has on screen when they ask the floating copilot. The
+ *  tender is re-read from the database by id on the server. */
+export interface CopilotScreenContext {
+  route?: string;
+  source_id?: string | null;
+  deal_id?: string | null;
+  company?: { cui?: string | null; company_name?: string | null };
 }
 
-export async function askCopilotChat(
+export type CopilotActionType =
+  | "open_tender"
+  | "add_to_pipeline"
+  | "move_pipeline_stage"
+  | "set_company_profile"
+  | "open_drafting"
+  | "open_strategy"
+  | "send_email_alert";
+
+/** An action the copilot proposes. Never executed by the server: the
+ *  browser performs it, as the user, once they press the button. */
+export interface CopilotAction {
+  id: string;
+  type: CopilotActionType;
+  label: string;
+  params: {
+    source_id?: string | null;
+    deal_id?: string;
+    stage?: string;
+    document?: "propunere_tehnica" | "clarificari" | "justificare_pret" | "acces_dosar";
+    points?: string[];
+    project_title?: string;
+    tool?: "profil_piata" | "scanner_caiet" | "pozitionare_pret";
+    cui?: string;
+    company_name?: string;
+    address?: string | null;
+    registration_number?: string | null;
+    caen_code?: string | null;
+  };
+}
+
+export interface CopilotTenderCard {
+  source_id: string;
+  project_title?: string;
+  entity_name?: string;
+  county?: string;
+  financial_value_ron?: number | null;
+  action_deadline?: string | null;
+  published_date?: string | null;
+}
+
+export interface CopilotAgentReply {
+  reply: string;
+  actions: CopilotAction[];
+  tenders: CopilotTenderCard[];
+  deep?: boolean;
+  notice?: string | null;
+  /** Set when a credit or budget limit stopped the AI call — the reply is
+   *  then the deterministic one, and this says why. */
+  ai_quota?: string | null;
+  degraded?: boolean;
+}
+
+/** `history` is the prior turns, oldest first; the backend keeps 12. */
+export async function askCopilotAgent(
   query: string,
-  history: CopilotTurn[] = [],
+  history: CopilotTurn[],
+  context: CopilotScreenContext,
   deep = false
-): Promise<CopilotReply> {
-  return apiFetch("/api/v1/copilot/chat", {
+): Promise<CopilotAgentReply> {
+  return apiFetch("/api/v1/copilot/agent", {
     method: "POST",
-    body: { query, history: history.slice(-12), deep },
+    body: { query, history: history.slice(-12), context, deep },
   });
 }
 
@@ -894,13 +918,18 @@ export async function deletePipelineDeal(dealId: string): Promise<{ status: stri
 
 /* --------------------------------------------------------- notification */
 
+/**
+ * Sends the tender by id: the server builds the e-mail from its own record,
+ * so the "Deschide dosarul complet" link always carries the canonical
+ * source_id (and /cautare-avansata opens it whatever the user's filters).
+ */
 export async function triggerEmailAlert(
-  leadData: Lead | Record<string, unknown>,
+  sourceId: string,
   recipientEmail: string
-): Promise<{ status: "success" | "failed"; recipient: string }> {
+): Promise<{ status: "success" | "failed"; recipient: string; source_id: string }> {
   return apiFetch("/api/v1/notifications/send-email-alert", {
     method: "POST",
-    body: { lead_data: leadData, recipient_email: recipientEmail },
+    body: { source_id: sourceId, recipient_email: recipientEmail },
   });
 }
 
@@ -1047,6 +1076,9 @@ export interface CaietAnalysis {
     extraction_note?: string;
   };
   coverage_note?: string;
+  /** Identity of the scanned text; the AI pass (fetchCaietInsight) is
+   *  requested with it, and cached on it for every later scan. */
+  document_sha256?: string;
   /** Art. 25 NZIA assessment when the object names a net-zero technology
    *  (art. 4 alin. (1) lit. (a)-(k) of Reg. 2024/1735); null otherwise. */
   net_zero?: NetZeroAssessment | null;
@@ -1104,6 +1136,41 @@ export async function analyzeCaietSarcini(
       authority_name: context.authorityName || undefined,
     },
   });
+}
+
+/** One finding from the AI pass. Same shape as a regex flag where they
+ *  overlap, so both forward into an art. 160 request the same way. */
+export interface CaietTrap extends CaietFlag {
+  issue: string;
+  recommendation: string;
+  legal_topic: string;
+  source: "ai";
+}
+
+export interface CaietInsight {
+  status: "ready" | "unavailable";
+  reason?: string;
+  summary?: { label: string; text: string }[];
+  /** Only the categories the document actually states. */
+  requirements?: { key: string; label: string; items: { text: string; quote: string | null }[] }[];
+  traps?: CaietTrap[];
+  /** Served from the per-document cache: no credit spent. */
+  cached?: boolean;
+  truncated?: boolean;
+  document_sha256?: string;
+  risk?: { score: number; level: "Scăzut" | "Moderat" | "Critic"; regex_score: number; ai_findings: number };
+}
+
+export async function fetchCaietInsight(body: {
+  project_title: string;
+  document_sha256?: string | null;
+  doc_id?: string | null;
+  source_id?: string | null;
+  specification_text?: string | null;
+  regex_flags?: string[];
+  regex_score?: number | null;
+}): Promise<CaietInsight> {
+  return apiFetch("/api/v1/addons/caiet-insight", { method: "POST", body });
 }
 
 export async function uploadCaietFile(file: File, projectTitle: string, sourceId?: string | null): Promise<CaietAnalysis> {

@@ -6,7 +6,7 @@
 
 export type DraftingTab = "propunere" | "clarificari";
 export type LetterType = "clarification" | "evaluation_response" | "abnormally_low_price" | "dossier_access" | "foia";
-export type AnalyticsTool = "copilot" | "competitor" | "caiet" | "win";
+export type AnalyticsTool = "competitor" | "caiet" | "win";
 
 export function draftingHref(sourceId: string | null | undefined, tab: DraftingTab = "propunere", extra: Record<string, string> = {}) {
   const params = new URLSearchParams({ tab, ...extra });
@@ -29,6 +29,8 @@ export interface ClauseHandoff {
   project_title?: string;
   points: string[];
   citations: string[];
+  /** Who handed them over — the caiet scanner (default) or the copilot. */
+  origin?: "scanner" | "copilot";
   created_at: string;
 }
 

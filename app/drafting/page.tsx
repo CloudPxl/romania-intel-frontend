@@ -32,6 +32,7 @@ import {
 } from "@/lib/api";
 import { CATEGORIES, formatDate, formatNumber, formatRon } from "@/lib/format";
 import { takeClauses } from "@/lib/toolLinks";
+import { useActiveTender } from "@/context/CopilotContext";
 import {
   Badge,
   Button,
@@ -975,6 +976,8 @@ function DraftingContent() {
     authority_level: "",
   };
   const [form, setForm] = useState<ProcedureForm>(emptyForm);
+  // The copilot reads "licitația asta" as the tender this form is for.
+  useActiveTender(form.source_id || null, form.project_title || null);
   const [tenderLoading, setTenderLoading] = useState(false);
   const [tenderNotice, setTenderNotice] = useState<string | null>(null);
   const [declarationsNote, setDeclarationsNote] = useState<string | null>(null);
@@ -1147,7 +1150,7 @@ function DraftingContent() {
         }));
         setToolsKey((k) => k + 1);
         setHandoffNote(
-          `${handoff.points.length} ${handoff.points.length === 1 ? "clauză preluată" : "clauze preluate"} din scanerul de caiet` +
+          `${handoff.points.length} ${handoff.points.length === 1 ? "clauză preluată" : "clauze preluate"} ${handoff.origin === "copilot" ? "din Copilot" : "din scanerul de caiet"}` +
             (handoff.citations.length ? `, cu temeiurile: ${handoff.citations.slice(0, 4).join("; ")}${handoff.citations.length > 4 ? "…" : ""}` : "") +
             ". Verificați formularea înainte de transmitere."
         );

@@ -1,8 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { X } from "lucide-react";
+import { Sparkles, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { useActiveTender, useCopilot } from "@/context/CopilotContext";
 import {
   ApiError,
   PROCEDURE_TYPE_LABELS,
@@ -103,6 +104,9 @@ function TenderBriefSection({ sourceId }: { sourceId: string }) {
 export default function LeadDossierPanel({ lead, onClose }: { lead: Lead; onClose: () => void }) {
   const { user, preferences } = useAuth();
   const router = useRouter();
+  const { ask } = useCopilot();
+  // While this panel is open, "acest dosar" in the copilot means this one.
+  useActiveTender(lead.source_id, lead.project_title);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   // Plays the exit animation, then unmounts once it's done — closing was
@@ -159,7 +163,9 @@ export default function LeadDossierPanel({ lead, onClose }: { lead: Lead; onClos
     }
     setBusyAction("email");
     try {
-      const res = await triggerEmailAlert(lead, recipient);
+      // By id: the server builds the e-mail from its own record, so the
+      // link in it always opens this dossier.
+      const res = await triggerEmailAlert(lead.source_id, recipient);
       setToast(
         res.status === "success"
           ? `Alertă expediată către ${recipient}.`
@@ -343,10 +349,14 @@ export default function LeadDossierPanel({ lead, onClose }: { lead: Lead; onClos
                 </Button>
                 <Button
                   variant="outline"
-                  className="sm:col-span-2"
                   onClick={() => router.push(analyticsHref(lead.source_id, "competitor", fallback))}
                 >
                   Profil de piață
+                </Button>
+                <Button variant="outline" onClick={() => ask()}>
+                  <span className="inline-flex items-center gap-1.5">
+                    <Sparkles size={15} strokeWidth={1.75} /> Întreabă Copilotul
+                  </span>
                 </Button>
               </div>
             </div>
@@ -373,7 +383,7 @@ export default function LeadDossierPanel({ lead, onClose }: { lead: Lead; onClos
         <div
           role="status"
           aria-live="polite"
-          className="neu-flat fixed inset-x-4 bottom-4 z-50 rounded-2xl bg-paper px-4 py-3 font-body text-sm text-ink sm:left-auto sm:right-6 sm:max-w-sm"
+          className="neu-flat fixed inset-x-4 bottom-24 z-50 rounded-2xl bg-paper px-4 py-3 font-body text-sm text-ink sm:left-auto sm:right-6 sm:max-w-sm"
         >
           {toast}
         </div>

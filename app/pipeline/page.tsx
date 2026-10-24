@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import { PIPELINE_CHANGED_EVENT } from "@/context/CopilotContext";
 import AuthGate from "@/components/AuthGate";
 import Explain from "@/components/Explain";
 import LeadDossierPanel from "@/components/LeadDossierPanel";
@@ -409,6 +410,13 @@ function PipelineContent() {
     load();
   }, [load]);
 
+  // The copilot can add or move a deal while this page is open.
+  useEffect(() => {
+    const reload = () => load();
+    window.addEventListener(PIPELINE_CHANGED_EVENT, reload);
+    return () => window.removeEventListener(PIPELINE_CHANGED_EVENT, reload);
+  }, [load]);
+
   useEffect(() => {
     if (!toast) return;
     const t = setTimeout(() => setToast(null), 4000);
@@ -653,7 +661,7 @@ function PipelineContent() {
         <div
           role="status"
           aria-live="polite"
-          className="neu-flat fixed inset-x-4 bottom-4 z-50 rounded-2xl bg-paper px-4 py-3 font-body text-sm text-ink sm:left-auto sm:right-6 sm:max-w-sm"
+          className="neu-flat fixed inset-x-4 bottom-24 z-50 rounded-2xl bg-paper px-4 py-3 font-body text-sm text-ink sm:left-auto sm:right-6 sm:max-w-sm"
         >
           {toast}
         </div>

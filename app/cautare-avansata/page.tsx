@@ -5,7 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import AuthGate from "@/components/AuthGate";
 import Explain from "@/components/Explain";
 import LeadDossierPanel from "@/components/LeadDossierPanel";
-import { ApiError, PROCEDURE_TYPE_LABELS, downloadMyCsv, fetchMyFeed, type Lead } from "@/lib/api";
+import { ApiError, PROCEDURE_TYPE_LABELS, downloadMyCsv, fetchMyFeed, fetchOpportunity, type Lead } from "@/lib/api";
 import { CATEGORIES, categoryLabel, formatDate, formatLeadValue, formatRon } from "@/lib/format";
 import { Badge, Button, DegradedBanner, EmptyState, Eyebrow, Field, Input, Loading, Notice, Select } from "@/components/newsprint";
 
@@ -37,7 +37,9 @@ function CautareAvansataContent() {
 	const initialCounty = searchParams.get("county") || "all";
 	const initialCategory = searchParams.get("category") || "all";
 	const initialFundingSource = searchParams.get("fundingSource") || "all";
-	const initialOpenLead = searchParams.get("openLead");
+	// The e-mail alert's "Deschide dosarul complet" link and every
+	// top-opportunity row name one dossier. `source_id` is accepted too.
+	const initialOpenLead = searchParams.get("openLead") || searchParams.get("source_id");
 	const arrivedWithUrlFilter = initialCounty !== "all" || initialCategory !== "all" || initialFundingSource !== "all";
 	// `?matches=1` states explicitly which side of the soft filter the link
 	// meant, instead of leaving it to the heuristic below. Prima Pagina's KPI
@@ -79,7 +81,6 @@ function CautareAvansataContent() {
 	const [cuiDraft, setCuiDraft] = useState("");
 	const [authorityCui, setAuthorityCui] = useState("");
 	const [procedureType, setProcedureType] = useState("");
-	const [openLeadHandled, setOpenLeadHandled] = useState(!initialOpenLead);
 
 	const [toast, setToast] = useState<string | null>(null);
 	const [busyAction, setBusyAction] = useState<string | null>(null);
@@ -145,7 +146,7 @@ function CautareAvansataContent() {
 
 	useEffect(() => {
 		if (!selectedLead) return;
-		const onKey = (e: KeyboardEvent) => e.key === "Escape" && setSelectedLead(null);
+		const onKey = (e: KeyboardEvent) => e.key === "Escape" && closeDossier();
 		window.addEventListener("keydown", onKey);
 		// Lock the page behind the drawer, the same way EnterpriseModals and
 		// the mobile sidebar drawer already do. Without it, scrolling inside
@@ -159,25 +160,41 @@ function CautareAvansataContent() {
 		};
 	}, [selectedLead]);
 
-	// A click-through from a top-opportunity row (Analiza de Piață / Prima
-	// Pagina) names one specific lead by id rather than a filter — open its
-	// dossier directly once the feed has actually loaded, instead of making
-	// the visitor find it again in a list.
+	// A link that names one dossier opens it by id, straight from the
+	// register — in parallel with the feed and independent of it. It used to
+	// be looked up inside the loaded feed, which is the user's ranked slice
+	// under their saved domain and filters, so an e-mail alert for a tender
+	// outside that slice landed on the list with "Dosarul din link nu este
+	// în registrul dvs. curent" instead of the dossier the e-mail promised.
 	useEffect(() => {
-		if (openLeadHandled || loading || leads.length === 0) return;
-		const found = leads.find((l) => l.source_id === initialOpenLead);
-		if (found) {
-			setSelectedLead(found);
-		} else {
-			// The id comes from /analysis's market-trends response, but the
-			// lookup happens against /me/feed's slice — so a lead outside the
-			// user's own feed simply vanished: no drawer, no notice, just an
-			// ordinary list after clicking a named project. Say what happened.
-			setToast("Dosarul din link nu este în registrul dvs. curent — afișăm întreaga piață.");
-			setOnlyMatches(false);
+		if (!initialOpenLead) return;
+		let mounted = true;
+		fetchOpportunity(initialOpenLead)
+			.then((lead) => mounted && setSelectedLead(lead))
+			.catch((e) => {
+				if (!mounted) return;
+				setToast(
+					e instanceof ApiError && e.status === 404
+						? `Dosarul ${initialOpenLead} nu mai există în registru (anunț retras sau expirat).`
+						: "Dosarul din link nu a putut fi deschis acum — reîncercați.",
+				);
+			});
+		return () => {
+			mounted = false;
+		};
+	}, [initialOpenLead]);
+
+	const closeDossier = () => {
+		setSelectedLead(null);
+		// Drop the id from the address, so a refresh shows the list rather
+		// than reopening the dossier that was just closed.
+		if (initialOpenLead && typeof window !== "undefined") {
+			const url = new URL(window.location.href);
+			url.searchParams.delete("openLead");
+			url.searchParams.delete("source_id");
+			window.history.replaceState(null, "", url.pathname + url.search);
 		}
-		setOpenLeadHandled(true);
-	}, [openLeadHandled, loading, leads, initialOpenLead]);
+	};
 
 	const counties = useMemo(() => {
 		const set = new Set<string>();
@@ -426,9 +443,21 @@ function CautareAvansataContent() {
 								const matched = Boolean(lead.match?.is_match);
 								return (
 									<li key={lead.source_id}>
-										<button
+										{/* A div, not a <button>: the row holds the "?" explainers,
+										    which are buttons, and a button inside a button is invalid
+										    HTML (React flags it, browsers re-parent it). */}
+										<div
+											role="button"
+											tabIndex={0}
 											onClick={() => setSelectedLead(lead)}
-											className={
+											onKeyDown={(e) => {
+												if (e.target !== e.currentTarget) return;
+												if (e.key === "Enter" || e.key === " ") {
+													e.preventDefault();
+													setSelectedLead(lead);
+												}
+											}}
+											className={"cursor-pointer " +
 												"flex w-full flex-col gap-3 p-4 text-left transition-all duration-300 hover:neu-pressed-sm sm:flex-row sm:gap-5 sm:p-5 " +
 												// A matched row gets a left rail in the accent
 												// colour. Deliberately not a filled background: in
@@ -514,7 +543,7 @@ function CautareAvansataContent() {
 												)}
 												<span className="label-eyebrow whitespace-nowrap text-editorial">Deschide →</span>
 											</div>
-										</button>
+										</div>
 									</li>
 								);
 							})}
@@ -524,10 +553,10 @@ function CautareAvansataContent() {
 			</div>
 
 			{/* Dossier drawer */}
-			{selectedLead && <LeadDossierPanel lead={selectedLead} onClose={() => setSelectedLead(null)} />}
+			{selectedLead && <LeadDossierPanel key={selectedLead.source_id} lead={selectedLead} onClose={closeDossier} />}
 
 			{toast && (
-				<div role="status" aria-live="polite" className="neu-flat fixed inset-x-4 bottom-4 z-50 rounded-2xl bg-paper px-4 py-3 font-body text-sm text-ink sm:left-auto sm:right-6 sm:max-w-sm">
+				<div role="status" aria-live="polite" className="neu-flat fixed inset-x-4 bottom-24 z-50 rounded-2xl bg-paper px-4 py-3 font-body text-sm text-ink sm:left-auto sm:right-6 sm:max-w-sm">
 					{toast}
 				</div>
 			)}

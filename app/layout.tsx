@@ -2,9 +2,11 @@ import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans, DM_Sans, JetBrains_Mono } from "next/font/google";
 import { AuthProvider } from "@/context/AuthContext";
 import { CompanyProfileProvider } from "@/context/CompanyProfileContext";
+import { CopilotProvider } from "@/context/CopilotContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import Sidebar from "@/components/Sidebar";
 import InstallPrompt from "@/components/InstallPrompt";
+import CopilotWidget from "@/components/CopilotWidget";
 import "./globals.css";
 
 // Runs before React hydrates, same mechanism next-themes uses, so a
@@ -95,6 +97,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider>
           <AuthProvider>
           <CompanyProfileProvider>
+          <CopilotProvider>
             {/* Ambient colour behind everything. A real element rather than a
                 body::before, so its stacking context is explicit: the shell
                 below sits at z-10 and is never painted underneath it. */}
@@ -117,6 +120,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 installed PWA, so on iPhone this is the path to notifications
                 working at all. Renders nothing anywhere else. */}
             <InstallPrompt />
+            {/* Signed-in pages only; renders nothing on /login and /auth. */}
+            <CopilotWidget />
+          </CopilotProvider>
           </CompanyProfileProvider>
           </AuthProvider>
         </ThemeProvider>
