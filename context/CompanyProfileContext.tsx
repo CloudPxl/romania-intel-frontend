@@ -95,7 +95,25 @@ export function CompanyProfileProvider({ children }: { children: React.ReactNode
   const serverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const save = useCallback(
     async (patch: CompanyProfile) => {
-      const next = { ...(readLocal() || {}), ...patch, updated_at: new Date().toISOString() };
+      const prev = readLocal() || {};
+      // A different company — new CUI *and* new name, which is what an ANAF
+      // lookup of another firm produces (a typo fixed in the CUI field
+      // changes only the first). The representative typed for the previous
+      // company is not registry data and would otherwise sign the new one's
+      // documents, so it is cleared unless this save names a new one.
+      const digits = (v?: string | null) => (v || "").replace(/\D/g, "");
+      const name = (v?: string | null) => (v || "").trim().toLowerCase();
+      const otherCompany =
+        digits(patch.cui) !== "" &&
+        digits(patch.cui) !== digits(prev.cui) &&
+        name(patch.company_name) !== "" &&
+        name(patch.company_name) !== name(prev.company_name);
+      const next: CompanyProfile = { ...prev, ...patch, updated_at: new Date().toISOString() };
+      const repUnchanged = patch.legal_representative === undefined || patch.legal_representative === prev.legal_representative;
+      if (otherCompany && repUnchanged) {
+        next.legal_representative = null;
+        next.representative_role = null;
+      }
       writeLocal(next);
       setProfile(next);
       if (!user) return;

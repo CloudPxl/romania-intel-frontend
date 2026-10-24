@@ -99,8 +99,14 @@ export const CATEGORIES = [
  *  has no business in CATEGORIES itself. */
 export const DOMAIN_OPTIONS = [{ id: "toate", label: "Toate domeniile" }, ...CATEGORIES] as const;
 
+/** Where a notice goes when its CPV code puts it outside the five domains
+ *  (food, vehicle parts, cleaning…). A real filter facet, never a profile
+ *  domain — which is why it is not in CATEGORIES. */
+export const OTHER_CATEGORY = { id: "altele", label: "Alte achiziții (bunuri și servicii curente)" } as const;
+
 export function categoryLabel(id: string | null | undefined): string {
   if (!id) return "General";
+  if (id === OTHER_CATEGORY.id) return OTHER_CATEGORY.label;
   return CATEGORIES.find((c) => c.id === id)?.label || id;
 }
 

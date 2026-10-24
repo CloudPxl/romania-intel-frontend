@@ -74,7 +74,14 @@ const DECLARATIONS: { id: DeclarationId; label: string }[] = [
   { id: "conflict_of_interest", label: "Conflict de interese (art. 59-60)" },
   { id: "confidentiality", label: "Confidențialitate + justificare (art. 57)" },
   { id: "exclusion", label: "Neîncadrare în excludere (art. 164-167)" },
+  { id: "sanctions_5k", label: "Sancțiuni UE – art. 5k Reg. 833/2014" },
+  { id: "beneficial_owner", label: "Beneficiar real (Legea 129/2019)" },
+  { id: "dnsh", label: "DNSH – „a nu prejudicia semnificativ”" },
 ];
+// Always on by default: the four every procedure asks for, plus art. 5k,
+// which applies to every procurement under the directives. Beneficial owner
+// and DNSH follow the tender's funding (Lead.suggested_declarations).
+const DEFAULT_DECLARATIONS: DeclarationId[] = ["env_social", "conflict_of_interest", "confidentiality", "exclusion", "sanctions_5k"];
 
 const LETTERS: { id: LetterType; title: string; stage: string; pointsLabel: string; placeholder: string }[] = [
   {
@@ -496,16 +503,44 @@ function parseDecisionMakers(text: string) {
     });
 }
 
+/** "Nume — data nașterii — cetățenie — mod de control", one per line. */
+function parseOwners(text: string) {
+  return text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const [name, birth_date, citizenship, ...control] = line.split(/\s+[—–]\s+|\s*;\s*/);
+      return { name: name.trim(), birth_date: birth_date?.trim() || undefined, citizenship: citizenship?.trim() || undefined, control: control.join("; ").trim() || undefined };
+    });
+}
+
+/** "Denumire — calitate — țara — pondere", one per line. */
+function parsePartners(text: string) {
+  return text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const [name, role, country, share] = line.split(/\s+[—–]\s+|\s*;\s*/);
+      return { name: name.trim(), role: role?.trim() || undefined, country: country?.trim() || undefined, share: share?.trim() || undefined };
+    });
+}
+
 interface ProposalState {
   declarations: DeclarationId[];
   decisionMakers: string;
+  beneficialOwners: string;
+  sanctionsPartners: string;
   requirements: string;
   aiMode: boolean;
 }
 
 const EMPTY_PROPOSAL: ProposalState = {
-  declarations: DECLARATIONS.map((d) => d.id),
+  declarations: DEFAULT_DECLARATIONS,
   decisionMakers: "",
+  beneficialOwners: "",
+  sanctionsPartners: "",
   requirements: "",
   aiMode: false,
 };
@@ -523,15 +558,17 @@ function ProposalTool({
 }) {
   const [declarations, setDeclarations] = useState<DeclarationId[]>(initial.declarations);
   const [decisionMakers, setDecisionMakers] = useState(initial.decisionMakers);
+  const [beneficialOwners, setBeneficialOwners] = useState(initial.beneficialOwners || "");
+  const [sanctionsPartners, setSanctionsPartners] = useState(initial.sanctionsPartners || "");
   const [requirements, setRequirements] = useState(initial.requirements);
   const [aiMode, setAiMode] = useState(initial.aiMode);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    onChange({ declarations, decisionMakers, requirements, aiMode });
+    onChange({ declarations, decisionMakers, beneficialOwners, sanctionsPartners, requirements, aiMode });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [declarations, decisionMakers, requirements, aiMode]);
+  }, [declarations, decisionMakers, beneficialOwners, sanctionsPartners, requirements, aiMode]);
 
   const toggle = (id: DeclarationId) =>
     setDeclarations((prev) => (prev.includes(id) ? prev.filter((d) => d !== id) : [...prev, id]));
@@ -546,6 +583,8 @@ function ProposalTool({
       ...base,
       include_declarations: declarations,
       decision_makers: declarations.includes("conflict_of_interest") ? parseDecisionMakers(decisionMakers) : [],
+      beneficial_owners: declarations.includes("beneficial_owner") ? parseOwners(beneficialOwners) : [],
+      sanctions_partners: declarations.includes("sanctions_5k") ? parsePartners(sanctionsPartners) : [],
       cerinte_caiet: requirements.trim() || undefined,
       use_ai_expansion: aiMode,
     };
@@ -573,6 +612,20 @@ function ProposalTool({
         <div className="mt-3">
           <Field label="Persoane cu funcții de decizie" hint="Din fișa de date — una pe rând: Nume — Funcție. Lăsat gol, tabelul rămâne de completat.">
             <Textarea className="min-h-[4.5rem] py-2" value={decisionMakers} onChange={(e) => setDecisionMakers(e.target.value)} placeholder={"Maria Ionescu — Primar\nAndrei Pop — Președinte comisie de evaluare"} />
+          </Field>
+        </div>
+      )}
+      {declarations.includes("beneficial_owner") && (
+        <div className="mt-3">
+          <Field label="Beneficiari reali" hint="Ca în declarația depusă la ONRC — unul pe rând: Nume — data nașterii — cetățenie — mod de control. Lăsat gol, tabelul rămâne de completat.">
+            <Textarea className="min-h-[4rem] py-2" value={beneficialOwners} onChange={(e) => setBeneficialOwners(e.target.value)} placeholder={"Ion Popescu — 12.03.1975 — română — 60% din părțile sociale"} />
+          </Field>
+        </div>
+      )}
+      {declarations.includes("sanctions_5k") && (
+        <div className="mt-3">
+          <Field label="Subcontractanți / furnizori peste 10% din valoare (art. 5k)" hint="Unul pe rând: Denumire — calitate — țara de stabilire — pondere. Lăsat gol, tabelul rămâne de completat.">
+            <Textarea className="min-h-[4rem] py-2" value={sanctionsPartners} onChange={(e) => setSanctionsPartners(e.target.value)} placeholder={"Alfa Instal SRL — subcontractant — România — 18%"} />
           </Field>
         </div>
       )}
@@ -924,6 +977,7 @@ function DraftingContent() {
   const [form, setForm] = useState<ProcedureForm>(emptyForm);
   const [tenderLoading, setTenderLoading] = useState(false);
   const [tenderNotice, setTenderNotice] = useState<string | null>(null);
+  const [declarationsNote, setDeclarationsNote] = useState<string | null>(null);
 
   // What the two tools start from — restored from an autosave, a reopened
   // document or a hand-off from another page. `toolsKey` remounts them when
@@ -994,7 +1048,18 @@ function DraftingContent() {
     }
     setTenderLoading(true);
     try {
-      apply(await fetchOpportunity(sourceId));
+      const tender = await fetchOpportunity(sourceId);
+      apply(tender);
+      const missing = (tender.suggested_declarations || []).filter((d) => !latest.current.proposal.declarations.includes(d));
+      if (missing.length) {
+        setProposalInit({ ...latest.current.proposal, declarations: [...latest.current.proposal.declarations, ...missing] });
+        setToolsKey((k) => k + 1);
+        setDeclarationsNote(
+          `Finanțare: ${tender.funding_source || "fonduri UE"} — am adăugat ${missing
+            .map((d) => DECLARATIONS.find((x) => x.id === d)?.label || d)
+            .join(", ")}.`
+        );
+      }
     } catch (e) {
       if (fallback) {
         apply(fallback);
@@ -1041,6 +1106,12 @@ function DraftingContent() {
               decisionMakers: ((pl.decision_makers as { name: string; role?: string }[]) || [])
                 .map((d) => (d.role ? `${d.name} — ${d.role}` : d.name))
                 .join("\n"),
+              beneficialOwners: ((pl.beneficial_owners as { name: string; birth_date?: string; citizenship?: string; control?: string }[]) || [])
+                .map((o) => [o.name, o.birth_date, o.citizenship, o.control].filter(Boolean).join(" — "))
+                .join("\n"),
+              sanctionsPartners: ((pl.sanctions_partners as { name: string; role?: string; country?: string; share?: string }[]) || [])
+                .map((o) => [o.name, o.role, o.country, o.share].filter(Boolean).join(" — "))
+                .join("\n"),
               requirements: (pl.cerinte_caiet as string) || "",
               aiMode: Boolean(pl.use_ai_expansion),
             });
@@ -1084,7 +1155,7 @@ function DraftingContent() {
         const saved = readAutosave(sourceId || "nou");
         if (saved && !letterParam) {
           setForm(saved.form);
-          setProposalInit(saved.proposal);
+          setProposalInit({ ...EMPTY_PROPOSAL, ...saved.proposal });
           setLetterInit(saved.letter);
           setToolsKey((k) => k + 1);
           setRestoredNote(`Ciorna salvată automat pe ${formatDate(saved.saved_at)} a fost restaurată.`);
@@ -1188,6 +1259,7 @@ function DraftingContent() {
           <Eyebrow className="mb-3 border-b border-divider pb-2">Date procedură</Eyebrow>
           <TenderPicker onPick={loadTender} loadingId={tenderLoading} />
           {tenderNotice && <p className="font-body mt-1.5 text-xs text-negative">{tenderNotice}</p>}
+          {declarationsNote && <p className="font-body mt-1.5 text-xs text-stock-600">{declarationsNote}</p>}
 
           <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <Field label="Titlu proiect" className="sm:col-span-2">

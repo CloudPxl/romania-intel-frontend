@@ -130,6 +130,10 @@ export interface Lead {
   sub_category?: string;
   financial_value_ron?: number;
   funding_source?: string;
+  /** From GET /me/opportunities/{id} only: what the tender's funding adds
+   *  to the offer file (art. 5k always; beneficial owner + DNSH for PNRR;
+   *  DNSH for other EU funds). Redactare pre-selects these. */
+  suggested_declarations?: DeclarationId[];
   published_date?: string;
   action_deadline?: string;
   opportunity_score?: number;
@@ -468,6 +472,30 @@ export interface DealMutationResult {
 }
 
 /* --------------------------------------------------------------- system */
+
+export interface DatasetFreshness {
+  last_synced_at: string | null;
+  rows: number;
+}
+
+/** How current each dataset is (GET /system/freshness — public). */
+export interface DataFreshness {
+  generated_at: string;
+  last_tick_at: string | null;
+  datasets: Partial<Record<"tenders" | "funding_calls" | "award_outcomes" | "legal_watch", DatasetFreshness>>;
+  legal: {
+    checked_at: string | null;
+    /** false = the bundled texts, not yet re-checked against the portal on this database. */
+    synced: boolean;
+    status?: string;
+    thresholds_match?: boolean | null;
+    acts?: Record<string, string | null>;
+  };
+}
+
+export async function fetchDataFreshness(): Promise<DataFreshness> {
+  return apiFetch("/api/v1/system/freshness", { anonymous: true });
+}
 
 export async function fetchSystemStatus(): Promise<{
   last_tick_completed_at: string | null;
@@ -1017,6 +1045,22 @@ export interface CaietAnalysis {
     extraction_note?: string;
   };
   coverage_note?: string;
+  /** Art. 25 NZIA assessment when the object names a net-zero technology
+   *  (art. 4 alin. (1) lit. (a)-(k) of Reg. 2024/1735); null otherwise. */
+  net_zero?: NetZeroAssessment | null;
+}
+
+export interface NetZeroAssessment {
+  technologies: string[];
+  matched_terms: string[];
+  /** null = value unknown. */
+  above_eu_threshold: boolean | null;
+  eu_threshold_ron?: number | null;
+  documentation_mentions: string[];
+  applies: boolean;
+  bidder_obligations: string[];
+  guidance: string[];
+  legal_basis?: { citation: string; text: string; source_url: string }[];
 }
 
 /** One flagged clause. `clarification_paragraph` is ready to paste into
@@ -1495,7 +1539,14 @@ export function contractTypeFromCpv(cpv: string | null | undefined): ContractTyp
 }
 export type LegalRegime = "L98" | "L99";
 export type AuthorityLevel = "central" | "local";
-export type DeclarationId = "env_social" | "conflict_of_interest" | "confidentiality" | "exclusion";
+export type DeclarationId =
+  | "env_social"
+  | "conflict_of_interest"
+  | "confidentiality"
+  | "exclusion"
+  | "sanctions_5k"
+  | "beneficial_owner"
+  | "dnsh";
 export type LetterType = "clarification" | "evaluation_response" | "abnormally_low_price" | "dossier_access" | "foia";
 
 /** The "Subscrisa" block — who is bidding, as the authority must see it. */
@@ -1645,6 +1696,10 @@ export interface TechnicalProposalRequest {
   bidder?: BidderIdentity;
   include_declarations?: DeclarationId[];
   decision_makers?: { name: string; role?: string }[];
+  /** Rows for the beneficial-owner declaration (L129/2019 art. 4). */
+  beneficial_owners?: { name: string; birth_date?: string; citizenship?: string; control?: string }[];
+  /** Subcontractors/suppliers above 10% of the contract value (art. 5k). */
+  sanctions_partners?: { name: string; role?: string; country?: string; share?: string }[];
   /** Populates the conformity matrix. Empty + source_id set = the backend
    *  uses the caiet already extracted for that notice, if any. */
   cerinte_caiet?: string;

@@ -913,6 +913,34 @@ function CaietTool({ tender, artifactId }: { tender: Tender; artifactId: string 
             </section>
           )}
 
+          {result.net_zero && (
+            <section>
+              <SectionTitle>Tehnologii „zero net” — art. 25 NZIA</SectionTitle>
+              <div className="neu-flat rounded-3xl bg-paper p-4">
+                <p className="font-body text-sm leading-relaxed">
+                  Obiectul include: <strong>{result.net_zero.technologies.join(", ")}</strong>.{" "}
+                  {result.net_zero.above_eu_threshold === false
+                    ? "Valoarea este sub pragul UE: art. 25 din Regulamentul (UE) 2024/1735 nu se aplică."
+                    : result.net_zero.documentation_mentions.length
+                      ? `Documentația face referire la regulament (${result.net_zero.documentation_mentions.join(", ")}): pregătiți dovezile de mai jos.`
+                      : result.net_zero.above_eu_threshold
+                        ? "Valoarea depășește pragul UE, iar documentația nu menționează regulamentul — vezi semnalarea de mai sus."
+                        : "Valoarea nu este cunoscută: dacă depășește pragul UE, se aplică obligațiile de mai jos."}
+                </p>
+                {result.net_zero.applies && (
+                  <ul className="mt-3 space-y-1.5">
+                    {result.net_zero.bidder_obligations.map((o, i) => (
+                      <li key={i} className="font-body text-sm leading-relaxed text-stock-700">
+                        — {o}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <p className="font-mono mt-3 text-[11px] leading-relaxed text-stock-500">{result.net_zero.guidance.join(" · ")}</p>
+              </div>
+            </section>
+          )}
+
           {result.coverage_note && (
             <Notice tone="warning" title="Acoperirea analizei">
               {result.coverage_note}

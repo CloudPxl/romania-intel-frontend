@@ -21,6 +21,7 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { PricingModal, AccountSettingsModal, ProfileCriteriaModal } from "@/components/EnterpriseModals";
 import { cn } from "@/lib/utils";
+import FreshnessLine from "@/components/FreshnessLine";
 
 // The first group used to render under a header reading "Ediția" — a word
 // that named none of Prima pagină, Analiza de piață or Căutare avansată and
@@ -144,6 +145,8 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
           </div>
         ))}
       </nav>
+
+      <FreshnessLine className="shrink-0 border-t border-divider pt-2" />
 
       {/* Account */}
       <div className="shrink-0 pt-2">

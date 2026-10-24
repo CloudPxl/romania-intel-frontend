@@ -23,6 +23,9 @@ const nextConfig = {
   async redirects() {
     return [
       { source: "/newsletter", destination: "/cautare-avansata", permanent: true },
+      // "CRM" is what bidders call the bid pipeline; the route is /pipeline.
+      // Query strings (?source_id=…) carry over.
+      { source: "/crm", destination: "/pipeline", permanent: true },
     ];
   },
 };
