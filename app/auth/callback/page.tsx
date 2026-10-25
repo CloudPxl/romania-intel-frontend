@@ -1,20 +1,15 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { completeAuthFromUrl } from "@/lib/authCallback";
+import { consumeNext } from "@/lib/authRedirect";
 import { Button, Eyebrow, Notice } from "@/components/newsprint";
 
 /**
- * OAuth / magic-link landing page.
- *
- * This was previously a server route (route.ts) that called
- * exchangeCodeForSession() on the server and redirected to "/". That could
- * never work: supabase-js uses the PKCE flow, and the code verifier is
- * generated and stored in the *browser's* localStorage when the sign-in
- * starts. The server has no access to it, so the exchange failed silently
- * and the user was bounced to the home page still signed out — with no
- * error shown anywhere. The exchange has to happen client-side, in the
- * same browser context that began the flow.
+ * OAuth / magic-link landing page. The URL is turned into a session by
+ * lib/authCallback.ts (token_hash links, PKCE codes, provider errors), then
+ * the visitor goes where they were headed (?next=…, see lib/authRedirect.ts)
+ * instead of always to "/".
  */
 export default function AuthCallbackPage() {
   const router = useRouter();
@@ -22,42 +17,13 @@ export default function AuthCallbackPage() {
 
   useEffect(() => {
     let cancelled = false;
-
-    async function complete() {
-      const url = new URL(window.location.href);
-      const errorDescription = url.searchParams.get("error_description");
-      if (errorDescription) {
-        if (!cancelled) setError(errorDescription);
-        return;
-      }
-
-      // A session may already exist: the client is created with
-      // detectSessionInUrl enabled, so it can consume the fragment/code
-      // before this effect runs. Only exchange explicitly if it did not.
-      const { data: existing } = await supabase.auth.getSession();
-      if (existing.session) {
-        if (!cancelled) router.replace("/");
-        return;
-      }
-
-      const code = url.searchParams.get("code");
-      if (code) {
-        const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
-        if (exchangeError) {
-          if (!cancelled) setError(exchangeError.message);
-          return;
-        }
-        if (!cancelled) router.replace("/");
-        return;
-      }
-
-      if (!cancelled) setError("Linkul de autentificare este incomplet sau a expirat.");
-    }
-
-    complete().catch((e) => {
-      if (!cancelled) setError(e instanceof Error ? e.message : "Autentificarea nu a putut fi finalizată.");
+    const href = window.location.href;
+    const next = new URL(href).searchParams.get("next");
+    completeAuthFromUrl(href).then((result) => {
+      if (cancelled) return;
+      if (result.ok) router.replace(consumeNext(next));
+      else setError(result.error);
     });
-
     return () => {
       cancelled = true;
     };

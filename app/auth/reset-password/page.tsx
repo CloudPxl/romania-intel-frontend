@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { translateAuthError } from "@/lib/authErrors";
+import { completeAuthFromUrl } from "@/lib/authCallback";
 import { Button, Eyebrow, Input, Notice } from "@/components/newsprint";
 
 const MIN_PASSWORD_LENGTH = 8;
@@ -10,13 +11,10 @@ const MIN_PASSWORD_LENGTH = 8;
 /**
  * Landing page for a Supabase "reset password" email link.
  *
- * Mirrors app/auth/callback/page.tsx's code-exchange exactly, for the same
- * reason documented there: the client uses the PKCE flow, and the code
- * verifier lives in this browser's localStorage, so the exchange has to
- * happen here rather than on a server route. The one difference is what
- * happens after the exchange succeeds — the OAuth/magic-link callback
- * redirects straight to "/", but a recovery session's only purpose is to
- * authorize setting a new password, so this shows that form first.
+ * Establishes the recovery session through lib/authCallback.ts, like
+ * /auth/callback. The difference is what follows: a recovery session's
+ * only purpose is to authorize setting a new password, so this shows that
+ * form instead of redirecting.
  */
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -31,39 +29,14 @@ export default function ResetPasswordPage() {
 
   useEffect(() => {
     let cancelled = false;
-
-    async function establishSession() {
-      const url = new URL(window.location.href);
-      const errorDescription = url.searchParams.get("error_description");
-      if (errorDescription) {
-        if (!cancelled) setLinkError(errorDescription);
-        return;
-      }
-
-      const { data: existing } = await supabase.auth.getSession();
-      if (existing.session) {
-        if (!cancelled) setReady(true);
-        return;
-      }
-
-      const code = url.searchParams.get("code");
-      if (code) {
-        const { error } = await supabase.auth.exchangeCodeForSession(code);
-        if (error) {
-          if (!cancelled) setLinkError(translateAuthError(error.message));
-          return;
-        }
-        if (!cancelled) setReady(true);
-        return;
-      }
-
-      if (!cancelled) setLinkError("Linkul de resetare este incomplet sau a expirat.");
-    }
-
-    establishSession().catch((e) => {
-      if (!cancelled) setLinkError(e instanceof Error ? e.message : "Nu am putut valida linkul de resetare.");
+    // Same landing logic as /auth/callback: a recovery link with
+    // token_hash works on any device; a PKCE code only in the browser that
+    // requested it.
+    completeAuthFromUrl(window.location.href).then((result) => {
+      if (cancelled) return;
+      if (result.ok) setReady(true);
+      else setLinkError(result.error);
     });
-
     return () => {
       cancelled = true;
     };

@@ -93,7 +93,10 @@ export default function PrivacyPage() {
                 <b>Groq</b> — furnizor de rezervă, folosit doar pentru Copilot și asistentul de suport atunci când
                 Gemini nu răspunde; primește același conținut limitat.
               </li>
-              <li><b>Telegram</b> — dacă operatorul are configurat un canal de alerte, notificările automate pot tranzita API-ul Telegram.</li>
+              <li>
+                <b>Resend</b> — trimite emailurile cu alerte. Fiecare alertă conține un link de dezabonare cu un singur
+                clic; alertele se pot reporni din Setări cont.
+              </li>
             </ul>
           </section>
 

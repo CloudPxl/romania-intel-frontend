@@ -3,6 +3,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useCompanyProfile } from "@/context/CompanyProfileContext";
+import { userKey } from "@/lib/userStorage";
 import AuthGate from "@/components/AuthGate";
 import AiCredits from "@/components/AiCredits";
 import Explain from "@/components/Explain";
@@ -61,8 +62,6 @@ type ToolId = (typeof TOOLS)[number]["id"];
 // two tool pages read as one product.
 const COMPACT_FIELD = "min-h-9 py-1.5";
 const ACTION_BUTTON = "bg-[#006494] text-white hover:text-white";
-
-const BIDDER_STORAGE_KEY = "ro_intel_drafting_bidder";
 
 const CONTRACT_TYPES: { id: ContractType; label: string }[] = [
   { id: "lucrari", label: "Lucrări" },
@@ -161,15 +160,6 @@ function contractTypeFromCpv(cpv?: string | null): ContractType | "" {
   if (division === 45) return "lucrari";
   if (division >= 50) return "servicii";
   return "produse";
-}
-
-function readStoredBidder(): BidderIdentity | null {
-  try {
-    const raw = window.localStorage.getItem(BIDDER_STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as BidderIdentity) : null;
-  } catch {
-    return null;
-  }
 }
 
 /* ------------------------------------------------------------ tender pick */
@@ -1020,13 +1010,13 @@ function DraftingContent() {
     setCreditsKey((k) => k + 1);
   };
 
-  // First visit after this change: the identity typed into the old
-  // drafting-only store moves into the shared profile once.
+  // One source of truth for the bidder: the shared company profile. An
+  // account that has none yet starts from the name and CUI it gave at
+  // onboarding (the old drafting-only browser store is gone — it was not
+  // per user).
   useEffect(() => {
     if (company.profile?.company_name || company.profile?.cui) return;
-    const stored = readStoredBidder();
-    if (stored && (stored.cui || stored.company_name)) setBidder(stored);
-    else if (profile?.company_name || profile?.cui) setBidder({ company_name: profile.company_name || "", cui: profile.cui || "" });
+    if (profile?.company_name || profile?.cui) setBidder({ company_name: profile.company_name || "", cui: profile.cui || "" });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile, company.profile]);
   const loadTender = async (sourceId: string | undefined, fallback?: PickResult) => {
@@ -1155,7 +1145,7 @@ function DraftingContent() {
             ". Verificați formularea înainte de transmitere."
         );
       } else {
-        const saved = readAutosave(sourceId || "nou");
+        const saved = readAutosave(userKey(sourceId || "nou", user?.user_id));
         if (saved && !letterParam) {
           setForm(saved.form);
           setProposalInit({ ...EMPTY_PROPOSAL, ...saved.proposal });
@@ -1172,7 +1162,8 @@ function DraftingContent() {
 
   // Autosave, debounced, per tender: a refresh or a closed tab must not cost
   // an evaluation response written over an hour.
-  const autosaveKey = form.source_id || "nou";
+  // Per user as well: a draft is one person's work (lib/userStorage.ts).
+  const autosaveKey = userKey(form.source_id || "nou", user?.user_id);
   const scheduleAutosave = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autosave = () => {
     if (scheduleAutosave.current) clearTimeout(scheduleAutosave.current);
@@ -1398,8 +1389,8 @@ function DraftingContent() {
 export default function DraftingPage() {
   return (
     <AuthGate
-      title="Generatorul de documente este pentru abonați"
-      description="Redactarea propunerilor tehnice și a solicitărilor oficiale necesită un cont autentificat."
+      title="Redactarea documentelor este disponibilă în contul gratuit"
+      description="Propunere tehnică, declarații, clarificări și justificarea prețului, exportate în .docx. Creați un cont gratuit (doar emailul, fără card) — vă întoarceți exact pe această pagină."
     >
       <Suspense
         fallback={

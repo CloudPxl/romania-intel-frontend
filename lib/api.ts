@@ -538,8 +538,9 @@ export interface UserProfile {
   company_name: string | null;
   cui: string | null;
   alert_email: string | null;
-  telegram_chat_id: string | null;
   min_alert_score: number | null;
+  /** False after the one-click unsubscribe in an alert email. */
+  email_alerts_enabled?: boolean | null;
   onboarded_at: string | null;
 }
 
@@ -571,12 +572,10 @@ export interface OnboardingProfile {
   /** Optional, and only for paperwork that names a legal entity. */
   company_name?: string;
   cui?: string;
-  /** Collected on the same form as the matching criteria, so the full
-   *  customization surface is set in one sitting. Both optional; the
-   *  backend defaults them the same way PUT /api/v1/me/alert-settings
-   *  does (7.5, no Telegram) when omitted. */
+  /** Collected on the same form as the matching criteria. Optional; the
+   *  backend defaults it the same way PUT /api/v1/me/alert-settings does
+   *  (7.5) when omitted. */
   min_alert_score?: number;
-  telegram_chat_id?: string;
   /** Only meaningful on the initial signup call — see completeOnboarding. */
   consent_accepted?: boolean;
 }
@@ -612,9 +611,32 @@ export async function updateMyProfile(
  * effect on real alert dispatch.
  */
 export async function updateMyAlertSettings(
-  settings: { alert_email: string; min_alert_score: number; telegram_chat_id?: string }
+  settings: { alert_email: string; min_alert_score: number }
 ): Promise<{ status: string }> {
   return apiFetch("/api/v1/me/alert-settings", { method: "PUT", body: settings });
+}
+
+export interface AlertPreferences {
+  alert_email: string;
+  min_alert_score: number;
+  email_alerts_enabled: boolean;
+  account_email: string | null;
+}
+
+/** The alert settings as the server holds them — the only copy alerts use. */
+export async function fetchMyPreferences(): Promise<AlertPreferences> {
+  return apiFetch("/api/v1/me/preferences");
+}
+
+export interface Entitlements {
+  plan: string;
+  plan_label: string;
+  features: { pipeline_max_deals: number | null; csv_export: boolean };
+}
+
+/** The plan and what it includes beyond AI credits (pipeline size, CSV). */
+export async function fetchEntitlements(): Promise<Entitlements> {
+  return apiFetch("/api/v1/me/entitlements");
 }
 
 /**
@@ -923,13 +945,14 @@ export async function deletePipelineDeal(dealId: string): Promise<{ status: stri
  * so the "Deschide dosarul complet" link always carries the canonical
  * source_id (and /cautare-avansata opens it whatever the user's filters).
  */
+/** "Trimite-mi dosarul pe email": always to the signed-in account's own,
+ *  verified address — the server decides, and says which in `recipient`. */
 export async function triggerEmailAlert(
-  sourceId: string,
-  recipientEmail: string
+  sourceId: string
 ): Promise<{ status: "success" | "failed"; recipient: string; source_id: string }> {
   return apiFetch("/api/v1/notifications/send-email-alert", {
     method: "POST",
-    body: { source_id: sourceId, recipient_email: recipientEmail },
+    body: { source_id: sourceId },
   });
 }
 
@@ -1907,26 +1930,47 @@ export async function fetchBillingPlans(): Promise<BillingPlan[] | { plans: Bill
 export interface ProformaResult {
   invoice_number: string;
   plan_name: string;
+  net_ron: number;
+  vat_ron: number;
   total_ron: number;
   cui_fiscal: string;
+  billing_interval: "monthly" | "annual";
+  invoice_status: string;
+  provisional_until: string | null;
   proforma_html: string;
   bank_details: {
     bank_name: string;
     iban_ron: string;
     beneficiary: string;
+    cui: string;
+    reg_com: string;
+    address: string;
     payment_details_prefix: string;
-  };
+  } | null;
   [key: string]: unknown;
 }
 
+/** Issues a numbered proforma (ROINTEL-PF-2026-0001). 503 while the
+ *  seller's bank details are not configured on the server. */
 export async function generateProformaInvoice(payload: {
   plan_id: string;
   company_name: string;
   cui_fiscal: string;
   billing_email: string;
   billing_address?: string;
+  interval?: "monthly" | "annual";
 }): Promise<ProformaResult> {
   return apiFetch("/api/v1/me/billing/proforma", { method: "POST", body: payload });
+}
+
+/** "Am plătit prin OP": provisional access (72 h) until the payment is
+ *  confirmed. Once per 30 days. */
+export async function declareBankTransfer(
+  invoiceNumber: string
+): Promise<{ status: string; invoice_number: string; provisional_until: string }> {
+  return apiFetch(`/api/v1/me/billing/proforma/${encodeURIComponent(invoiceNumber)}/transfer-declared`, {
+    method: "POST",
+  });
 }
 
 /* -------------------------------------------------- push notifications */

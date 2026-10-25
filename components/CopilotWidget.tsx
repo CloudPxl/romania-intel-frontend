@@ -22,6 +22,7 @@ import { formatRon, stageLabel } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import AiCredits from "@/components/AiCredits";
 import LeadDossierPanel from "@/components/LeadDossierPanel";
+import { userKey } from "@/lib/userStorage";
 
 /**
  * The copilot, on every signed-in page, bottom-right.
@@ -45,7 +46,7 @@ interface Message {
 
 type ActionState = { status: "busy" | "done" | "error"; message?: string };
 
-const THREAD_KEY = "ro_intel_copilot_thread";
+const THREAD_BASE = "ro_intel_copilot_thread";
 const HIDDEN_ON = ["/login", "/auth"];
 const STRATEGY_TOOL: Record<string, AnalyticsTool> = {
   profil_piata: "competitor",
@@ -53,9 +54,9 @@ const STRATEGY_TOOL: Record<string, AnalyticsTool> = {
   pozitionare_pret: "win",
 };
 
-function readThread(): Message[] {
+function readThread(key: string): Message[] {
   try {
-    const raw = sessionStorage.getItem(THREAD_KEY);
+    const raw = sessionStorage.getItem(key);
     return raw ? (JSON.parse(raw) as Message[]) : [];
   } catch {
     return [];
@@ -86,7 +87,10 @@ function RichText({ text }: { text: string }) {
 export default function CopilotWidget() {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, preferences } = useAuth();
+  const { user } = useAuth();
+  // One thread per person (lib/userStorage.ts): cleared on sign-out, never
+  // shown to the next account in the same tab.
+  const threadKey = userKey(THREAD_BASE, user?.user_id);
   const { profile: company, save: saveCompany } = useCompanyProfile();
   const { activeTender, open, setOpen, takePendingPrompt, pendingPrompt } = useCopilot();
 
@@ -102,10 +106,10 @@ export default function CopilotWidget() {
 
   // The thread survives a reload of the tab, not a new tab: it is a working
   // conversation, not a history.
-  useEffect(() => setMessages(readThread()), []);
+  useEffect(() => setMessages(readThread(threadKey)), [threadKey]);
   useEffect(() => {
     try {
-      sessionStorage.setItem(THREAD_KEY, JSON.stringify(messages.slice(-30)));
+      sessionStorage.setItem(threadKey, JSON.stringify(messages.slice(-30)));
     } catch {
       // Storage blocked: the thread lives for this page only.
     }
@@ -237,11 +241,9 @@ export default function CopilotWidget() {
         router.push(analyticsHref(p.source_id, STRATEGY_TOOL[p.tool || ""] || "win"));
         return "Instrumentul s-a deschis.";
       case "send_email_alert": {
-        const recipient = preferences?.notification_email || user?.email;
-        if (!recipient) throw new Error("Configurați un e-mail de notificare în Setări cont.");
-        const res = await triggerEmailAlert(p.source_id!, recipient);
+        const res = await triggerEmailAlert(p.source_id!);
         if (res.status !== "success") throw new Error("Serverul nu are configurat un canal de e-mail.");
-        return `Alertă trimisă către ${recipient}.`;
+        return `Dosarul a fost trimis pe ${res.recipient}.`;
       }
     }
   };

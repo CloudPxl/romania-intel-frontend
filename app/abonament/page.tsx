@@ -15,6 +15,7 @@ const PLAN_LABELS: Record<string, string> = {
 
 const STATUS_LABELS: Record<string, string> = {
   active: "Activ",
+  provisional: "Activ provizoriu — plata prin OP este în curs de confirmare",
   trialing: "Perioadă de probă",
   past_due: "Plată restantă",
   unpaid: "Neachitat",

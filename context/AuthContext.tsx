@@ -2,6 +2,8 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { translateAuthError } from "@/lib/authErrors";
+import { callbackUrl, safeNext } from "@/lib/authRedirect";
+import { clearUserStorage, dropRetiredKeys } from "@/lib/userStorage";
 import {
   syncBackendAuth,
   completeOnboarding as apiCompleteOnboarding,
@@ -31,18 +33,6 @@ export interface SessionUser {
   avatar_url?: string;
 }
 
-export interface UserPreferences {
-  notification_email?: string;
-  /**
-   * Mirrored locally only so the Settings field can be repopulated on
-   * reopen — the authoritative copy is on the profile in Postgres, which
-   * is what the alert dispatcher actually reads.
-   */
-  telegram_chat_id?: string;
-  auto_alert_score: number;
-  default_sort: "score_desc" | "budget_desc" | "date_desc" | "deadline_asc";
-}
-
 interface AuthContextType {
   user: SessionUser | null;
   /** The user's own matching criteria and alert settings. */
@@ -58,21 +48,18 @@ interface AuthContextType {
   needsOnboarding: boolean;
   completeOnboarding: (profile: OnboardingProfile) => Promise<{ error: string | null }>;
   updateProfile: (profile: OnboardingProfile) => Promise<{ error: string | null }>;
-  preferences: UserPreferences;
-  updatePreferences: (newPrefs: Partial<UserPreferences>) => void;
-  signInWithGoogle: () => Promise<{ error: string | null }>;
-  signInWithEmail: (email: string) => Promise<{ error: string | null }>;
-  signUpWithPassword: (email: string, password: string) => Promise<{ error: string | null; needsEmailConfirmation: boolean }>;
+  /** `next`: the same-site path to land on after the sign-in completes. */
+  signInWithGoogle: (next?: string | null) => Promise<{ error: string | null }>;
+  signInWithEmail: (email: string, next?: string | null) => Promise<{ error: string | null }>;
+  signUpWithPassword: (
+    email: string,
+    password: string,
+    next?: string | null
+  ) => Promise<{ error: string | null; needsEmailConfirmation: boolean }>;
   signInWithPassword: (email: string, password: string) => Promise<{ error: string | null }>;
   requestPasswordReset: (email: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
 }
-
-const DEFAULT_PREFERENCES: UserPreferences = {
-  notification_email: "",
-  auto_alert_score: 9.0,
-  default_sort: "score_desc",
-};
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
@@ -82,8 +69,6 @@ const AuthContext = createContext<AuthContextType>({
   needsOnboarding: false,
   completeOnboarding: async () => ({ error: null }),
   updateProfile: async () => ({ error: null }),
-  preferences: DEFAULT_PREFERENCES,
-  updatePreferences: () => {},
   signInWithGoogle: async () => ({ error: null }),
   signInWithEmail: async () => ({ error: null }),
   signUpWithPassword: async () => ({ error: null, needsEmailConfirmation: false }),
@@ -92,41 +77,19 @@ const AuthContext = createContext<AuthContextType>({
   signOut: async () => {},
 });
 
-/**
- * Keys written by the deleted desk system. Nothing reads them any more, so
- * without this every returning user carries dead JSON in their browser
- * forever — one of them holds a tenant id that no longer means anything.
- */
-const RETIRED_STORAGE_KEYS = ["ro_intel_user_desks", "ro_intel_active_desk_id"];
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<SessionUser | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
-  const [preferences, setPreferences] = useState<UserPreferences>(DEFAULT_PREFERENCES);
 
+  // Alert settings are not kept in the browser any more: the server
+  // profile is the only copy (GET /api/v1/me/preferences). The old local
+  // store and the never-per-user keys are removed here.
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      RETIRED_STORAGE_KEYS.forEach((key) => localStorage.removeItem(key));
-      const savedPrefs = localStorage.getItem("ro_intel_user_prefs");
-      if (savedPrefs) setPreferences({ ...DEFAULT_PREFERENCES, ...JSON.parse(savedPrefs) });
-    } catch {
-      /* corrupt localStorage — fall back to defaults rather than crashing */
-    }
+    dropRetiredKeys();
   }, []);
-
-  const updatePreferences = (newPrefs: Partial<UserPreferences>) => {
-    setPreferences((prev) => {
-      const updated = { ...prev, ...newPrefs };
-      if (typeof window !== "undefined") {
-        localStorage.setItem("ro_intel_user_prefs", JSON.stringify(updated));
-      }
-      return updated;
-    });
-  };
 
   const adoptSynced = useCallback(
     (synced: { user: { user_id?: string; email: string; full_name: string; onboarded: boolean; avatar_url?: string }; profile: UserProfile | null }) => {
@@ -205,7 +168,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      // A sign-out from another tab or an ended session clears this
+      // person's browser data as well, not only the button in this tab.
+      if (event === "SIGNED_OUT") clearUserStorage();
       adoptSession(session);
     });
 
@@ -215,7 +181,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [adoptSynced]);
 
-  const signInWithGoogle = async () => {
+  const signInWithGoogle = async (next?: string | null) => {
     // Returns { error } like every other method here. It used to discard
     // it entirely, so if the Google provider was disabled, the redirect
     // blocked, or the network down, the most prominent button on the login
@@ -223,24 +189,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // dead end with nothing to act on.
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : "" },
+      options: { redirectTo: callbackUrl(safeNext(next)) },
     });
     return { error: translateAuthError(error?.message) };
   };
 
-  const signInWithEmail = async (email: string) => {
+  const signInWithEmail = async (email: string, next?: string | null) => {
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : "" },
+      options: { emailRedirectTo: callbackUrl(safeNext(next)) },
     });
     return { error: translateAuthError(error?.message) };
   };
 
-  const signUpWithPassword = async (email: string, password: string) => {
+  const signUpWithPassword = async (email: string, password: string, next?: string | null) => {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { emailRedirectTo: typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : "" },
+      options: { emailRedirectTo: callbackUrl(safeNext(next)) },
     });
     if (error) return { error: translateAuthError(error.message), needsEmailConfirmation: false };
     // Supabase returns 200 with no error for a duplicate email too — it
@@ -275,6 +241,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     await supabase.auth.signOut();
+    // Everything this person left in the browser goes with them: company
+    // identity, drafts, the copilot thread, handed-over clauses.
+    clearUserStorage();
     setUser(null);
     setProfile(null);
     setAuthError(null);
@@ -323,8 +292,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         needsOnboarding,
         completeOnboarding,
         updateProfile,
-        preferences,
-        updatePreferences,
         signInWithGoogle,
         signInWithEmail,
         signUpWithPassword,

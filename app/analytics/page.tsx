@@ -50,6 +50,9 @@ import {
   Tooltip,
 } from "@/components/newsprint";
 
+/** Upload ceiling, mirrored from the server (addons/upload_guard.py). */
+const MAX_UPLOAD_MB = 15;
+
 // The copilot is no longer a tab here: it floats on every page
 // (components/CopilotWidget.tsx), where it can see the dossier being read.
 const TOOLS = [
@@ -540,6 +543,21 @@ function CaietTool({ tender, artifactId }: { tender: Tender; artifactId: string 
     return { ...g, items };
   }).filter((g) => g.items.length > 0);
 
+  // Same ceiling the server enforces (addons/upload_guard.py): refused here,
+  // with the way forward, before minutes of upload on a slow connection.
+  const pickFile = (f: File | null) => {
+    if (f && f.size > MAX_UPLOAD_MB * 1024 * 1024) {
+      setFile(null);
+      setError(
+        `Fișierul are ${(f.size / 1024 / 1024).toFixed(1)} MB; limita este ${MAX_UPLOAD_MB} MB. ` +
+          "Încărcați doar caietul de sarcini și fișa de date (fără anexele desenate) sau lipiți textul cerințelor."
+      );
+      return;
+    }
+    setError(null);
+    setFile(f);
+  };
+
   const runAsyncOcrFlow = async (f: File, title: string) => {
     setOcrStatus("queued");
     setOcrApplied(null);
@@ -606,8 +624,16 @@ function CaietTool({ tender, artifactId }: { tender: Tender; artifactId: string 
         await runAsyncOcrFlow(file, projectTitle);
       } else if (useExtracted && e instanceof ApiError && e.status === 404) {
         setError("Nu avem încă documentația extrasă pentru acest anunț. Încărcați caietul sau lipiți textul cerințelor.");
+      } else if (e instanceof ApiError) {
+        setError(e.detail);
       } else {
-        setError(e instanceof ApiError ? e.detail : "Analiza documentului a eșuat.");
+        // No HTTP answer at all: a dropped connection, or a proxy that
+        // refused the upload before the API saw it.
+        setError(
+          file
+            ? "Fișierul nu a ajuns la server (conexiune întreruptă sau document prea mare). Reîncercați, încărcați doar secțiunile cu cerințele sau lipiți textul."
+            : "Analiza documentului a eșuat. Reîncercați."
+        );
       }
     } finally {
       setLoading(false);
@@ -660,12 +686,14 @@ function CaietTool({ tender, artifactId }: { tender: Tender; artifactId: string 
               id="caiet-upload"
               type="file"
               accept=".pdf,.docx,.txt"
-              onChange={(e) => setFile(e.target.files?.[0] || null)}
+              onChange={(e) => pickFile(e.target.files?.[0] || null)}
               className="sr-only"
             />
             <span className="font-body text-sm font-semibold">{file ? file.name : "Alegeți un fișier PDF, DOCX sau TXT"}</span>
             <span className="font-mono mt-1 text-[11px] uppercase tracking-wider text-stock-500">
-              {file ? `${(file.size / 1024).toFixed(0)} KB · apăsați pentru a schimba` : "PDF scanat? îl trecem prin OCR automat"}
+              {file
+                ? `${(file.size / 1024).toFixed(0)} KB · apăsați pentru a schimba`
+                : `PDF, DOCX sau TXT, până la ${MAX_UPLOAD_MB} MB · PDF scanat? îl trecem prin OCR automat`}
             </span>
           </label>
           {file && (
@@ -1309,8 +1337,8 @@ function AnalyticsContent() {
 export default function AnalyticsPage() {
   return (
     <AuthGate
-      title="Instrumentele de strategie sunt pentru abonați"
-      description="Profilul de piață, scannerul de caiet și poziționarea prețului necesită un cont autentificat."
+      title="Instrumentele de strategie sunt disponibile în contul gratuit"
+      description="Profilul de piață, scannerul de caiet și poziționarea prețului (art. 210). Creați un cont gratuit (doar emailul, fără card) — vă întoarceți exact pe această pagină."
     >
       <Suspense
         fallback={

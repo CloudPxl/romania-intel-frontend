@@ -94,7 +94,7 @@ export default function NotificationToggle({
   if (status === "unsupported") {
     return (
       <Notice tone="neutral" title="Notificări indisponibile">
-        Acest browser nu acceptă notificări push. Alertele pe email și Telegram funcționează normal.
+        Acest browser nu acceptă notificări push. Alertele pe email funcționează normal.
       </Notice>
     );
   }

@@ -1,8 +1,9 @@
 "use client";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { ButtonLink, Eyebrow, Loading, Notice } from "@/components/newsprint";
 import OnboardingForm from "@/components/OnboardingForm";
+import { currentPath, loginHref, rememberNext } from "@/lib/authRedirect";
 
 /**
  * Wraps any page whose data comes from an authenticated backend route.
@@ -16,14 +17,18 @@ import OnboardingForm from "@/components/OnboardingForm";
  */
 export default function AuthGate({
   children,
-  title = "Autentificare necesară",
-  description = "Acest instrument citește date din registrul RO-INTEL. Conectați-vă pentru a continua.",
+  title = "Disponibil în contul gratuit",
+  description = "Creați un cont gratuit (doar emailul, fără card) sau autentificați-vă — vă întoarceți exact pe această pagină.",
 }: {
   children: React.ReactNode;
   title?: string;
   description?: string;
 }) {
   const { user, loading, authError, needsOnboarding } = useAuth();
+  // `/login?next=<this page>`, built after mount: the server render has no
+  // URL to read, and a different href on the client would not hydrate.
+  const [loginTarget, setLoginTarget] = useState("/login");
+  useEffect(() => setLoginTarget(loginHref()), []);
 
   if (loading) {
     return (
@@ -54,8 +59,8 @@ export default function AuthGate({
           )}
 
           <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-            <ButtonLink href="/login" variant="primary" className="sm:flex-1">
-              Autentificare
+            <ButtonLink href={loginTarget} variant="primary" className="sm:flex-1" onClick={() => rememberNext(currentPath())}>
+              Creează cont gratuit sau autentifică-te
             </ButtonLink>
             <ButtonLink href="/analysis" variant="outline" className="sm:flex-1">
               Vezi analiza publică

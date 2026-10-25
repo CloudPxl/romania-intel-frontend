@@ -2,17 +2,20 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { fetchCompanyProfile, saveCompanyProfile, type BidderIdentity, type CompanyProfile } from "@/lib/api";
+import { userKey } from "@/lib/userStorage";
 
 /**
  * The bidder's own identity, looked up once — on Eligibilitate, or by CUI in
  * Redactare — and reused in every document header after that. It used to be
  * re-typed on every page that needed it.
  *
- * Two copies, on purpose: localStorage so it is there instantly and works
- * signed-out or offline, and the server (company_profiles) so it follows the
- * account to another device. The newer of the two wins on load.
+ * Two copies, on purpose: localStorage so it is there instantly, and the
+ * server (company_profiles), which is authoritative and follows the account
+ * to another device. The browser copy is keyed by user id and removed on
+ * sign-out (lib/userStorage.ts), so one person's identity never appears in
+ * — or gets uploaded into — another person's account on a shared computer.
  */
-const STORAGE_KEY = "ro_intel_company_profile";
+const STORAGE_BASE = "ro_intel_company_profile";
 
 interface CompanyProfileContextValue {
   profile: CompanyProfile | null;
@@ -30,19 +33,20 @@ const CompanyProfileContext = createContext<CompanyProfileContextValue>({
   bidder: null,
 });
 
-function readLocal(): CompanyProfile | null {
+function readLocal(userId?: string | null): CompanyProfile | null {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(userKey(STORAGE_BASE, userId));
     return raw ? (JSON.parse(raw) as CompanyProfile) : null;
   } catch {
     return null;
   }
 }
 
-function writeLocal(profile: CompanyProfile | null) {
+function writeLocal(profile: CompanyProfile | null, userId?: string | null) {
   try {
-    if (profile) localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
-    else localStorage.removeItem(STORAGE_KEY);
+    const key = userKey(STORAGE_BASE, userId);
+    if (profile) localStorage.setItem(key, JSON.stringify(profile));
+    else localStorage.removeItem(key);
   } catch {
     // Private mode or blocked storage: the server copy still works.
   }
@@ -62,40 +66,38 @@ export function toBidder(p: CompanyProfile | null): BidderIdentity | null {
 
 export function CompanyProfileProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
+  const userId = user?.user_id || null;
   const [profile, setProfile] = useState<CompanyProfile | null>(null);
 
+  // This account's browser copy, instantly; then the server's, which wins
+  // when it is newer. A copy left by someone else is never read (other
+  // key) and never uploaded into this account.
   useEffect(() => {
-    setProfile(readLocal());
-  }, []);
-
-  useEffect(() => {
-    if (!user) return;
+    setProfile(readLocal(userId));
+    if (!userId) return;
     let mounted = true;
     fetchCompanyProfile()
       .then(({ profile: remote }) => {
         if (!mounted || !remote) return;
-        const local = readLocal();
+        const local = readLocal(userId);
         const remoteNewer = !local?.updated_at || (remote.updated_at && remote.updated_at > local.updated_at);
         if (remoteNewer && (remote.company_name || remote.cui)) {
-          writeLocal(remote);
+          writeLocal(remote, userId);
           setProfile(remote);
-        } else if (local && (local.company_name || local.cui) && !remote.cui) {
-          // Looked up before signing in: carry it to the account.
-          saveCompanyProfile(local).catch(() => {});
         }
       })
       .catch(() => {});
     return () => {
       mounted = false;
     };
-  }, [user]);
+  }, [userId]);
 
   // The form that edits this saves per keystroke; the browser copy keeps
   // up, the server gets the settled value.
   const serverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const save = useCallback(
     async (patch: CompanyProfile) => {
-      const prev = readLocal() || {};
+      const prev = readLocal(userId) || {};
       // A different company — new CUI *and* new name, which is what an ANAF
       // lookup of another firm produces (a typo fixed in the CUI field
       // changes only the first). The representative typed for the previous
@@ -114,9 +116,9 @@ export function CompanyProfileProvider({ children }: { children: React.ReactNode
         next.legal_representative = null;
         next.representative_role = null;
       }
-      writeLocal(next);
+      writeLocal(next, userId);
       setProfile(next);
-      if (!user) return;
+      if (!userId) return;
       if (serverTimer.current) clearTimeout(serverTimer.current);
       serverTimer.current = setTimeout(() => {
         saveCompanyProfile(next).catch(() => {
@@ -124,13 +126,13 @@ export function CompanyProfileProvider({ children }: { children: React.ReactNode
         });
       }, 900);
     },
-    [user]
+    [userId]
   );
 
   const clear = useCallback(() => {
-    writeLocal(null);
+    writeLocal(null, userId);
     setProfile(null);
-  }, []);
+  }, [userId]);
 
   const value = useMemo(() => ({ profile, save, clear, bidder: toBidder(profile) }), [profile, save, clear]);
   return <CompanyProfileContext.Provider value={value}>{children}</CompanyProfileContext.Provider>;

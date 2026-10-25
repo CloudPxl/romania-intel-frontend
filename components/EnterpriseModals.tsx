@@ -5,7 +5,9 @@ import { X } from "lucide-react";
 import {
   ApiError,
   createCheckoutSession,
+  declareBankTransfer,
   deleteOwnAccount,
+  fetchMyPreferences,
   fetchBillingConfig,
   generateProformaInvoice,
   updateMyAlertSettings,
@@ -13,6 +15,7 @@ import {
   type ProformaResult,
 } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
+import { currentPath } from "@/lib/authRedirect";
 import { useTheme } from "@/context/ThemeContext";
 import { CATEGORIES, COUNTIES, DOMAIN_OPTIONS } from "@/lib/format";
 import { Badge, Button, ChipSelect, Eyebrow, Field, Input, Notice, Select } from "@/components/newsprint";
@@ -134,6 +137,8 @@ export function PricingModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
   const [billing, setBilling] = useState<BillingConfig | null>(null);
   const [checkoutBusy, setCheckoutBusy] = useState(false);
   const [checkoutNotice, setCheckoutNotice] = useState<string | null>(null);
+  const [transferBusy, setTransferBusy] = useState(false);
+  const [transferNote, setTransferNote] = useState<string | null>(null);
 
   // Prefill from the profile's own billing identity and the signed-in
   // account rather than the hardcoded demo company that used to ship here —
@@ -146,6 +151,7 @@ export function PricingModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
     setEmail(user?.email || "");
     setError(null);
     setCheckoutNotice(null);
+    setTransferNote(null);
     // Whether the card flow is even available is the server's answer, not
     // an assumption — with no Stripe key the UI must offer the proforma
     // path instead of a button that cannot complete.
@@ -171,6 +177,7 @@ export function PricingModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
           cui_fiscal: cui,
           billing_email: email,
           billing_address: address || "România",
+          interval: billingInterval,
         })
       );
     } catch (e) {
@@ -201,6 +208,23 @@ export function PricingModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
       setCheckoutNotice(e instanceof ApiError ? e.detail : "Sesiunea de plată nu a putut fi creată.");
     } finally {
       setCheckoutBusy(false);
+    }
+  };
+
+  // "Am plătit prin OP": the plan opens for 72 h on the client's word while
+  // the transfer clears; the operator confirms it from the admin endpoint.
+  const handleTransferDeclared = async () => {
+    if (!proforma) return;
+    setTransferBusy(true);
+    setError(null);
+    try {
+      const res = await declareBankTransfer(proforma.invoice_number);
+      const until = new Date(res.provisional_until).toLocaleString("ro-RO", { dateStyle: "medium", timeStyle: "short" });
+      setTransferNote(`Plan activat provizoriu până la ${until}. Se activează definitiv când confirmăm plata.`);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.detail : "Nu am putut înregistra plata.");
+    } finally {
+      setTransferBusy(false);
     }
   };
 
@@ -345,7 +369,9 @@ export function PricingModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
             )}
 
             <Button onClick={handleGenerate} disabled={loading} fullWidth className="mt-5">
-              {loading ? "Se emite proforma…" : `Emite proformă — ${plan?.price} RON`}
+              {loading
+                ? "Se emite proforma…"
+                : `Emite proformă — ${billingInterval === "annual" ? (plan?.price ?? 0) * (billing?.annual_months_charged ?? 10) : plan?.price} RON`}
             </Button>
           </div>
         </div>
@@ -363,13 +389,11 @@ export function PricingModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
             <table className="w-full border-collapse text-left font-mono text-xs">
               <tbody>
                 {[
+                  ["Beneficiar", proforma.bank_details?.beneficiary],
+                  ["CUI", proforma.bank_details?.cui],
                   ["Bancă", proforma.bank_details?.bank_name],
                   ["IBAN", proforma.bank_details?.iban_ron],
-                  ["Beneficiar", proforma.bank_details?.beneficiary],
-                  [
-                    "Detalii plată",
-                    `${proforma.bank_details?.payment_details_prefix || ""}${proforma.invoice_number} (${proforma.cui_fiscal})`,
-                  ],
+                  ["Detalii plată", `${proforma.bank_details?.payment_details_prefix || ""}${proforma.invoice_number}`],
                 ].map(([label, value]) => (
                   <tr key={label} className="border-b border-divider last:border-b-0">
                     <th scope="row" className="w-40 whitespace-nowrap border-r border-divider bg-surface px-3 py-2.5 font-sans text-[10px] font-semibold uppercase tracking-widest text-stock-500">
@@ -383,11 +407,17 @@ export function PricingModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
           </div>
 
           {error && <Notice tone="alert">{error}</Notice>}
+          {transferNote && <Notice tone="neutral">{transferNote}</Notice>}
 
           <div className="flex flex-col gap-3 sm:flex-row">
             <Button onClick={handlePrint} className="sm:flex-1">
               Tipărește / salvează PDF
             </Button>
+            {!transferNote && (
+              <Button variant="outline" onClick={handleTransferDeclared} disabled={transferBusy} className="sm:flex-1">
+                {transferBusy ? "Se înregistrează…" : "Am plătit prin OP (activare provizorie 72h)"}
+              </Button>
+            )}
             <Button variant="outline" onClick={() => setProforma(null)} className="sm:flex-1">
               Modifică datele
             </Button>
@@ -401,12 +431,16 @@ export function PricingModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
 /* ---------------------------------------------------------------- account */
 
 export function AccountSettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  const { user, profile, preferences, updatePreferences, signInWithGoogle, signInWithEmail, signOut } = useAuth();
+  const { user, profile, signInWithGoogle, signInWithEmail, signOut } = useAuth();
   const { theme, setTheme } = useTheme();
   const [emailInput, setEmailInput] = useState("");
   const [alertEmail, setAlertEmail] = useState("");
-  const [scoreThreshold, setScoreThreshold] = useState(9.0);
-  const [telegramChatId, setTelegramChatId] = useState("");
+  const [scoreThreshold, setScoreThreshold] = useState(7.5);
+  // Null until the server answers: the form is never filled from browser
+  // leftovers (which, on a new device, used to overwrite the real settings
+  // on the first Save).
+  const [prefsLoaded, setPrefsLoaded] = useState(false);
+  const [alertsEnabled, setAlertsEnabled] = useState(true);
   // Mirrors user_profiles.push_radar_enabled. Held locally so the
   // checkbox is responsive; NotificationToggle persists it and rolls
   // this back if the write fails.
@@ -422,14 +456,28 @@ export function AccountSettingsModal({ isOpen, onClose }: { isOpen: boolean; onC
 
   useEffect(() => {
     if (!isOpen) return;
-    setAlertEmail(preferences?.notification_email || user?.email || "");
-    setScoreThreshold(preferences?.auto_alert_score ?? 9.0);
-    setTelegramChatId(preferences?.telegram_chat_id || "");
     setSaved(false);
     setError(null);
     setDeleteConfirming(false);
     setDeleteError(null);
-  }, [isOpen, preferences, user]);
+    setPrefsLoaded(false);
+    if (!user) return;
+    let cancelled = false;
+    fetchMyPreferences()
+      .then((p) => {
+        if (cancelled) return;
+        setAlertEmail(p.alert_email || user.email || "");
+        setScoreThreshold(p.min_alert_score ?? 7.5);
+        setAlertsEnabled(p.email_alerts_enabled);
+        setPrefsLoaded(true);
+      })
+      .catch((e) => {
+        if (!cancelled) setError(e instanceof ApiError ? e.detail : "Nu am putut încărca preferințele de alertă.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, user]);
 
   const handleDeleteAccount = async () => {
     if (!deleteConfirming) {
@@ -452,32 +500,18 @@ export function AccountSettingsModal({ isOpen, onClose }: { isOpen: boolean; onC
   };
 
   const handleSave = async () => {
-    // Local preferences drive the manual "trimite-mi acest dosar" button
-    // and client-side display filtering; they're legitimate on their own.
-    // But automated alerts (notifier.py's dispatch_lead_alert_to_user)
-    // read alert_email/min_alert_score from Postgres, not this —
-    // saving only locally used to look successful while changing nothing
-    // about where real alerts actually go.
-    updatePreferences({
-      notification_email: alertEmail,
-      auto_alert_score: Number(scoreThreshold),
-      telegram_chat_id: telegramChatId,
-    });
-    if (!user || !alertEmail.trim()) {
-      setSaved(true);
+    // Server only: alerts read the profile in Postgres, and this form was
+    // filled from it, so saving can never push stale browser values back.
+    if (!user || !prefsLoaded) return;
+    if (!alertEmail.trim()) {
+      setError("Introduceți adresa pe care doriți să primiți alertele.");
       return;
     }
     setSaving(true);
     setError(null);
     try {
-      await updateMyAlertSettings({
-        alert_email: alertEmail.trim(),
-        min_alert_score: Number(scoreThreshold),
-        // Always sent, so clearing the field genuinely clears it
-        // server-side (the backend treats "" as "remove", and omitting
-        // the key entirely as "leave untouched").
-        telegram_chat_id: telegramChatId.trim(),
-      });
+      await updateMyAlertSettings({ alert_email: alertEmail.trim(), min_alert_score: Number(scoreThreshold) });
+      setAlertsEnabled(true);
       setSaved(true);
     } catch (err) {
       setError(err instanceof ApiError ? err.detail : "Nu am putut salva preferințele de alertă.");
@@ -490,7 +524,7 @@ export function AccountSettingsModal({ isOpen, onClose }: { isOpen: boolean; onC
     if (!emailInput.trim()) return;
     setAuthLoading(true);
     setError(null);
-    const { error: err } = await signInWithEmail(emailInput);
+    const { error: err } = await signInWithEmail(emailInput, currentPath());
     setAuthLoading(false);
     if (err) setError(err);
     else setMagicLinkSent(true);
@@ -510,7 +544,7 @@ export function AccountSettingsModal({ isOpen, onClose }: { isOpen: boolean; onC
             <p className="font-body mt-2 text-sm leading-relaxed text-stock-600">
               Conectați-vă pentru a accesa registrul, a salva dosare în pipeline și a primi alerte.
             </p>
-            <Button onClick={signInWithGoogle} fullWidth className="mt-4">
+            <Button onClick={() => signInWithGoogle(currentPath())} fullWidth className="mt-4">
               Continuă cu Google
             </Button>
 
@@ -609,7 +643,14 @@ export function AccountSettingsModal({ isOpen, onClose }: { isOpen: boolean; onC
         )}
 
         <div className="neu-flat rounded-3xl bg-paper p-4 sm:p-5">
-          <Eyebrow className="mb-4">Alerte automate</Eyebrow>
+          <Eyebrow className="mb-4">Alerte automate pe email</Eyebrow>
+          {prefsLoaded && !alertsEnabled && (
+            <div className="mb-4">
+              <Notice tone="warning" title="Alertele pe email sunt oprite">
+                Ați folosit linkul de dezabonare dintr-un email. Salvați preferințele de mai jos pentru a le reporni.
+              </Notice>
+            </div>
+          )}
           <div className="space-y-4">
             <Field label="Email destinatar notificări" hint="Adresa pe care o primesc alertele automate pentru dosarele cu scor ridicat.">
               <Input
@@ -624,19 +665,11 @@ export function AccountSettingsModal({ isOpen, onClose }: { isOpen: boolean; onC
                 <option value={9.5}>Scor ≥ 9.5 — doar proiecte strategice critice</option>
                 <option value={9.0}>Scor ≥ 9.0 — toate oportunitățile calificate</option>
                 <option value={8.5}>Scor ≥ 8.5 — toate semnalele active</option>
+                <option value={7.5}>Scor ≥ 7.5 — toate potrivirile cu profilul</option>
+                {![9.5, 9.0, 8.5, 7.5].includes(scoreThreshold) && (
+                  <option value={scoreThreshold}>Scor ≥ {scoreThreshold} — setarea actuală</option>
+                )}
               </Select>
-            </Field>
-            <Field
-              label="ID chat Telegram (opțional)"
-              hint="Primiți aceleași alerte și pe Telegram. Deschideți @userinfobot în Telegram, care vă returnează ID-ul numeric al contului. Lăsați gol pentru a dezactiva."
-            >
-              <Input
-                type="text"
-                inputMode="numeric"
-                value={telegramChatId}
-                onChange={(e) => setTelegramChatId(e.target.value)}
-                placeholder="123456789"
-              />
             </Field>
           </div>
           {error && (
@@ -644,7 +677,7 @@ export function AccountSettingsModal({ isOpen, onClose }: { isOpen: boolean; onC
               <Notice tone="alert">{error}</Notice>
             </div>
           )}
-          <Button onClick={handleSave} fullWidth className="mt-5" disabled={saving}>
+          <Button onClick={handleSave} fullWidth className="mt-5" disabled={saving || !prefsLoaded}>
             {saving ? "Se salvează…" : saved ? "Preferințe salvate" : "Salvează preferințele"}
           </Button>
         </div>

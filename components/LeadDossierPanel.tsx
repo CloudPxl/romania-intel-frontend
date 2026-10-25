@@ -102,7 +102,7 @@ function TenderBriefSection({ sourceId }: { sourceId: string }) {
 }
 
 export default function LeadDossierPanel({ lead, onClose }: { lead: Lead; onClose: () => void }) {
-  const { user, preferences } = useAuth();
+  const { user } = useAuth();
   const router = useRouter();
   const { ask } = useCopilot();
   // While this panel is open, "acest dosar" in the copilot means this one.
@@ -156,20 +156,15 @@ export default function LeadDossierPanel({ lead, onClose }: { lead: Lead; onClos
   };
 
   const handleSendEmailAlert = async () => {
-    const recipient = preferences?.notification_email || user?.email;
-    if (!recipient) {
-      setToast("Configurați un email de notificare în Setări cont.");
-      return;
-    }
     setBusyAction("email");
     try {
-      // By id: the server builds the e-mail from its own record, so the
-      // link in it always opens this dossier.
-      const res = await triggerEmailAlert(lead.source_id, recipient);
+      // By id, and always to the account's own address: the server builds
+      // the e-mail from its record and names the recipient it used.
+      const res = await triggerEmailAlert(lead.source_id);
       setToast(
         res.status === "success"
-          ? `Alertă expediată către ${recipient}.`
-          : "Serverul nu are configurat un canal SMTP — alerta nu a fost trimisă."
+          ? `Dosarul a fost trimis pe ${res.recipient}.`
+          : "Serverul nu are configurat un canal de email — mesajul nu a fost trimis."
       );
     } catch (e) {
       setToast(e instanceof ApiError ? e.detail : "Nu s-a putut expedia alerta.");

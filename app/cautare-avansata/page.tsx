@@ -566,7 +566,7 @@ function CautareAvansataContent() {
 
 export default function CautareAvansataPage() {
 	return (
-		<AuthGate title="Căutarea avansată este pentru abonați" description="Fluxul de oportunități pre-SEAP și dosarele strategice sunt disponibile doar conturilor autentificate.">
+		<AuthGate title="Căutarea avansată este disponibilă în contul gratuit" description="Registrul complet, filtrele și dosarul fiecărei licitații. Creați un cont gratuit (doar emailul, fără card) — vă întoarceți exact pe această pagină.">
 			<Suspense fallback={<Loading label="Se încarcă…" />}>
 				<CautareAvansataContent />
 			</Suspense>

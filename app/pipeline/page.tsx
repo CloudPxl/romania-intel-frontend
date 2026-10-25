@@ -673,8 +673,8 @@ function PipelineContent() {
 export default function PipelinePage() {
   return (
     <AuthGate
-      title="Pipeline-ul este pentru abonați"
-      description="Dosarele salvate și metricile de ofertare sunt legate de contul dvs."
+      title="Pipeline-ul este disponibil în contul gratuit"
+      description="Urmăriți până la 10 dosare gratuit, cu etape, valoare ponderată și termene. Creați un cont gratuit (doar emailul, fără card) — vă întoarceți exact pe această pagină."
     >
       <PipelineContent />
     </AuthGate>

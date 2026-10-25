@@ -604,7 +604,7 @@ function EligibilityContent() {
 
 export default function EligibilityPage() {
 	return (
-		<AuthGate title="Scannerul de eligibilitate este pentru abonați" description="Evaluarea profilului companiei față de liniile de finanțare active necesită un cont.">
+		<AuthGate title="Eligibilitatea este disponibilă în contul gratuit" description="Verificarea firmei după CUI (ANAF) și potrivirea cu finanțările active. Creați un cont gratuit (doar emailul, fără card) — vă întoarceți exact pe această pagină.">
 			<EligibilityContent />
 		</AuthGate>
 	);

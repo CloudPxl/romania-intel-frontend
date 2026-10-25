@@ -119,11 +119,11 @@ const FAQS: FaqItem[] = [
 		],
 	},
 	{
-		question: "Cum configurez alerte instantanee prin Telegram și Email?",
+		question: "Cum configurez alertele pe email (și cum le opresc)?",
 		blocks: [
 			{
 				kind: "p",
-				text: "În meniul de setări de profil (`Bara laterală -> Setări cont` sau direct în onboarding), puteți seta pragul minim de relevanță (`min_alert_score`, implicit 7.5/10), adresa de email pentru notificări și ID-ul numeric de chat Telegram. Când un scraper detectează o oportunitate nouă ce corespunde criteriilor dvs. și trece pragul de alertă, notificarea este trimisă în timp real.",
+				text: "În Setări cont (sau direct în onboarding) alegeți adresa de email pentru alerte și pragul minim de relevanță (implicit 7.5/10). Când apare o licitație nouă care se potrivește criteriilor dvs. și trece pragul, primiți un email. Fiecare email are la final un link de dezabonare cu un singur clic; alertele se repornesc salvând din nou preferințele în Setări cont. Pentru notificări instant pe telefon sau desktop, activați notificările push din aceeași pagină.",
 			},
 		],
 	},

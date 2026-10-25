@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import { consumeNext, rememberNext, safeNext } from "@/lib/authRedirect";
 import { formatDateline } from "@/lib/format";
 import { Button, Eyebrow, Input, Notice, TabBar } from "@/components/newsprint";
 
@@ -27,6 +28,15 @@ export default function LoginPage() {
     authError,
   } = useAuth();
   const router = useRouter();
+  // Where the visitor was headed when AuthGate sent them here (?next=…).
+  // Read from the URL directly so the page needs no Suspense boundary, and
+  // remembered for the hops that cannot carry it.
+  const [next, setNext] = useState<string | null>(null);
+  useEffect(() => {
+    const fromUrl = safeNext(new URLSearchParams(window.location.search).get("next"));
+    setNext(fromUrl);
+    rememberNext(fromUrl);
+  }, []);
   const [dateline, setDateline] = useState("");
   const [method, setMethod] = useState<AuthMethod>("magic");
 
@@ -52,7 +62,7 @@ export default function LoginPage() {
   const handleGoogle = async () => {
     setGoogleBusy(true);
     setGoogleError(null);
-    const { error } = await signInWithGoogle();
+    const { error } = await signInWithGoogle(next);
     if (error) {
       // Only clear the pending state on failure: on success the browser is
       // navigating away, and flipping the button back would make a working
@@ -70,16 +80,19 @@ export default function LoginPage() {
   // form for it). Testing only `user` is what stranded a successful
   // sign-in on this screen — the credentials were accepted, nothing
   // navigated, and pressing Autentificare again just did it all over.
+  // To the page that sent them here — the dossier from the alert email —
+  // not to "/". An account still choosing its criteria gets the setup form
+  // on that page too (AuthGate renders it in place).
   useEffect(() => {
-    if (user || needsOnboarding) router.replace("/");
-  }, [user, needsOnboarding, router]);
+    if (user || needsOnboarding) router.replace(consumeNext(next));
+  }, [user, needsOnboarding, router, next]);
 
   const handleEmailSubmit: React.ComponentProps<"form">["onSubmit"] = async (e) => {
     e.preventDefault();
     if (!email.trim()) return;
     setSubmitting(true);
     setError(null);
-    const { error: err } = await signInWithEmail(email.trim());
+    const { error: err } = await signInWithEmail(email.trim(), next);
     setSubmitting(false);
     if (err) setError(err);
     else setSent(true);
@@ -95,7 +108,7 @@ export default function LoginPage() {
     setPwSubmitting(true);
     setPwError(null);
     if (passwordMode === "signup") {
-      const { error: err, needsEmailConfirmation } = await signUpWithPassword(email.trim(), password);
+      const { error: err, needsEmailConfirmation } = await signUpWithPassword(email.trim(), password, next);
       setPwSubmitting(false);
       if (err) {
         setPwError(err);
