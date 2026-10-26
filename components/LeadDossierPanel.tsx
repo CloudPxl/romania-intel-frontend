@@ -17,7 +17,7 @@ import {
 } from "@/lib/api";
 import { formatDate, formatNumber } from "@/lib/format";
 import { PRE_SEAP_FOIA_PRESETS, analyticsHref, draftingHref, foiaHref } from "@/lib/toolLinks";
-import { Button } from "@/components/newsprint";
+import { Button, Disclosure } from "@/components/newsprint";
 import { daysLeft, deadlineLabel, deadlineTone } from "@/components/registry";
 import AuthorityProfilePanel from "@/components/AuthorityProfilePanel";
 
@@ -75,7 +75,7 @@ function TenderBriefSection({ sourceId }: { sourceId: string }) {
   const regime = brief.legal_regime;
 
   return (
-    <section className="rounded-xl border border-divider bg-paper p-5">
+    <section className="rounded-xl border border-line-strong bg-paper p-5">
       <div className="mb-2 flex items-center gap-2">
         <Sparkles size={16} className="text-accent" aria-hidden />
         <h3 className="text-[16px] font-semibold">Sinteza AI</h3>
@@ -317,8 +317,14 @@ export default function LeadDossierPanel({ lead, onClose }: { lead: Lead; onClos
 
             {!preSeap && (
               <div className="flex flex-col gap-2">
-                <Button onClick={() => router.push(draftingHref(lead.source_id, "clarificari", fallback))}>Redactează clarificarea · art. 160</Button>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto]">
+                  <Button onClick={() => router.push(draftingHref(lead.source_id, "clarificari", fallback))}>Redactează clarificarea · art. 160</Button>
+                  <Button variant="outline" onClick={handleSaveToPipeline} disabled={busyAction === "pipeline"}>
+                    {busyAction === "pipeline" ? "Se salvează…" : "Salvează în pipeline"}
+                  </Button>
+                </div>
+                <Disclosure summary={<span>Instrumente de ofertare <span className="font-normal text-stock-500">· caiet, preț, propunere, piață</span></span>}>
+                <div className="grid grid-cols-2 gap-2 py-1">
                   <Button variant="outline" onClick={() => router.push(analyticsHref(lead.source_id, "caiet", fallback))}>
                     Scanează caietul
                   </Button>
@@ -332,13 +338,14 @@ export default function LeadDossierPanel({ lead, onClose }: { lead: Lead; onClos
                     Profil de piață
                   </Button>
                 </div>
+                </Disclosure>
               </div>
             )}
 
             {lead.source_id && <TenderBriefSection sourceId={lead.source_id} />}
 
             {(lead.sales_pitch_angle || lead.executive_summary) && (
-              <section className="rounded-xl border border-divider bg-paper p-5">
+              <section className="rounded-xl border border-line-strong bg-paper p-5">
                 {lead.executive_summary && (
                   <>
                     <h3 className="text-[16px] font-semibold">Din anunț</h3>
@@ -354,16 +361,18 @@ export default function LeadDossierPanel({ lead, onClose }: { lead: Lead; onClos
               </section>
             )}
 
-            <div className="grid grid-cols-2 gap-2">
-              <Button variant="outline" onClick={handleSaveToPipeline} disabled={busyAction === "pipeline"}>
-                {busyAction === "pipeline" ? "Se salvează…" : "Salvează în pipeline"}
-              </Button>
-              <Button variant="outline" onClick={handleSendEmailAlert} disabled={busyAction === "email"}>
-                {busyAction === "email" ? "Se trimite…" : "Trimite pe email"}
-              </Button>
-              <Button variant="ghost" className="col-span-2" onClick={() => ask()}>
-                <Sparkles size={16} className="text-accent" aria-hidden /> Întreabă Copilotul despre acest dosar
-              </Button>
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-divider pt-4 text-[14px]">
+              {preSeap && (
+                <button type="button" onClick={handleSaveToPipeline} disabled={busyAction === "pipeline"} className="min-h-9 font-medium text-accent hover:underline disabled:opacity-60">
+                  {busyAction === "pipeline" ? "Se salvează…" : "Salvează în pipeline"}
+                </button>
+              )}
+              <button type="button" onClick={handleSendEmailAlert} disabled={busyAction === "email"} className="min-h-9 font-medium text-accent hover:underline disabled:opacity-60">
+                {busyAction === "email" ? "Se trimite…" : "Trimite-mi pe email"}
+              </button>
+              <button type="button" onClick={() => ask()} className="inline-flex min-h-9 items-center gap-1.5 font-medium text-accent hover:underline">
+                <Sparkles size={15} aria-hidden /> Întreabă Copilotul
+              </button>
             </div>
 
             {lead.source_url && (

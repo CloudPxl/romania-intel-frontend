@@ -740,6 +740,9 @@ export interface FeedFilters {
   authorityCui?: string;
   procedureType?: string;
   awardCriterion?: string;
+  /** Any of these județe (OR); diacritics-tolerant on the server. */
+  counties?: string[];
+  fundingSource?: string;
 }
 
 /**
@@ -760,6 +763,8 @@ export async function fetchMyFeed(
         authority_cui: filters.authorityCui?.trim() || undefined,
         procedure_type: filters.procedureType || undefined,
         award_criterion: filters.awardCriterion || undefined,
+        counties: filters.counties?.length ? filters.counties.join(",") : undefined,
+        funding_source: filters.fundingSource && filters.fundingSource !== "all" ? filters.fundingSource : undefined,
       })
   );
 }
@@ -796,8 +801,23 @@ export const PROCEDURE_TYPE_LABELS: Record<string, string> = {
  * the export route is authenticated now, and a bare link cannot carry an
  * Authorization header, so the old link would just render a 401 page.
  */
-export async function downloadMyCsv(): Promise<void> {
-  const res = await apiFetch<Response>("/api/v1/me/export/csv", { raw: true });
+/** The CSV of exactly what the register shows under these filters. */
+export async function downloadMyCsv(
+  filters: FeedFilters & { category?: string; q?: string; onlyMatches?: boolean } = {}
+): Promise<void> {
+  const res = await apiFetch<Response>(
+    "/api/v1/me/export/csv" +
+      qs({
+        category: filters.category && filters.category !== "all" ? filters.category : undefined,
+        authority_cui: filters.authorityCui?.trim() || undefined,
+        procedure_type: filters.procedureType || undefined,
+        counties: filters.counties?.length ? filters.counties.join(",") : undefined,
+        funding_source: filters.fundingSource && filters.fundingSource !== "all" ? filters.fundingSource : undefined,
+        q: filters.q?.trim() || undefined,
+        only_matches: filters.onlyMatches || undefined,
+      }),
+    { raw: true }
+  );
   const blob = await res.blob();
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");

@@ -1,4 +1,5 @@
 "use client";
+import { FAQ } from "@/components/landing/content";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
@@ -44,17 +45,6 @@ const Dash = () => (
 
 function n(v: number | null | undefined) {
   return typeof v === "number" ? formatLei(v) : null;
-}
-
-function minutesAgo(iso: string | null | undefined): string | null {
-  if (!iso) return null;
-  const t = Date.parse(iso);
-  if (!Number.isFinite(t)) return null;
-  const m = Math.max(0, Math.round((Date.now() - t) / 60000));
-  if (m < 1) return "acum";
-  if (m < 60) return `acum ${m} min`;
-  const h = Math.round(m / 60);
-  return h < 48 ? `acum ${h} h` : `acum ${Math.round(h / 24)} zile`;
 }
 
 /* ------------------------------------------------------------- signup */
@@ -146,10 +136,6 @@ function SignupForm({ id, dark, planNote }: { id: string; dark?: boolean; planNo
         <span>
           <Check />
           Fără parolă: primiți un link pe email
-        </span>
-        <span>
-          <Check />
-          2 documente AI incluse
         </span>
       </p>
       {dark && (
@@ -339,7 +325,6 @@ interface SampleDossier {
 }
 
 function DossierViewer({ sample }: { sample: SampleDossier | null }) {
-  const [tab, setTab] = useState<"proposal" | "clarification" | "price">("proposal");
   if (!sample) {
     return (
       <div className="doc" aria-busy="true">
@@ -348,27 +333,12 @@ function DossierViewer({ sample }: { sample: SampleDossier | null }) {
     );
   }
   const t = sample.tender;
-  const text =
-    tab === "proposal"
-      ? sample.proposal.dossier_text
-      : tab === "clarification"
-        ? sample.letters.clarification.generated_letter
-        : sample.letters.abnormally_low_price.generated_letter;
+  const text = sample.proposal.dossier_text;
   const generated = new Date(sample.generated_at).toLocaleDateString("ro-RO");
   return (
     <div className="doc">
-      <div className="doc-tabs" role="tablist" aria-label="Documentele dosarului">
-        {(
-          [
-            ["proposal", "Propunere tehnică + 7 declarații"],
-            ["clarification", "Clarificare · art. 160"],
-            ["price", "Justificare preț · art. 210"],
-          ] as const
-        ).map(([id, label]) => (
-          <button key={id} role="tab" aria-selected={tab === id} className={tab === id ? "sel" : ""} onClick={() => setTab(id)}>
-            {label}
-          </button>
-        ))}
+      <div className="doc-tabs">
+        <span className="sel">Propunere tehnică + {sample.proposal.declarations.length} declarații</span>
       </div>
       <div className="doc-meta">
         <span>
@@ -386,16 +356,14 @@ function DossierViewer({ sample }: { sample: SampleDossier | null }) {
       <div className="doc-page" tabIndex={0} aria-label="Textul documentului generat">
         {text}
       </div>
-      {tab === "proposal" && (
-        <ul className="doc-decl" aria-label="Declarațiile anexate">
-          {sample.proposal.declarations.map((d) => (
-            <li key={d.id}>
-              <Check size={13} />
-              {d.heading}
-            </li>
-          ))}
-        </ul>
-      )}
+      <ul className="doc-decl" aria-label="Declarațiile anexate">
+        {sample.proposal.declarations.map((d) => (
+          <li key={d.id}>
+            <Check size={13} />
+            {d.heading}
+          </li>
+        ))}
+      </ul>
       <p className="doc-foot">
         Generat de RO-INTEL pe {generated}, din anunțul public, cu șabloanele de producție (fără AI). Datele ofertantului rămân de completat — în cont se iau automat din profilul firmei.
       </p>
@@ -438,28 +406,6 @@ const COMPARE = [
   { need: "Alerte", us: "După CUI, CPV, județe și valoare, cu scor", agg: "Email brut, după cuvinte-cheie", cons: "Nu" },
 ];
 
-const FAQ = [
-  {
-    q: "Am nevoie de card ca să încep?",
-    a: "Nu. Contul gratuit se creează doar cu adresa de email: primiți un link și intrați. Treceți la un plan plătit doar dacă vreți mai multe documente AI, mesaje Copilot sau firme.",
-  },
-  {
-    q: "De unde vin datele și cât de actuale sunt?",
-    a: "Din SEAP/SICAP (anunțuri de participare, simplificate, achiziții directe, atribuiri), TED, acordurile de mediu ANMAP, portalul de achiziții CNAIR și registrele județene. Registrul se actualizează continuu; data ultimei sincronizări e afișată pe pagină. Dacă o sursă nu răspunde, afișăm zero, nu o estimare.",
-  },
-  {
-    q: "Înlocuiește un consultant în achiziții publice?",
-    a: "Nu. Vă scutește de căutare și de prima citire a caietului și vă dă documentele cu temeiul legal citat. Decizia și semnătura rămân ale dvs. sau ale consultantului.",
-  },
-  {
-    q: "Pot plăti prin transfer bancar, pe factură?",
-    a: "Da. Emitem factură proformă și plătiți prin OP, lunar sau anual. Prețurile sunt în RON, fără TVA.",
-  },
-  {
-    q: "Ce se întâmplă cu datele firmei mele?",
-    a: "Folosim CUI-ul și preferințele doar ca să vă filtrăm licitațiile și să completăm documentele. Serverele sunt în Uniunea Europeană; datele dvs. nu sunt folosite la antrenarea modelelor AI. Vă puteți șterge contul oricând, din setări.",
-  },
-];
 
 export default function LandingPage() {
   const [stats, setStats] = useState<PublicStats | null>(null);
@@ -514,7 +460,6 @@ export default function LandingPage() {
   };
   const goSignup = () => (window.scrollY < 360 ? scrollTo("hero", "hero-email") : scrollTo("start", "final-email"));
 
-  const synced = minutesAgo(stats?.last_sync_at);
   const counters = useMemo(
     () =>
       [
@@ -572,16 +517,7 @@ export default function LandingPage() {
             <div className="rise">
               <p className="eyebrow">
                 <span className="dot" aria-hidden="true" />
-                {stats?.open_procedures != null ? (
-                  <span>
-                    <b className="m" style={{ fontWeight: 500 }}>
-                      {n(stats.open_procedures)}
-                    </b>{" "}
-                    proceduri deschise acum{synced ? ` · sincronizat ${synced}` : ""}
-                  </span>
-                ) : (
-                  <span>Pentru firmele care participă la licitații publice în România</span>
-                )}
+                <span>Pentru firmele care participă la licitații publice în România</span>
               </p>
               <h1 id="h-hero" className="t-display">
                 Găsiți licitațiile potrivite înaintea concurenței.
@@ -794,14 +730,6 @@ export default function LandingPage() {
                 ))}
               </div>
             )}
-            {synced && (
-              <p className="micro" style={{ marginTop: 10 }}>
-                <span>
-                  <span className="live" aria-hidden="true" style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--ok)", display: "inline-block" }} />
-                  Ultima sincronizare a registrului: {synced}
-                </span>
-              </p>
-            )}
 
             <div className="proof-grid" id="dosar">
               <div>
@@ -832,11 +760,6 @@ export default function LandingPage() {
                     <span>
                       <Check />
                       Conectat la SEAP, ANAF, ANAP și portalul legislativ
-                    </span>
-                  </li>
-                  <li>
-                    <span>
-                      <Check />0 antrenare AI pe datele clientului
                     </span>
                   </li>
                 </ul>

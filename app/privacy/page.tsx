@@ -1,7 +1,11 @@
 import Link from "next/link";
-import { PageHeader, Panel, SectionTitle, Notice } from "@/components/newsprint";
+import { PageHeader, Panel, SectionTitle } from "@/components/newsprint";
 
-export const metadata = { title: "Politica de Confidențialitate — RO-INTEL" };
+export const metadata = {
+  title: "Politica de Confidențialitate",
+  description: "Ce date colectează RO-INTEL, de ce, unde sunt stocate (Uniunea Europeană) și cum vă exercitați drepturile GDPR.",
+  alternates: { canonical: "/privacy" },
+};
 
 export default function PrivacyPage() {
   return (
@@ -12,13 +16,6 @@ export default function PrivacyPage() {
         standfirst="Ce date colectăm, de ce, și cum vă puteți exercita drepturile GDPR. Ultima actualizare: 1 septembrie 2026."
       />
 
-      <div className="mb-6">
-        <Notice tone="warning" title="Document-cadru">
-          Acest text este un model funcțional, redactat pe baza fluxurilor reale de date din platformă — nu
-          constituie consultanță juridică. Recomandăm revizuirea lui de către un avocat specializat în
-          protecția datelor (GDPR/ANSPDCP) înainte de a-l considera definitiv.
-        </Notice>
-      </div>
 
       <Panel className="p-5 sm:p-8">
         <div className="font-body space-y-8 text-sm leading-relaxed text-stock-700">

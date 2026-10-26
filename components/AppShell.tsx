@@ -6,7 +6,7 @@ import { Check, ChevronDown, Menu, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useCompanyProfile } from "@/context/CompanyProfileContext";
 import { AccountSettingsModal, PricingModal, ProfileCriteriaModal } from "@/components/EnterpriseModals";
-import FreshnessLine, { FreshnessPill } from "@/components/FreshnessLine";
+import FreshnessLine from "@/components/FreshnessLine";
 import { fetchEntitlements } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -56,6 +56,18 @@ function useDismiss(open: boolean, close: () => void) {
   return ref;
 }
 
+const ACCOUNT_FALLBACK = "Contul meu";
+
+/** The signed-in PERSON, never a company: the name they gave us, else the
+ *  one their Google account carries. The e-mail prefix that AuthContext
+ *  falls back to is not a name, so it is not shown as one. The bidder firm
+ *  (Subscrisa) and any company evaluated on /eligibility live elsewhere. */
+function personName(user: { full_name?: string | null; email?: string | null }, profile: { display_name?: string | null } | null): string {
+  const prefix = (user.email || "").split("@")[0];
+  const candidates = [profile?.display_name, user.full_name].map((n) => (n || "").trim());
+  return candidates.find((n) => n && n !== prefix) || ACCOUNT_FALLBACK;
+}
+
 /** The account menu: who you are, which firm documents are written for
  *  (multi-CUI on Pro), and the account's settings. */
 function AccountMenu({ onSettings, onCriteria, onPricing }: { onSettings: () => void; onCriteria: () => void; onPricing: () => void }) {
@@ -75,7 +87,8 @@ function AccountMenu({ onSettings, onCriteria, onPricing }: { onSettings: () => 
   }, [user]);
 
   if (!user) return null;
-  const initial = (user.full_name || user.email || "?").charAt(0).toUpperCase();
+  const name = personName(user, profile);
+  const initial = (name === ACCOUNT_FALLBACK ? user.email || "?" : name).charAt(0).toUpperCase();
   const activeDigits = (company?.cui || "").replace(/\D/g, "");
   const item = "flex min-h-10 w-full items-center gap-2 rounded-lg px-3 text-left text-[14px] text-ink hover:bg-surface-2";
 
@@ -89,15 +102,15 @@ function AccountMenu({ onSettings, onCriteria, onPricing }: { onSettings: () => 
       >
         <span className="flex h-8 w-8 items-center justify-center rounded-full bg-ink text-[13px] font-semibold text-canvas">{initial}</span>
         <span className="hidden min-w-0 text-left lg:block">
-          <span className="block max-w-[150px] truncate text-[13px] font-medium leading-4 text-ink">{company?.company_name || profile?.display_name || user.full_name || "Contul meu"}</span>
+          <span className="block max-w-[150px] truncate text-[13px] font-medium leading-4 text-ink">{name}</span>
           {plan && <span className="block text-[12px] leading-4 text-stock-400">{PLAN_SHORT[plan] || plan}</span>}
         </span>
         <ChevronDown size={14} className="text-stock-400" aria-hidden />
       </button>
       {open && (
-        <div role="menu" className="absolute right-0 top-full z-50 mt-2 w-[300px] rounded-xl border border-divider bg-paper p-2 shadow-float">
+        <div role="menu" className="absolute right-0 top-full z-50 mt-2 w-[300px] rounded-xl border border-line-strong bg-paper p-2 shadow-float">
           <div className="px-3 pb-2 pt-1">
-            <p className="truncate text-[14px] font-semibold text-ink">{user.full_name || "Cont"}</p>
+            <p className="truncate text-[14px] font-semibold text-ink">{name}</p>
             <p className="truncate text-[13px] text-stock-400">{user.email}</p>
           </div>
           <div className="border-t border-divider pt-2">
@@ -221,7 +234,6 @@ function AppHeader() {
             {NAV.map((n) => link(n.href, n.label))}
           </nav>
           <div className="ml-auto flex items-center gap-2">
-            <FreshnessPill className="hidden md:inline-flex" />
             {user ? (
               <AccountMenu onSettings={() => setSettings(true)} onCriteria={() => setCriteria(true)} onPricing={() => setPricing(true)} />
             ) : (

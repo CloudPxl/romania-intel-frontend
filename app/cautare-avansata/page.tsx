@@ -6,7 +6,7 @@ import AuthGate from "@/components/AuthGate";
 import LeadDossierPanel from "@/components/LeadDossierPanel";
 import { ProfileCriteriaModal } from "@/components/EnterpriseModals";
 import { ApiError, PROCEDURE_TYPE_LABELS, downloadMyCsv, fetchMyFeed, fetchOpportunity, type Lead } from "@/lib/api";
-import { CATEGORIES, categoryLabel, formatDate, formatNumber, formatRon } from "@/lib/format";
+import { CATEGORIES, categoryLabel, formatNumber, formatRon } from "@/lib/format";
 import { Button, DegradedBanner, Loading, Notice, PageHeader } from "@/components/newsprint";
 import {
   CountyMultiSelect,
@@ -40,7 +40,6 @@ function LicitatiiContent() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [degraded, setDegraded] = useState(false);
-  const [updatedAt, setUpdatedAt] = useState<string | null>(null);
   const [criteriaOpen, setCriteriaOpen] = useState(false);
   const [shown, setShown] = useState(PAGE);
 
@@ -84,11 +83,12 @@ function LicitatiiContent() {
         const feed = await fetchMyFeed(activeCategory, force, {
           authorityCui: authorityCui || undefined,
           procedureType: procedureType || undefined,
+          counties,
+          fundingSource,
         });
         if (seq !== feedSeq.current) return;
         setLeads(feed.leads || []);
         setDegraded(Boolean(feed.degraded));
-        setUpdatedAt(feed.data_updated_at);
       } catch (e) {
         if (seq !== feedSeq.current) return;
         setError(e instanceof ApiError ? e.detail : "Nu s-a putut încărca registrul.");
@@ -100,7 +100,7 @@ function LicitatiiContent() {
         }
       }
     },
-    [activeCategory, authorityCui, procedureType]
+    [activeCategory, authorityCui, procedureType, counties, fundingSource]
   );
 
   useEffect(() => {
@@ -158,20 +158,26 @@ function LicitatiiContent() {
     return out;
   }, [leads]);
 
-  const fundingSources = useMemo(() => {
-    const set = new Set<string>();
-    leads.forEach((l) => l.funding_source && set.add(l.funding_source));
-    return Array.from(set).sort((a, b) => a.localeCompare(b, "ro"));
+  // Every funding label seen so far: once one is picked the server returns
+  // only that one, and the list must not collapse to it.
+  const [knownFunding, setKnownFunding] = useState<string[]>([]);
+  useEffect(() => {
+    setKnownFunding((prev) => {
+      const set = new Set(prev);
+      leads.forEach((l) => l.funding_source && set.add(l.funding_source));
+      return set.size === prev.length ? prev : Array.from(set);
+    });
   }, [leads]);
+  const fundingSources = useMemo(() => [...knownFunding].sort((a, b) => a.localeCompare(b, "ro")), [knownFunding]);
 
   const visibleLeads = useMemo(() => {
     const fold = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
     const q = fold(query.trim());
-    const wanted = new Set(counties.map(fold));
+    // Domeniu, județe, finanțare, procedură and CUI are applied by the
+    // server before its row limit; only the text box and "Afișez" narrow
+    // the returned rows here.
     const filtered = leads.filter((l) => {
       if (onlyMatches && !l.match?.is_match) return false;
-      if (wanted.size && !wanted.has(fold(l.county || ""))) return false;
-      if (fundingSource !== "all" && fold(l.funding_source || "") !== fold(fundingSource)) return false;
       if (q) {
         const hay = fold([l.project_title, l.entity_name, l.locality, l.sub_category, l.county, l.cpv_code, l.source_id].filter(Boolean).join(" "));
         if (!hay.includes(q)) return false;
@@ -180,7 +186,7 @@ function LicitatiiContent() {
     });
     // "relevance" keeps the server's ranking — the whole feed is built on it.
     return sortLeads(filtered, sort);
-  }, [leads, query, counties, fundingSource, onlyMatches, sort]);
+  }, [leads, query, onlyMatches, sort]);
 
   useEffect(() => setShown(PAGE), [visibleLeads]);
 
@@ -204,7 +210,7 @@ function LicitatiiContent() {
   const handleExport = async () => {
     setBusyCsv(true);
     try {
-      await downloadMyCsv();
+      await downloadMyCsv({ category: activeCategory, authorityCui, procedureType, counties, fundingSource, q: query, onlyMatches });
     } catch (e) {
       setToast(e instanceof ApiError ? e.detail : "Exportul CSV a eșuat.");
     } finally {
@@ -241,7 +247,7 @@ function LicitatiiContent() {
         standfirst={
           loading
             ? "Se încarcă registrul…"
-            : `${formatNumber(visibleLeads.length)} din ${formatNumber(leads.length)} dosare · ${formatRon(totalValue)} · sincronizat ${formatDate(updatedAt)}`
+            : `${formatNumber(visibleLeads.length)} din ${formatNumber(leads.length)} dosare · ${formatRon(totalValue)}`
         }
         action={
           <>
@@ -298,7 +304,7 @@ function LicitatiiContent() {
           value={counties.length === 0 ? "toate" : counties.length <= 2 ? counties.join(", ") : `${counties.slice(0, 2).join(", ")} +${counties.length - 2}`}
           onClear={counties.length ? () => setCounties([]) : undefined}
         >
-          {(close) => <CountyMultiSelect selected={counties} onChange={setCounties} counts={countyCounts} onDone={close} />}
+          {(close) => <CountyMultiSelect selected={counties} onChange={setCounties} counts={counties.length ? undefined : countyCounts} onDone={close} />}
         </FilterChip>
         <FilterChip label="Finanțare" value={fundingSource === "all" ? "toate" : fundingSource} width={300} onClear={fundingSource !== "all" ? () => setFundingSource("all") : undefined}>
           {(close) => (

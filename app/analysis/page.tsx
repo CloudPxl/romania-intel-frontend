@@ -1,4 +1,5 @@
 "use client";
+import { CountyCombobox } from "@/components/registry";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
@@ -31,7 +32,7 @@ export default function AnalysisPage() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [category, setCategory] = useState("");
-  const [county, setCounty] = useState("");
+  const [counties, setCounties] = useState<string[]>([]);
   const [minValue, setMinValue] = useState("");
   const [maxValue, setMaxValue] = useState("");
   // Quick-filter only — no field for it in the manual filter panel below,
@@ -132,7 +133,7 @@ export default function AnalysisPage() {
     start_date: startDate || undefined,
     end_date: endDate || undefined,
     categories: category ? [category] : undefined,
-    counties: county.trim() ? [county.trim()] : undefined,
+    counties: counties.length ? counties : undefined,
     funding_sources: fundingSource ? [fundingSource] : undefined,
     min_value_ron: minValue ? Number(minValue) : undefined,
     max_value_ron: maxValue ? Number(maxValue) : undefined,
@@ -149,7 +150,7 @@ export default function AnalysisPage() {
     setStartDate("");
     setEndDate("");
     setCategory("");
-    setCounty("");
+    setCounties([]);
     setMinValue("");
     setMaxValue("");
     setFundingSource("");
@@ -174,7 +175,7 @@ export default function AnalysisPage() {
     load(next);
   };
   const selectCounty = (value: string | null) => {
-    setCounty(value ?? "");
+    setCounties(value ? [value] : []);
     const next = { ...buildFilters(), counties: value ? [value] : undefined };
     setAppliedFilters(next);
     setResultsPage(1);
@@ -195,7 +196,7 @@ export default function AnalysisPage() {
       <PageHeader
         eyebrow="Analiza de piață"
         title="Unde se concentrează bugetul public"
-        standfirst="Agregări recalculate la fiecare interogare din datele curente din registru. Nu există cache la acest nivel — un filtru aplicat interoghează baza de date din nou."
+        standfirst="Valoarea și numărul procedurilor din registru, pe domenii, județe și surse de finanțare."
         action={
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={() => setFiltersOpen((v) => !v)} aria-expanded={filtersOpen}>
@@ -228,9 +229,7 @@ export default function AnalysisPage() {
                 ))}
               </Select>
             </Field>
-            <Field label="Județ">
-              <Input value={county} onChange={(e) => setCounty(e.target.value)} placeholder="ex. Cluj" />
-            </Field>
+            <CountyCombobox label="Județe" selected={counties} onChange={setCounties} emptyHint="Toate județele" />
             <Field label="Valoare minimă (RON)">
               <Input type="number" inputMode="numeric" min={0} value={minValue} onChange={(e) => setMinValue(e.target.value)} />
             </Field>
@@ -317,7 +316,7 @@ export default function AnalysisPage() {
                 onOpenLead={data.is_authenticated ? openLead : undefined}
                 quickFilters={{
                   selectedDomain: category || null,
-                  selectedCounty: county || null,
+                  selectedCounty: counties.length === 1 ? counties[0] : null,
                   selectedFundingSource: fundingSource || null,
                   onSelectDomain: selectDomain,
                   onSelectCounty: selectCounty,

@@ -1,7 +1,11 @@
 import Link from "next/link";
-import { PageHeader, Panel, SectionTitle, Notice } from "@/components/newsprint";
+import { PageHeader, Panel, SectionTitle } from "@/components/newsprint";
 
-export const metadata = { title: "Termeni și Condiții — RO-INTEL" };
+export const metadata = {
+  title: "Termeni și Condiții",
+  description: "Regulile de utilizare a platformei RO-INTEL: contul, natura informațiilor, planurile și plata, utilizarea acceptabilă.",
+  alternates: { canonical: "/terms" },
+};
 
 export default function TermsPage() {
   return (
@@ -12,13 +16,6 @@ export default function TermsPage() {
         standfirst="Regulile de utilizare a platformei RO-INTEL. Ultima actualizare: 1 septembrie 2026."
       />
 
-      <div className="mb-6">
-        <Notice tone="warning" title="Document-cadru">
-          Acest text este un model funcțional, redactat pentru a reflecta exact ce face platforma astăzi —
-          nu constituie consultanță juridică. Înainte de a-l considera definitiv, recomandăm verificarea lui de
-          către un avocat specializat în protecția datelor și dreptul consumatorului din România.
-        </Notice>
-      </div>
 
       <Panel className="p-5 sm:p-8">
         <div className="font-body space-y-8 text-sm leading-relaxed text-stock-700">

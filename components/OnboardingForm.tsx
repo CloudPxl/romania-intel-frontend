@@ -3,7 +3,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { CATEGORIES, COUNTIES, DOMAIN_OPTIONS } from "@/lib/format";
-import { Button, ChipSelect, Eyebrow, Field, Input, Notice, Select } from "@/components/newsprint";
+import { CountyCombobox } from "@/components/registry";
+import { Button, Eyebrow, Field, Input, Notice, Select } from "@/components/newsprint";
 import NotificationToggle from "@/components/NotificationToggle";
 
 /**
@@ -81,20 +82,7 @@ export default function OnboardingForm() {
             </Select>
           </Field>
 
-          <Field
-            label={
-              counties.length
-                ? `Județe de interes (${counties.length} selectate)`
-                : "Județe de interes (opțional)"
-            }
-          >
-            <ChipSelect
-              options={COUNTIES}
-              selected={counties}
-              onChange={setCounties}
-              emptyHint="Niciun județ selectat — veți vedea oportunități din toată țara."
-            />
-          </Field>
+          <CountyCombobox label="Județe de interes (opțional)" selected={counties} onChange={setCounties} emptyHint="Niciun județ selectat — veți vedea oportunități din toată țara." />
 
           <Field label="Cuvinte-cheie (opțional, separate prin virgulă)">
             <Input

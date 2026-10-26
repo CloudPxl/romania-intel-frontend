@@ -39,6 +39,53 @@ const COMPACT_FIELD = "min-h-9 py-1.5";
 // are meant to look identical in either.
 const ACTION_BUTTON = "border-transparent bg-editorial text-white hover:bg-editorial-light";
 
+/** Evaluating a firm and bidding as it are different things: this says
+ *  which firm documents are written for, and offers — never assumes — to
+ *  switch to the one just evaluated. */
+function BidderAdoption({
+	evaluatedName,
+	evaluatedCui,
+	bidderName,
+	bidderCui,
+	state,
+	onAdopt,
+}: {
+	evaluatedName: string;
+	evaluatedCui: string;
+	bidderName: string | null;
+	bidderCui: string | null;
+	state: "idle" | "saving" | "done";
+	onAdopt: () => void;
+}) {
+	const digits = (v: string | null) => (v || "").replace(/\D/g, "");
+	const isBidder = digits(evaluatedCui) !== "" && digits(evaluatedCui) === digits(bidderCui);
+	if (isBidder || state === "done") {
+		return <p className="mt-3 border-t border-divider pt-3 text-[13px] text-stock-500">Aceasta este firma ofertantă (Subscrisa) din documentele dvs.</p>;
+	}
+	return (
+		<div className="mt-3 border-t border-divider pt-3">
+			<p className="text-[13px] leading-snug text-stock-500">
+				<b className="font-semibold text-ink">{evaluatedName || "Firma"}</b> este evaluată aici — nu schimbă contul și nici documentele.{" "}
+				{bidderName ? (
+					<>
+						Firma ofertantă rămâne <b className="font-semibold text-ink">{bidderName}</b>.
+					</>
+				) : (
+					"Nu aveți încă o firmă ofertantă salvată."
+				)}
+			</p>
+			<button
+				type="button"
+				onClick={onAdopt}
+				disabled={state === "saving"}
+				className="mt-2 inline-flex min-h-9 items-center rounded-lg border border-line-strong bg-paper px-3 text-[13px] font-semibold text-ink hover:border-editorial hover:text-accent disabled:opacity-60"
+			>
+				{state === "saving" ? "Se salvează…" : bidderName ? `Setează drept firmă ofertantă (înlocuiește ${bidderName})` : "Setează drept firmă ofertantă (Subscrisa)"}
+			</button>
+		</div>
+	);
+}
+
 function EligibilityContent() {
 	const { profile } = useAuth();
 	const company = useCompanyProfile();
@@ -76,6 +123,8 @@ function EligibilityContent() {
 	// or the blur that follows a manual "Caută firma" click on the same
 	// value — without this every stray blur would re-hit ANAF.
 	const lastLookedUpCuiRef = useRef<string>("");
+	const lookupSeqRef = useRef(0);
+	const prefilledRef = useRef(false);
 
 	/**
 	 * Overwrites the form with whatever a registry lookup just returned —
@@ -162,21 +211,19 @@ function EligibilityContent() {
 			return;
 		}
 		lastLookedUpCuiRef.current = trimmedCui;
+		// Rapid lookups: only the latest one may write the form, so a slow
+		// answer for an earlier CUI never lands on top of a newer one.
+		const seq = ++lookupSeqRef.current;
 		setVerifying(true);
 		setError(null);
+		setAdoptState("idle");
 		try {
 			const found = await verifyCompany(trimmedCui);
+			if (seq !== lookupSeqRef.current) return;
 			setVerification(found);
+			// The evaluated firm stays on this page. It never becomes the
+			// account's bidder (Subscrisa) unless the user says so below.
 			if (found.verified && found.company) {
-				// The registry identity becomes the workspace's: Redactare
-				// fills its document headers from it without asking again.
-				company.save({
-					cui: String(found.company.cui ?? trimmedCui),
-					company_name: found.company.company_name,
-					registration_number: found.company.trade_registry_number,
-					address: found.company.address || [found.company.locality, found.company.county].filter(Boolean).join(", ") || null,
-					caen_code: found.company.caen_code,
-				});
 				applyRegistryFields({
 					name: found.company.company_name,
 					caen: found.company.caen_code,
@@ -187,11 +234,32 @@ function EligibilityContent() {
 				});
 			}
 		} catch (e) {
+			if (seq !== lookupSeqRef.current) return;
 			setError(e instanceof ApiError ? e.detail : "Căutarea în registre nu a putut fi finalizată.");
 			setVerification(null);
 		} finally {
-			setVerifying(false);
+			if (seq === lookupSeqRef.current) setVerifying(false);
 		}
+	};
+
+	// The one, explicit way an evaluated firm becomes the account's bidder:
+	// it replaces the Subscrisa in every document header, and the previous
+	// firm's legal representative is cleared, not carried over.
+	const [adoptState, setAdoptState] = useState<"idle" | "saving" | "done">("idle");
+	const adoptAsBidder = async () => {
+		const c = verification?.company;
+		if (!c) return;
+		setAdoptState("saving");
+		const sameFirm = (company.profile?.cui || "").replace(/\D/g, "") === String(c.cui ?? "").replace(/\D/g, "");
+		await company.save({
+			cui: String(c.cui ?? cui.trim()),
+			company_name: c.company_name,
+			registration_number: c.trade_registry_number,
+			address: c.address || [c.locality, c.county].filter(Boolean).join(", ") || null,
+			caen_code: c.caen_code,
+			...(sameFirm ? {} : { legal_representative: null, representative_role: null }),
+		});
+		setAdoptState("done");
 	};
 
 	// Looks the company up the moment the user leaves the CUI field, rather
@@ -202,15 +270,20 @@ function EligibilityContent() {
 	// press, including out of an empty, untouched form.
 	const handleCuiBlur = () => {
 		const trimmedCui = cui.trim();
-		if (!trimmedCui || trimmedCui === lastLookedUpCuiRef.current || verifying) return;
+		// A lookup still in flight does not block a new CUI: the newer one
+		// wins (lookupSeqRef) and the older answer is discarded.
+		if (!trimmedCui || trimmedCui === lastLookedUpCuiRef.current) return;
 		handleVerify();
 	};
 
 	// Prefills from the profile's own billing identity. Both are optional —
 	// an individual monitoring the market has no CUI — so the fields stay
 	// editable and simply start empty when unset.
+	// Once: after that the form belongs to whatever firm is being evaluated,
+	// and a later change of the saved bidder must not overwrite it.
 	useEffect(() => {
-		if (!profile) return;
+		if (!profile || prefilledRef.current) return;
+		prefilledRef.current = true;
 		setCompanyName(company.profile?.company_name || profile.company_name || "");
 		setCui(company.profile?.cui || profile.cui || "");
 		if (company.profile?.caen_code) setCaen(company.profile.caen_code);
@@ -336,6 +409,14 @@ function EligibilityContent() {
 											<Notice tone="warning">{w}</Notice>
 										</div>
 									))}
+									<BidderAdoption
+										evaluatedName={verification.company.company_name || ""}
+										evaluatedCui={String(verification.company.cui ?? "")}
+										bidderName={company.profile?.company_name || null}
+										bidderCui={company.profile?.cui || null}
+										state={adoptState}
+										onAdopt={adoptAsBidder}
+									/>
 								</div>
 							) : (
 								<Notice tone="alert" title="Firma nu a putut fi verificată">
@@ -473,7 +554,7 @@ function EligibilityContent() {
 							)}
 
 							{Array.isArray(result.matched_grants) && result.matched_grants.length === 0 && (
-								<div className="rounded-xl border border-divider bg-paper">
+								<div className="rounded-xl border border-line-strong bg-paper">
 									{relaxed ? (
 										<div className="px-5 py-6">
 											<p className="text-[16px] font-semibold text-ink">Nicio linie de finanțare nici în căutarea lărgită</p>

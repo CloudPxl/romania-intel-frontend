@@ -31,7 +31,7 @@ export default function NotFound() {
       </div>
       <div className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {exits.map((e) => (
-          <Link key={e.href} href={e.href} className="rounded-xl border border-divider bg-paper p-5 transition-colors hover:border-line-strong">
+          <Link key={e.href} href={e.href} className="rounded-xl border border-line-strong bg-paper p-5 transition-colors hover:border-line-strong">
             <span className="block text-[17px] font-semibold text-ink">{e.title} →</span>
             <span className="mt-1.5 block text-[15px] leading-6 text-stock-500">{e.text}</span>
           </Link>

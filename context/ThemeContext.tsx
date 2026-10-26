@@ -3,7 +3,10 @@ import { createContext, useContext, useEffect, useState } from "react";
 
 export type Theme = "light" | "dark";
 
-const STORAGE_KEY = "ro_intel_theme";
+// v2 since the October 2026 redesign: a "dark" saved against the old
+// design is dropped (layout.tsx removes the old key), so every account
+// starts on the light system and dark is only ever a choice made in it.
+const STORAGE_KEY = "ro_intel_theme_v2";
 
 interface ThemeContextType {
   theme: Theme;

@@ -174,7 +174,7 @@ export default function LoginPage() {
 
         {/* Access column */}
         <section className="flex flex-col justify-center lg:col-span-5">
-          <div className="rounded-xl border border-divider bg-paper p-6 shadow-float sm:p-8">
+          <div className="rounded-xl border border-line-strong bg-paper p-6 shadow-float sm:p-8">
             <Eyebrow className="text-accent">Cont gratuit</Eyebrow>
             <h2 className="mt-2 text-2xl font-semibold leading-[30px] tracking-[-0.015em]">Creați un cont sau autentificați-vă</h2>
             <p className="mt-2 text-[15px] leading-6 text-stock-500">

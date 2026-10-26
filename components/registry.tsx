@@ -198,7 +198,7 @@ export function LeadList({
   className?: string;
 }) {
   return (
-    <div className={cn("overflow-hidden rounded-xl border border-divider bg-paper", className)}>
+    <div className={cn("overflow-hidden rounded-xl border border-line-strong bg-paper", className)}>
       {leads.length === 0 && empty}
       {leads.map((lead) => (
         <LeadRow key={lead.source_id} lead={lead} onOpen={onOpen} selected={selectedId === lead.source_id} showWhy={showWhy} />
@@ -260,7 +260,7 @@ export function FilterChip({
       </span>
       {open && children && (
         <div
-          className={cn("absolute top-full z-40 mt-1.5 max-w-[calc(100vw-2.5rem)] rounded-xl border border-divider bg-paper p-1.5 shadow-float", align === "right" ? "right-0" : "left-0")}
+          className={cn("absolute top-full z-40 mt-1.5 max-w-[calc(100vw-2.5rem)] rounded-xl border border-line-strong bg-paper p-1.5 shadow-float", align === "right" ? "right-0" : "left-0")}
           style={{ width }}
         >
           {children(() => setOpen(false))}
@@ -282,33 +282,89 @@ export function FilterOption({ active, onClick, children, meta }: { active?: boo
 
 /* ----------------------------------------------------- county picker */
 
+/** Romanian-tolerant fold: "Iasi", "iași", "IAŞI" (cedilla) all match. */
+export function foldRo(s: string): string {
+  return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/-/g, " ");
+}
+
+/**
+ * The județe picker: search (diacritics-tolerant), checkboxes, keyboard
+ * (↑/↓ to move, Space/Enter to tick, Esc to close), stays open while
+ * several are ticked, bounded scroll however long the list.
+ */
 export function CountyMultiSelect({
   selected,
   onChange,
   counts,
   options = COUNTIES,
   onDone,
+  autoFocus = true,
 }: {
   selected: string[];
   onChange: (next: string[]) => void;
   counts?: Record<string, number>;
   options?: readonly string[];
   onDone?: () => void;
+  autoFocus?: boolean;
 }) {
   const [q, setQ] = useState("");
-  const fold = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
-  const visible = useMemo(() => options.filter((c) => fold(c).includes(fold(q))), [options, q]);
+  const [cursor, setCursor] = useState(0);
+  const listRef = useRef<HTMLDivElement>(null);
+  const visible = useMemo(() => options.filter((c) => foldRo(c).includes(foldRo(q.trim()))), [options, q]);
   const toggle = (c: string) => onChange(selected.includes(c) ? selected.filter((x) => x !== c) : [...selected, c]);
+  const at = Math.min(cursor, Math.max(0, visible.length - 1));
+
+  useEffect(() => {
+    listRef.current?.querySelector<HTMLElement>(`[data-i="${at}"]`)?.scrollIntoView({ block: "nearest" });
+  }, [at]);
+
+  const onKey = (e: React.KeyboardEvent) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setCursor(Math.min(at + 1, visible.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setCursor(Math.max(at - 1, 0));
+    } else if ((e.key === "Enter" || (e.key === " " && (e.target as HTMLElement).tagName !== "INPUT")) && visible[at]) {
+      e.preventDefault();
+      toggle(visible[at]);
+    } else if (e.key === "Escape" && onDone) {
+      e.preventDefault();
+      e.stopPropagation();
+      onDone();
+    }
+  };
+
   return (
-    <div>
+    <div onKeyDown={onKey}>
       <label className="flex h-10 items-center gap-2 border-b border-divider px-2.5">
         <Search size={15} className="text-stock-400" aria-hidden />
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Caută județ…" aria-label="Caută județ" className="h-8 min-w-0 flex-1 bg-transparent text-[14px] text-ink outline-none placeholder:text-stock-400" />
+        <input
+          value={q}
+          autoFocus={autoFocus}
+          onChange={(e) => {
+            setQ(e.target.value);
+            setCursor(0);
+          }}
+          placeholder="Caută județ (ex. iasi)…"
+          aria-label="Caută județ"
+          aria-controls="county-listbox"
+          aria-activedescendant={visible[at] ? `county-opt-${at}` : undefined}
+          className="h-8 min-w-0 flex-1 bg-transparent text-[14px] text-ink outline-none placeholder:text-stock-400"
+        />
       </label>
-      <div className="max-h-[260px] overflow-y-auto p-1">
-        {visible.map((c) => (
-          <label key={c} className="flex min-h-9 cursor-pointer items-center gap-2.5 rounded-lg px-2 text-[14px] hover:bg-surface-2">
-            <input type="checkbox" checked={selected.includes(c)} onChange={() => toggle(c)} className="h-4 w-4" />
+      <div ref={listRef} id="county-listbox" role="listbox" aria-multiselectable="true" aria-label="Județe" className="max-h-60 overflow-y-auto p-1">
+        {visible.map((c, i) => (
+          <label
+            key={c}
+            id={`county-opt-${i}`}
+            data-i={i}
+            role="option"
+            aria-selected={selected.includes(c)}
+            onMouseEnter={() => setCursor(i)}
+            className={cn("flex min-h-9 cursor-pointer items-center gap-2.5 rounded-lg px-2 text-[14px]", i === at ? "bg-surface-2" : "hover:bg-surface-2")}
+          >
+            <input type="checkbox" tabIndex={-1} checked={selected.includes(c)} onChange={() => toggle(c)} className="h-4 w-4 accent-[var(--color-editorial)]" />
             <span className="flex-1">{c}</span>
             {counts && counts[c] != null && <span className="tabular text-[12px] text-stock-400">{counts[c]}</span>}
           </label>
@@ -316,17 +372,81 @@ export function CountyMultiSelect({
         {visible.length === 0 && <p className="px-2 py-2 text-[13px] text-stock-400">Niciun județ pentru „{q}”.</p>}
       </div>
       <div className="flex items-center gap-2 border-t border-divider px-2 pt-2">
-        <span className="tabular text-[12px] text-stock-400">{selected.length ? `${selected.length} selectate` : "Toate județele"}</span>
+        <span className="tabular text-[12px] text-stock-500">{selected.length ? `${selected.length} ${selected.length === 1 ? "județ selectat" : "județe selectate"}` : "Toate județele"}</span>
         <span className="flex-1" />
-        <button type="button" onClick={() => onChange([])} className="h-8 rounded-lg px-2.5 text-[13px] text-stock-500 hover:bg-surface-2">
-          Golește
-        </button>
+        {selected.length > 0 && (
+          <button type="button" onClick={() => onChange([])} className="h-8 rounded-lg px-2.5 text-[13px] text-stock-500 hover:bg-surface-2">
+            Șterge selecția
+          </button>
+        )}
         {onDone && (
           <button type="button" onClick={onDone} className="h-8 rounded-lg bg-editorial px-3 text-[13px] font-semibold text-white hover:bg-editorial-light">
             Gata
           </button>
         )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * A form field holding the județe: the selection as removable chips, the
+ * searchable list one click away. Replaces the 42-button wall.
+ */
+export function CountyCombobox({
+  label,
+  selected,
+  onChange,
+  emptyHint = "Niciun județ selectat — toată țara.",
+}: {
+  label: string;
+  selected: string[];
+  onChange: (next: string[]) => void;
+  emptyHint?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
+  const shown = selected.slice(0, 6);
+  return (
+    <div ref={ref} className="relative">
+      <span className="mb-1.5 block text-[14px] font-medium leading-5 text-ink">
+        {label}
+        {selected.length > 0 && <span className="tabular font-normal text-stock-500"> · {selected.length} selectate</span>}
+      </span>
+      <div className="flex min-h-11 w-full flex-wrap items-center gap-1.5 rounded-lg border border-line-input bg-paper px-2 py-1.5">
+        {shown.map((c) => (
+          <span key={c} className="inline-flex h-7 items-center gap-1 rounded-md border border-editorial-line bg-editorial-soft pl-2 pr-1 text-[13px] font-medium text-accent">
+            {c}
+            <button type="button" aria-label={`Elimină ${c}`} onClick={() => onChange(selected.filter((x) => x !== c))} className="flex h-5 w-5 items-center justify-center rounded hover:bg-paper">
+              <X size={12} />
+            </button>
+          </span>
+        ))}
+        {selected.length > shown.length && <span className="tabular text-[13px] text-stock-500">+{selected.length - shown.length}</span>}
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          aria-haspopup="listbox"
+          className="inline-flex min-h-8 flex-1 items-center justify-between gap-2 rounded-md px-1.5 text-left text-[14px] text-stock-500 hover:text-ink"
+        >
+          <span>{selected.length ? "Adaugă / modifică" : emptyHint}</span>
+          <ChevronDown size={15} aria-hidden />
+        </button>
+      </div>
+      {open && (
+        <div className="absolute left-0 right-0 top-full z-50 mt-1 rounded-xl border border-line-strong bg-paper pb-2 shadow-float">
+          <CountyMultiSelect selected={selected} onChange={onChange} onDone={() => setOpen(false)} />
+        </div>
+      )}
     </div>
   );
 }

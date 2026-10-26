@@ -106,35 +106,78 @@ const Dot = ({ warn }: { warn: boolean }) => (
   />
 );
 
-/** The header's pill: SEAP freshness, the legal check on hover. */
-export function FreshnessPill({ className }: { className?: string }) {
-  const f = useFreshness();
-  if (!f) return null;
+function SourceRow({ label, iso, rows, note, warn, verb = "colectare" }: { label: string; iso: string | null | undefined; rows?: number; note?: string; warn: boolean; verb?: string }) {
+  const min = minutesSince(iso);
   return (
-    <span
-      className={cn("inline-flex h-8 items-center gap-2 rounded-full border border-divider bg-paper px-3 text-[13px] text-stock-500", className)}
-      title={`${f.legalLabel}${f.legalDate ? ` — ${f.legalDate}` : ""}`}
-    >
-      <Dot warn={f.tendersStale || f.legalStale} />
-      SEAP <span className="tabular text-stock-400">{f.tendersMin === null ? "—" : ago(f.tendersMin)}</span>
-    </span>
+    <li className="flex items-start gap-2.5 py-2">
+      <span className="mt-[7px]"><Dot warn={warn} /></span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[13px] font-medium text-ink">{label}</span>
+        <span className="tabular block text-[12px] text-stock-500">
+          {min === null ? `Nicio ${verb} reușită înregistrată` : `Ultima ${verb} reușită ${ago(min)}`}
+          {typeof rows === "number" && rows > 0 ? ` · ${new Intl.NumberFormat("ro-RO", { useGrouping: "always" } as Intl.NumberFormatOptions).format(rows)} înregistrări` : ""}
+        </span>
+        {note && <span className="block text-[12px] text-stock-400">{note}</span>}
+      </span>
+    </li>
   );
 }
 
-/** The footer's line: both datasets, spelled out. */
+/**
+ * The one provenance component: a single summary line (SEAP sync, legal
+ * check) that opens, on click, the truthful per-source detail — what was
+ * collected when, and which source is delayed or not collected from this
+ * server. Nothing here advances on a redeploy: every date is the
+ * database's own record of a successful run.
+ */
 export default function FreshnessLine({ className }: { className?: string }) {
   const f = useFreshness();
-  if (!f) return null;
+  const [open, setOpen] = useState(false);
+  const data = shared.data;
+  if (!f || !data) return null;
+  const d = data.datasets;
+  const acts = Object.entries(data.legal.acts || {}).filter(([, v]) => v);
   return (
-    <p className={cn("flex flex-wrap items-center gap-x-5 gap-y-1.5 text-[13px] text-stock-500", className)}>
-      <span className="inline-flex items-center gap-2">
-        <Dot warn={f.tendersStale} />
-        Registrul actualizat <span className="tabular">{f.tendersMin === null ? "—" : ago(f.tendersMin)}</span>
-      </span>
-      <span className="inline-flex items-center gap-2">
-        <Dot warn={f.legalStale} />
-        {f.legalLabel} <span className="tabular">{f.legalDate ?? "—"}</span>
-      </span>
-    </p>
+    <div className={cn("text-[13px] text-stock-500", className)}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="inline-flex min-h-9 flex-wrap items-center gap-x-4 gap-y-1 rounded-lg text-left hover:text-ink"
+      >
+        <span className="inline-flex items-center gap-2">
+          <Dot warn={f.tendersStale} />
+          Sincronizat SEAP: <span className="tabular">{f.tendersMin === null ? "—" : ago(f.tendersMin)}</span>
+        </span>
+        <span className="inline-flex items-center gap-2">
+          <Dot warn={f.legalStale} />
+          {f.legalLabel}: <span className="tabular">{f.legalDate ?? "—"}</span>
+        </span>
+        <span className="text-accent underline-offset-2 hover:underline">{open ? "Ascunde sursele" : "Surse și actualizare"}</span>
+      </button>
+      {open && (
+        <div className="mt-3 max-w-xl rounded-xl border border-line-strong bg-paper px-4 py-2">
+          <ul className="divide-y divide-divider">
+            <SourceRow label="Proceduri SEAP (anunțuri de participare, achiziții directe)" iso={d.tenders?.last_synced_at} rows={d.tenders?.rows} warn={f.tendersStale} />
+            <SourceRow label="Contracte atribuite (anunțuri de atribuire SEAP)" iso={d.award_outcomes?.last_synced_at} rows={d.award_outcomes?.rows} warn={minutesSince(d.award_outcomes?.last_synced_at) === null || (minutesSince(d.award_outcomes?.last_synced_at) as number) > 1440} />
+            <SourceRow
+              label="Apeluri de finanțare (MIPE / programe)"
+              iso={d.funding_calls?.last_synced_at}
+              rows={d.funding_calls?.rows}
+              note={d.funding_calls?.last_synced_at ? undefined : "Sursa nu răspunde serverului nostru; nu afișăm date vechi drept actuale."}
+              warn={!d.funding_calls?.last_synced_at}
+            />
+            <SourceRow
+              label="Legislație (legislatie.just.ro) — reverificare săptămânală"
+              iso={data.legal.checked_at}
+              verb="verificare"
+              note={acts.length ? `Forme consolidate: ${acts.map(([k, v]) => `${k} (${v})`).join(", ")}` : undefined}
+              warn={f.legalStale}
+            />
+            <SourceRow label="Monitorizare acte noi (Portal legislativ, ANAP)" verb="verificare" iso={d.legal_watch?.last_synced_at} warn={minutesSince(d.legal_watch?.last_synced_at) === null} />
+          </ul>
+        </div>
+      )}
+    </div>
   );
 }

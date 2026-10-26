@@ -21,11 +21,11 @@
  * so these values re-skin the app; the old `neu-*` utilities are redefined
  * below as flat 1px edges for the same reason.
  *
- *   canvas        page ground (#FAFAF7, "hârtie caldă")
+ *   canvas        page ground (#F7F6F2, warm stone, so white cards read)
  *   paper         cards, fields, tables (#FFFFFF)
  *   surface-2     sunk areas: segmented controls, table heads (#F3F2EE)
- *   divider       1px line between zones (#E6E4DD)
- *   line-strong   card and chip outlines (#D3D0C6)
+ *   divider       1px line between zones (#E2E0D8)
+ *   line-strong   card and chip outlines (#D6D3CB)
  *   line-input    field borders, 3.5:1 on white (WCAG 1.4.11)
  *   ink / stock-600 / stock-500 / stock-400   text, primary → tertiary
  *   editorial     the accent as a fill — white text 6.4:1
@@ -33,14 +33,14 @@
  */
 
 @theme {
-  --color-canvas: #fafaf7;
+  --color-canvas: #f7f6f2;
   --color-paper: #ffffff;
   --color-surface: #ffffff;
-  --color-surface-2: #f3f2ee;
-  --color-ink: #14161a;
-  --color-rule: #e6e4dd;
-  --color-divider: #e6e4dd;
-  --color-line-strong: #d3d0c6;
+  --color-surface-2: #f2f0ea;
+  --color-ink: #111315;
+  --color-rule: #e2e0d8;
+  --color-divider: #e2e0d8;
+  --color-line-strong: #d6d3cb;
   --color-line-input: #878a91;
 
   --color-editorial: #0b6b60;
@@ -52,8 +52,8 @@
   --color-stock-100: #f3f2ee;
   --color-stock-200: #ebe9e3;
   --color-stock-400: #656a73;
-  --color-stock-500: #5b616b;
-  --color-stock-600: #40454d;
+  --color-stock-500: #4a4e55;
+  --color-stock-600: #3a3e45;
   --color-stock-700: #14161a;
 
   --color-positive: #1f7a3e;
@@ -138,10 +138,10 @@
    every call site keeps working: "flat" is a card edge, "pressed" a field
    or sunk well, "lift"/"glow" the hover edge of something clickable. */
 @utility neu-flat {
-  box-shadow: 0 0 0 1px var(--color-divider);
+  box-shadow: 0 0 0 1px var(--color-line-strong), 0 1px 2px rgba(17, 19, 21, 0.04);
 }
 @utility neu-flat-sm {
-  box-shadow: 0 0 0 1px var(--color-divider);
+  box-shadow: 0 0 0 1px var(--color-line-strong);
 }
 @utility neu-lift {
   box-shadow: 0 0 0 1px var(--color-line-strong);

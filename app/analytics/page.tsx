@@ -45,6 +45,7 @@ import {
   Panel,
   SectionTitle,
   Select,
+  Explainer,
   TabBar,
   Textarea,
   Tooltip,
@@ -110,7 +111,7 @@ function tenderFrom(lead: Lead | null, params: URLSearchParams): Tender {
 function TenderBanner({ tender }: { tender: Tender }) {
   if (!tender.source_id) return null;
   return (
-    <div className="mb-6 rounded-xl border border-divider bg-paper px-5 py-4">
+    <div className="mb-6 rounded-xl border border-line-strong bg-paper px-5 py-4">
       <Eyebrow className="text-accent">Licitația analizată · <span className="tabular normal-case tracking-normal">{tender.source_id}</span></Eyebrow>
       <p className="mt-1 text-[16px] font-semibold leading-snug">{tender.project_title}</p>
       <p className="tabular mt-1 text-[13px] text-stock-500">
@@ -1100,7 +1101,7 @@ function WinOddsTool({ tender }: { tender: Tender }) {
               {strategy.market_position
                 ? `Față de câștigători: ${strategy.market_position.label.charAt(0).toLowerCase()}${strategy.market_position.label.slice(1)} — tipic ${formatRon(
                     strategy.market_position.reference_prices_ron.p25
-                  )} – ${formatRon(strategy.market_position.reference_prices_ron.p75)} (${strategy.market_position.sample_size} contracte, ${strategy.market_position.scope_label}).`
+                  )} – ${formatRon(strategy.market_position.reference_prices_ron.p75)}. Bază: ${strategy.market_position.sample_size} contracte atribuite în SEAP (${strategy.market_position.scope_label}), fără acorduri-cadru — un reper istoric, nu o probabilitate de câștig.`
                 : "Fără reper de piață: prea puține atribuiri comparabile; verdictul se sprijină pe regulile legale."}
             </p>
 
@@ -1157,9 +1158,22 @@ function WinOddsTool({ tender }: { tender: Tender }) {
                 </table>
               </div>
               {qualityBased && (
-                <p className="font-mono mt-2 text-[10px] text-stock-500">
-                  Ponderi: preț {strategy.price_weight_pct ?? priceWeight}% · tehnic {strategy.technical_weight_pct ?? 100 - priceWeight}% —{" "}
-                  {strategy.scoring_model?.formula}
+                <p className="mt-2 flex items-center gap-1.5 text-[13px] text-stock-500">
+                  <span className="tabular">
+                    Ponderi: preț {strategy.price_weight_pct ?? priceWeight}% · tehnic {strategy.technical_weight_pct ?? 100 - priceWeight}%
+                  </span>
+                  <Explainer title="Cum se calculează">
+                    {strategy.scoring_model?.formula && <span className="tabular block text-ink">{strategy.scoring_model.formula}</span>}
+                    <span className="mt-2 block">
+                      Oferta cu prețul cel mai mic primește toate punctele de preț; celelalte primesc proporțional (prețul cel mai mic ÷ prețul ofertei × punctajul financiar maxim), plus punctajul tehnic acordat de comisie.
+                    </span>
+                    {strategy.scenarios?.[0] && (
+                      <span className="mt-2 block">
+                        Exemplu: rivalul ofertează {formatRon(strategy.scenarios[0].rival_price_ron)} ({strategy.scenarios[0].rival_ratio_pct}% din estimare) → puncte la preț: dvs. {strategy.scenarios[0].your_price_points}, el {strategy.scenarios[0].rival_price_points}.
+                      </span>
+                    )}
+                    <span className="mt-2 block">Ponderile reale sunt cele din fișa de date a procedurii; aici sunt cele introduse de dvs.</span>
+                  </Explainer>
                 </p>
               )}
             </section>

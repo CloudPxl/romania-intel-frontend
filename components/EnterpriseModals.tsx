@@ -19,7 +19,8 @@ import { currentPath } from "@/lib/authRedirect";
 import { useTheme } from "@/context/ThemeContext";
 import { useCompanyProfile } from "@/context/CompanyProfileContext";
 import { CATEGORIES, COUNTIES, DOMAIN_OPTIONS } from "@/lib/format";
-import { Badge, Button, ChipSelect, Eyebrow, Field, Input, Notice, Select } from "@/components/newsprint";
+import { CountyCombobox } from "@/components/registry";
+import { Badge, Button, Eyebrow, Field, Input, Notice, Select } from "@/components/newsprint";
 import NotificationToggle from "@/components/NotificationToggle";
 import { PAID_PLANS, formatLei } from "@/lib/plans";
 
@@ -455,7 +456,7 @@ function CompanySection() {
   );
 
   return (
-    <div className="rounded-xl border border-divider bg-paper p-5">
+    <div className="rounded-xl border border-line-strong bg-paper p-5">
       <Eyebrow className="mb-1 text-accent">Firma ofertantă (Subscrisa)</Eyebrow>
       <p className="mb-4 text-[14px] leading-[21px] text-stock-500">Apare în antetul fiecărui document generat: propunere tehnică, declarații, clarificări.</p>
       {libraryMax > 1 && library.length > 0 && (
@@ -953,20 +954,7 @@ export function ProfileCriteriaModal({ isOpen, onClose }: { isOpen: boolean; onC
           </Select>
         </Field>
 
-        <Field
-          label={
-            counties.length
-              ? `Județe de interes (${counties.length} selectate)`
-              : "Județe de interes"
-          }
-        >
-          <ChipSelect
-            options={COUNTIES}
-            selected={counties}
-            onChange={setCounties}
-            emptyHint="Niciun județ selectat — veți vedea oportunități din toată țara."
-          />
-        </Field>
+        <CountyCombobox label="Județe de interes" selected={counties} onChange={setCounties} emptyHint="Niciun județ selectat — veți vedea oportunități din toată țara." />
 
         <Field
           label="Cuvinte-cheie (opțional, separate prin virgulă)"

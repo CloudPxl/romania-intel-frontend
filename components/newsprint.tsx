@@ -152,10 +152,9 @@ export function Explainer({
           e.stopPropagation();
           setOpen((v) => !v);
         }}
-        onMouseEnter={() => setOpen(true)}
-        onMouseLeave={() => setOpen(false)}
-        onFocus={() => setOpen(true)}
-        onBlur={() => setOpen(false)}
+        // Click/tap, Enter or Space toggles; Esc or a click outside closes.
+        // No hover/focus opening: a hover-open followed by the click that
+        // meant "open" used to close it again.
         aria-expanded={open}
         aria-label={title ? `Explicație: ${title}` : "Explicație"}
         className={cn(
@@ -174,9 +173,7 @@ export function Explainer({
               role="dialog"
               aria-label={title || "Explicație"}
               style={{ top: pos.top, left: pos.left, width: Math.min(320, window.innerWidth - 24) }}
-              className="fixed z-[60] rounded-xl border border-divider bg-paper p-4 shadow-float"
-              onMouseEnter={() => setOpen(true)}
-              onMouseLeave={() => setOpen(false)}
+              className="fixed z-[60] rounded-xl border border-line-strong bg-paper p-4 shadow-float"
             >
               {title && <p className="text-[14px] font-semibold leading-snug text-ink">{title}</p>}
               <div className={cn("text-[14px] leading-relaxed text-stock-500", title && "mt-1")}>{children}</div>
@@ -192,7 +189,7 @@ export function Explainer({
 
 /** The kicker above a title: 12px, uppercase, accent ink. */
 export function Eyebrow({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <span className={cn("label-eyebrow block text-stock-500", className)}>{children}</span>;
+  return <span className={cn("label-eyebrow block text-stock-600", className)}>{children}</span>;
 }
 
 /** A page's head: kicker, title (H2 of the system: 32/38, 24/30 on a
@@ -209,7 +206,7 @@ export function PageHeader({
   action?: React.ReactNode;
 }) {
   return (
-    <header className="mb-8">
+    <header className="mb-8 border-b border-line-strong pb-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="min-w-0 flex-1">
           {eyebrow && <p className="label-eyebrow mb-2 text-accent">{eyebrow}</p>}
@@ -225,7 +222,7 @@ export function PageHeader({
 /** A card or section title — the system's H3 (20/28, 18/26 on a phone). */
 export function SectionTitle({ children, note }: { children: React.ReactNode; note?: string }) {
   return (
-    <div className="mb-4 flex items-baseline justify-between gap-3">
+    <div className="mb-4 flex items-baseline justify-between gap-3 border-b border-divider pb-3">
       <h2 className="text-lg font-semibold leading-[26px] tracking-[-0.01em] text-ink sm:text-xl sm:leading-7">{children}</h2>
       {note && <span className="tabular shrink-0 text-[13px] text-stock-400">{note}</span>}
     </div>
@@ -254,8 +251,8 @@ export function Panel({
   return (
     <Tag
       className={cn(
-        "rounded-xl border border-divider bg-paper",
-        interactive && "transition-colors duration-[var(--duration-base)] hover:border-line-strong",
+        "rounded-xl border border-line-strong bg-paper shadow-[0_1px_2px_rgba(17,19,21,0.04)]",
+        interactive && "transition-colors duration-[var(--duration-base)] hover:border-stock-400",
         className
       )}
     >
@@ -312,7 +309,7 @@ export function StatCell({
 /** StatCells joined by 1px lines inside one card (4 across, 2 on a phone). */
 export function StatStrip({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={cn("grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-divider bg-divider lg:grid-cols-4", className)}>
+    <div className={cn("grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-line-strong bg-line-strong shadow-[0_1px_2px_rgba(17,19,21,0.04)] lg:grid-cols-4", className)}>
       {children}
     </div>
   );
@@ -597,7 +594,7 @@ export function Notice({
 
 export function EmptyState({ title, children }: { title: string; children?: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-divider bg-paper px-6 py-12 text-center">
+    <div className="rounded-xl border border-line-strong bg-paper px-6 py-12 text-center">
       <p className="text-lg font-semibold text-ink">{title}</p>
       {children && <div className="mx-auto mt-2 max-w-md text-[15px] leading-relaxed text-stock-500">{children}</div>}
     </div>
@@ -606,7 +603,7 @@ export function EmptyState({ title, children }: { title: string; children?: Reac
 
 export function Loading({ label = "Se încarcă" }: { label?: string }) {
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-divider bg-paper px-5 py-8" role="status" aria-live="polite">
+    <div className="flex items-center gap-3 rounded-xl border border-line-strong bg-paper px-5 py-8" role="status" aria-live="polite">
       <span className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-editorial" aria-hidden="true" />
       <span className="text-[15px] text-stock-500">{label}…</span>
     </div>
@@ -638,7 +635,7 @@ export function Disclosure({
   className?: string;
 }) {
   return (
-    <details className={cn("group rounded-xl border border-divider bg-paper", className)} open={defaultOpen || undefined}>
+    <details className={cn("group rounded-xl border border-line-strong bg-paper", className)} open={defaultOpen || undefined}>
       <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-4 px-4 text-[15px] font-semibold text-ink [&::-webkit-details-marker]:hidden">
         {summary}
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true" className="shrink-0 text-stock-400 transition-transform duration-[var(--duration-base)] group-open:rotate-45">

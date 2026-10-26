@@ -17,7 +17,7 @@ import "./globals.css";
 // It also marks <html data-session> when a Supabase session is stored, so
 // the public landing page is not flashed at a signed-in user while the
 // client resolves the session (components/AppShell.tsx clears it).
-const THEME_INIT_SCRIPT = `(function(){var d=document.documentElement;try{if(localStorage.getItem('ro_intel_theme')==='dark'){d.setAttribute('data-theme','dark');}for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i)||'';if(k.indexOf('sb-')===0&&k.slice(-11)==='-auth-token'){d.setAttribute('data-session','1');break;}}}catch(e){}})();`;
+const THEME_INIT_SCRIPT = `(function(){var d=document.documentElement;try{localStorage.removeItem('ro_intel_theme');if(localStorage.getItem('ro_intel_theme_v2')==='dark'){d.setAttribute('data-theme','dark');}for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i)||'';if(k.indexOf('sb-')===0&&k.slice(-11)==='-auth-token'){d.setAttribute('data-session','1');break;}}}catch(e){}})();`;
 
 // Two families only (design system): Geist for text, Geist Mono with
 // tabular figures for numbers, CPV, CUI and articles of law.
@@ -36,9 +36,24 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "RO-INTEL — Registrul Oportunităților Publice",
+  metadataBase: new URL("https://ro-intel.xyz"),
+  title: {
+    default: "RO-INTEL — monitorizare licitații SEAP și documente de ofertare",
+    template: "%s — RO-INTEL",
+  },
   description:
-    "Intelligence pre-SEAP pentru achiziții publice din România: flux zilnic de oportunități calificate, analiză de piață, generare documente și pipeline de ofertare.",
+    "Licitațiile publice din SEAP potrivite firmei dvs., cu alerte după CPV, județ și valoare. Scanare caiet de sarcini pentru clauze restrictive, pragul de 80% (art. 210 Legea 98/2016) și clarificări redactate. Cont gratuit, fără card.",
+  alternates: { canonical: "/" },
+  openGraph: {
+    type: "website",
+    locale: "ro_RO",
+    url: "https://ro-intel.xyz",
+    siteName: "RO-INTEL",
+    title: "RO-INTEL — monitorizare licitații SEAP și documente de ofertare",
+    description:
+      "Licitațiile publice potrivite firmei dvs., caietul de sarcini citit pentru clauze restrictive, pragul de 80% calculat și documentele ofertei redactate.",
+  },
+  twitter: { card: "summary" },
   applicationName: "RO-INTEL",
   // Drives the iOS Home Screen tile and standalone status bar. Safari
   // still reads these meta tags rather than the manifest for both.
@@ -75,7 +90,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#fafaf7",
+  themeColor: "#f7f6f2",
   // Lets the app paint into the notch/home-indicator area when installed;
   // components that sit at the edges pay for it back with env(safe-area-*).
   viewportFit: "cover",

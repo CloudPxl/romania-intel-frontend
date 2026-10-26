@@ -45,7 +45,7 @@ export default function AuthGate({
   if (!user) {
     return (
       <div className="mx-auto w-full max-w-[1264px] px-5 py-12 sm:px-8 sm:py-20">
-        <div className="mx-auto max-w-xl rounded-xl border border-divider bg-paper p-6 sm:p-8">
+        <div className="mx-auto max-w-xl rounded-xl border border-line-strong bg-paper p-6 sm:p-8">
           {title && <p className="label-eyebrow text-accent">{title}</p>}
           <h1 className="mt-2 text-2xl font-semibold leading-[30px] tracking-[-0.015em] text-ink">{GATE_HEADLINE}</h1>
           {description && <p className="mt-3 text-[16px] leading-[26px] text-stock-600">{description}</p>}
