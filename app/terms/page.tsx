@@ -5,7 +5,7 @@ export const metadata = { title: "Termeni și Condiții — RO-INTEL" };
 
 export default function TermsPage() {
   return (
-    <main className="mx-auto w-full max-w-screen-xl flex-1 px-4 py-6 sm:py-8">
+    <main className="mx-auto w-full max-w-[1264px] flex-1 px-5 pb-16 pt-8 sm:px-8 sm:pt-12">
       <PageHeader
         eyebrow="Document legal"
         title="Termeni și Condiții"
@@ -103,7 +103,7 @@ export default function TermsPage() {
               Puteți solicita oricând ștergerea contului dvs. din secțiunea &bdquo;Cont &amp; alerte&rdquo; a
               aplicației. Ștergerea este ireversibilă și elimină profilul, criteriile de căutare și istoricul
               asociat contului dvs. — vezi{" "}
-              <Link href="/privacy" className="text-editorial underline underline-offset-2">
+              <Link href="/privacy" className="text-accent underline underline-offset-2">
                 Politica de Confidențialitate
               </Link>{" "}
               pentru detalii despre ce date sunt păstrate sau șterse.

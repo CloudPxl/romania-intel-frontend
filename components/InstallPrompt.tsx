@@ -61,7 +61,7 @@ export default function InstallPrompt() {
       style={{ bottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}
     >
       <div className="neu-flat flex items-start gap-3 rounded-2xl bg-paper p-3.5">
-        <span className="neu-flat-sm flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-editorial-soft text-editorial">
+        <span className="neu-flat-sm flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-editorial-soft text-accent">
           <Share size={18} />
         </span>
         <div className="min-w-0 flex-1">

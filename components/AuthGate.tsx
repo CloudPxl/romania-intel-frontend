@@ -1,27 +1,29 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { ButtonLink, Eyebrow, Loading, Notice } from "@/components/newsprint";
+import { ButtonLink, Loading, Notice } from "@/components/newsprint";
 import OnboardingForm from "@/components/OnboardingForm";
 import { currentPath, loginHref, rememberNext } from "@/lib/authRedirect";
 
 /**
  * Wraps any page whose data comes from an authenticated backend route.
  *
- * Every tool route is now gated server-side (api.py mounts
- * Depends(require_auth) on them), so rendering the tool for a signed-out
- * visitor would only produce a wall of 401s. This shows the reason and a
- * way in instead — and, critically, distinguishes "not signed in" from
- * "signed in but the backend rejected the session", which are different
- * problems with different fixes.
+ * Every tool is in the FREE account, so a signed-out visitor sees exactly
+ * that, and a way in that returns to this page. "Not signed in" and
+ * "signed in but the backend rejected the session" are different problems
+ * with different fixes, and are told apart.
  */
+export const GATE_HEADLINE = "Disponibil în contul gratuit — Creează cont în 10 secunde";
+
 export default function AuthGate({
   children,
-  title = "Disponibil în contul gratuit",
-  description = "Creați un cont gratuit (doar emailul, fără card) sau autentificați-vă — vă întoarceți exact pe această pagină.",
+  title,
+  description,
 }: {
   children: React.ReactNode;
+  /** The tool's name, shown as the kicker (e.g. "Pipeline ofertare"). */
   title?: string;
+  /** What the tool does, one sentence. */
   description?: string;
 }) {
   const { user, loading, authError, needsOnboarding } = useAuth();
@@ -32,24 +34,22 @@ export default function AuthGate({
 
   if (loading) {
     return (
-      <div className="mx-auto w-full max-w-screen-xl px-4 py-10">
+      <div className="mx-auto w-full max-w-[1264px] px-5 py-10 sm:px-8">
         <Loading label="Se verifică sesiunea" />
       </div>
     );
   }
 
-  if (needsOnboarding) {
-    return <OnboardingForm />;
-  }
+  if (needsOnboarding) return <OnboardingForm />;
 
   if (!user) {
     return (
-      <div className="mx-auto w-full max-w-screen-xl px-4 py-12 sm:py-20">
-        <div className="mx-auto max-w-xl neu-flat rounded-3xl bg-paper p-6 sm:p-10">
-          <Eyebrow className="text-editorial">Acces restricționat</Eyebrow>
-          <h1 className="font-display mt-3 text-2xl font-semibold leading-tight sm:text-3xl">{title}</h1>
-          <p className="font-body mt-3 text-sm leading-relaxed text-stock-600">{description}</p>
-
+      <div className="mx-auto w-full max-w-[1264px] px-5 py-12 sm:px-8 sm:py-20">
+        <div className="mx-auto max-w-xl rounded-xl border border-divider bg-paper p-6 sm:p-8">
+          {title && <p className="label-eyebrow text-accent">{title}</p>}
+          <h1 className="mt-2 text-2xl font-semibold leading-[30px] tracking-[-0.015em] text-ink">{GATE_HEADLINE}</h1>
+          {description && <p className="mt-3 text-[16px] leading-[26px] text-stock-600">{description}</p>}
+          <p className="mt-2 text-[15px] leading-6 text-stock-500">Doar emailul, fără card și fără parolă: primiți un link și vă întoarceți exact pe această pagină.</p>
           {authError && (
             <div className="mt-5">
               <Notice tone="alert" title="Sesiune respinsă de server">
@@ -57,15 +57,21 @@ export default function AuthGate({
               </Notice>
             </div>
           )}
-
-          <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-            <ButtonLink href={loginTarget} variant="primary" className="sm:flex-1" onClick={() => rememberNext(currentPath())}>
-              Creează cont gratuit sau autentifică-te
+          <div className="mt-6 flex flex-col gap-2 sm:flex-row">
+            <ButtonLink href={loginTarget} className="sm:flex-1" onClick={() => rememberNext(currentPath())}>
+              Creează cont gratuit
             </ButtonLink>
-            <ButtonLink href="/analysis" variant="outline" className="sm:flex-1">
-              Vezi analiza publică
+            <ButtonLink href={loginTarget} variant="outline" className="sm:flex-1" onClick={() => rememberNext(currentPath())}>
+              Am deja cont
             </ButtonLink>
           </div>
+          <p className="mt-4 text-[14px] text-stock-500">
+            Fără cont puteți vedea{" "}
+            <a href="/analysis" className="font-medium text-accent underline underline-offset-2">
+              analiza publică a pieței
+            </a>
+            .
+          </p>
         </div>
       </div>
     );

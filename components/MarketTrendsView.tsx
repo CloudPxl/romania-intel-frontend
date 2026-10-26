@@ -54,12 +54,12 @@ function RowLink({
 				<span className="font-body flex min-w-0 items-center gap-1.5 truncate text-sm font-semibold">
 					<span className="truncate">{label}</span>
 					{href && (
-						<span aria-hidden="true" className="shrink-0 text-editorial opacity-0 transition-all duration-[var(--duration-base)] ease-[var(--ease-spring)] group-hover:translate-x-0.5 group-hover:opacity-100">
+						<span aria-hidden="true" className="shrink-0 text-accent opacity-0 transition-all duration-[var(--duration-base)] ease-[var(--ease-spring)] group-hover:translate-x-0.5 group-hover:opacity-100">
 							→
 						</span>
 					)}
 					{active && (
-						<span className="shrink-0 text-[11px] font-semibold text-editorial" aria-hidden="true">
+						<span className="shrink-0 text-[11px] font-semibold text-accent" aria-hidden="true">
 							· filtrat
 						</span>
 					)}
@@ -114,7 +114,7 @@ function TopOpportunityRow({
 			<div className="min-w-0 flex-1">
 				<p className="font-body flex items-center gap-1.5 truncate text-sm font-semibold">
 					<span className="truncate">{opportunity.project_title}</span>
-					<span aria-hidden="true" className="shrink-0 text-editorial opacity-0 transition-all duration-[var(--duration-base)] ease-[var(--ease-spring)] group-hover:translate-x-0.5 group-hover:opacity-100">
+					<span aria-hidden="true" className="shrink-0 text-accent opacity-0 transition-all duration-[var(--duration-base)] ease-[var(--ease-spring)] group-hover:translate-x-0.5 group-hover:opacity-100">
 						→
 					</span>
 				</p>
@@ -304,17 +304,17 @@ export default function MarketTrendsView({
 			{data.is_authenticated && (selectedDomain || selectedCounty || selectedFundingSource) && (
 				<div className="mb-3 flex flex-wrap items-center gap-1.5">
 					{selectedDomain && (
-						<button type="button" onClick={clearDomain} className="font-mono neu-pressed-sm inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] text-editorial">
+						<button type="button" onClick={clearDomain} className="font-mono neu-pressed-sm inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] text-accent">
 							{selectedDomain} ✕
 						</button>
 					)}
 					{selectedCounty && (
-						<button type="button" onClick={clearCounty} className="font-mono neu-pressed-sm inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] text-editorial">
+						<button type="button" onClick={clearCounty} className="font-mono neu-pressed-sm inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] text-accent">
 							{selectedCounty} ✕
 						</button>
 					)}
 					{selectedFundingSource && (
-						<button type="button" onClick={clearFundingSource} className="font-mono neu-pressed-sm inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] text-editorial">
+						<button type="button" onClick={clearFundingSource} className="font-mono neu-pressed-sm inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] text-accent">
 							{selectedFundingSource} ✕
 						</button>
 					)}
@@ -369,7 +369,7 @@ export default function MarketTrendsView({
 				)
 			) : (
 				<div className="neu-pressed rounded-3xl p-6">
-					<Eyebrow className="text-editorial">Necesită autentificare</Eyebrow>
+					<Eyebrow className="text-accent">Necesită autentificare</Eyebrow>
 					<p className="font-body mt-2 text-sm leading-relaxed text-stock-600">Cifrele agregate sunt publice. Pozițiile identificate nominal — autoritate, titlu de proiect, valoare — sunt vizibile doar conturilor autentificate.</p>
 					<ButtonLink href="/login" variant="outline" fullWidth className="mt-5">
 						Autentificare

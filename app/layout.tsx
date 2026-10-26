@@ -1,10 +1,10 @@
 import type { Metadata, Viewport } from "next";
-import { Plus_Jakarta_Sans, DM_Sans, JetBrains_Mono } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import { AuthProvider } from "@/context/AuthContext";
 import { CompanyProfileProvider } from "@/context/CompanyProfileContext";
 import { CopilotProvider } from "@/context/CopilotContext";
 import { ThemeProvider } from "@/context/ThemeContext";
-import Sidebar from "@/components/Sidebar";
+import AppShell from "@/components/AppShell";
 import InstallPrompt from "@/components/InstallPrompt";
 import CopilotWidget from "@/components/CopilotWidget";
 import "./globals.css";
@@ -14,26 +14,24 @@ import "./globals.css";
 // theme on load. Kept as a literal string (not a shared constant with
 // ThemeContext.tsx) because it has to be inlined into the HTML as-is —
 // importing it would pull a module graph into a plain <script> tag.
-const THEME_INIT_SCRIPT = `(function(){try{var t=localStorage.getItem('ro_intel_theme');if(t==='dark'){document.documentElement.setAttribute('data-theme','dark');}}catch(e){}})();`;
+// It also marks <html data-session> when a Supabase session is stored, so
+// the public landing page is not flashed at a signed-in user while the
+// client resolves the session (components/AppShell.tsx clears it).
+const THEME_INIT_SCRIPT = `(function(){var d=document.documentElement;try{if(localStorage.getItem('ro_intel_theme')==='dark'){d.setAttribute('data-theme','dark');}for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i)||'';if(k.indexOf('sb-')===0&&k.slice(-11)==='-auth-token'){d.setAttribute('data-session','1');break;}}}catch(e){}})();`;
 
-const jakarta = Plus_Jakarta_Sans({
+// Two families only (design system): Geist for text, Geist Mono with
+// tabular figures for numbers, CPV, CUI and articles of law.
+const geist = Geist({
   subsets: ["latin", "latin-ext"],
-  weight: ["500", "600", "700", "800"],
-  variable: "--font-jakarta",
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-geist",
   display: "swap",
 });
 
-const dmSans = DM_Sans({
+const geistMono = Geist_Mono({
   subsets: ["latin", "latin-ext"],
-  weight: ["400", "500", "700"],
-  variable: "--font-dm-sans",
-  display: "swap",
-});
-
-const jetbrains = JetBrains_Mono({
-  subsets: ["latin"],
-  weight: ["400", "500", "700"],
-  variable: "--font-jetbrains",
+  weight: ["400", "500", "600"],
+  variable: "--font-geist-mono",
   display: "swap",
 });
 
@@ -77,7 +75,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#e0e5ec",
+  themeColor: "#fafaf7",
   // Lets the app paint into the notch/home-indicator area when installed;
   // components that sit at the edges pay for it back with env(safe-area-*).
   viewportFit: "cover",
@@ -89,7 +87,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ro" className={`${jakarta.variable} ${dmSans.variable} ${jetbrains.variable}`}>
+    <html lang="ro" suppressHydrationWarning className={`${geist.variable} ${geistMono.variable}`}>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
@@ -98,24 +96,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <AuthProvider>
           <CompanyProfileProvider>
           <CopilotProvider>
-            {/* Ambient colour behind everything. A real element rather than a
-                body::before, so its stacking context is explicit: the shell
-                below sits at z-10 and is never painted underneath it. */}
-            <div className="mesh-layer" aria-hidden="true" />
-            {/* flex-col below lg, flex-row from lg up.
-                Sidebar renders a fragment: an <aside> (hidden below lg) AND a
-                sticky mobile <header> (hidden from lg up). Both are direct
-                children of this container, so with a plain `flex` the mobile
-                header became a flex ROW item — a ~226px left-hand column that
-                squeezed <main> into the remaining ~160px of a 390px phone,
-                instead of the top bar it is styled to be. It only shows below
-                lg, which is exactly where the row direction is wrong.
-                min-h-svh lives here alone; a second one on the inner column
-                would stack under the header and overflow the viewport. */}
-            <div className="relative z-10 flex min-h-svh flex-col lg:flex-row">
-              <Sidebar />
-              <div className="flex min-w-0 flex-1 flex-col">{children}</div>
-            </div>
+            <AppShell>{children}</AppShell>
             {/* iOS-only, dismissible: Apple permits Web Push solely from an
                 installed PWA, so on iPhone this is the path to notifications
                 working at all. Renders nothing anywhere else. */}

@@ -36,7 +36,7 @@ export default function AiCredits({
 
   if (!usage) return null;
 
-  const renews = usage.resets_at.split("-").reverse().join(".");
+  const renews = (usage.resets_at || "").split("-").reverse().join(".");
   const low = (k: "deliverable" | "copilot") => usage.remaining[k] <= Math.max(1, Math.floor(usage.limits[k] * 0.1));
 
   if (compact) {

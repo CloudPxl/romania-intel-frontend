@@ -24,8 +24,8 @@ export default function manifest(): MetadataRoute.Manifest {
     // Matches --color-paper, so the splash screen and the OS chrome are
     // the same surface the app itself is built on rather than flashing
     // white before first paint.
-    background_color: "#e0e5ec",
-    theme_color: "#e0e5ec",
+    background_color: "#fafaf7",
+    theme_color: "#fafaf7",
     categories: ["business", "productivity", "finance"],
     icons: [
       { src: "/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },

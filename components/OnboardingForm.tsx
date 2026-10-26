@@ -150,11 +150,11 @@ export default function OnboardingForm() {
             />
             <span className="leading-snug text-stock-600">
               Sunt de acord cu{" "}
-              <Link href="/terms" target="_blank" className="text-editorial underline underline-offset-2">
+              <Link href="/terms" target="_blank" className="text-accent underline underline-offset-2">
                 Termenii și Condițiile
               </Link>{" "}
               și{" "}
-              <Link href="/privacy" target="_blank" className="text-editorial underline underline-offset-2">
+              <Link href="/privacy" target="_blank" className="text-accent underline underline-offset-2">
                 Politica de Confidențialitate
               </Link>
               .

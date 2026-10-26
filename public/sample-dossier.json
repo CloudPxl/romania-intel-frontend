@@ -1,0 +1,1159 @@
+{
+ "generated_at": "2026-10-26T15:16:14.916056+00:00",
+ "generator": "RO-INTEL — șabloanele de producție (addons/dossier_generator.py, addons/foia_generator.py), fără extindere AI",
+ "tender": {
+  "source_id": "ELICITATIE-CN-101409914",
+  "title": "Contract de achiziție publică de execuție lucrări suplimentare pentru obiectivul ”Reabilitarea și modernizarea Filarmonicii Moldova Iași”",
+  "authority": "JUDETUL IASI",
+  "authority_cui": "4540712",
+  "county": "Iași",
+  "cpv": "45212300-9",
+  "estimated_value_ron": 16313668.44,
+  "deadline": "2026-11-25",
+  "url": "https://e-licitatie.ro/pub/notices/c-notice/v2/view/101409914"
+ },
+ "proposal": {
+  "project_title": "Contract de achiziție publică de execuție lucrări suplimentare pentru obiectivul ”Reabilitarea și modernizarea Filarmonicii Moldova Iași”",
+  "authority_name": "JUDETUL IASI",
+  "company_name": "[Denumirea ofertantului]",
+  "cui": "[CUI]",
+  "bidder": {
+   "company_name": "[Denumirea ofertantului]",
+   "cui": "[CUI]"
+  },
+  "county": "Iași",
+  "source_id": "ELICITATIE-CN-101409914",
+  "cpv_code": "45212300-9",
+  "category_profile": "infrastructura",
+  "procedure_note": "La o valoare estimată de 16.313.668 RON fără TVA, sub pragul UE de 26.960.556 RON (art. 7 alin. (1) din Legea nr. 98/2016), achiziția se încadrează ca procedură simplificată — art. 7 alin. (2) și art. 113 din Legea nr. 98/2016. Pragurile sunt cele în vigoare de la 01.01.2026; se confirmă tipul procedurii din anunțul publicat.",
+  "legal_metadata": {
+   "regime": "L98",
+   "regime_source": "auto",
+   "regime_reason": "Autoritate contractantă clasică (implicit).",
+   "regime_label": "Achiziții clasice",
+   "applicable_law": "Legea nr. 98/2016",
+   "norme_metodologice": "HG nr. 395/2016",
+   "contract_type": "lucrari",
+   "authority_level": "local",
+   "authority_level_source": "auto",
+   "thresholds": {
+    "direct_award_ron": 900400,
+    "direct_award_basis": "art. 7 alin. (5) din Legea nr. 98/2016",
+    "eu_ron": 26960556,
+    "eu_basis": "art. 7 alin. (1) din Legea nr. 98/2016",
+    "effective_from": "2026-01-01"
+   },
+   "estimated_value_ron": 16313668.44,
+   "transitional_note": "Pragurile se aplică după data lansării procedurii: cele din 2026 pentru procedurile inițiate după 1 ianuarie 2026. O procedură anulată și reluată este o procedură nouă și se raportează la pragurile în vigoare la reluare; contractele subsecvente unui acord-cadru urmează procedura acordului-cadru.",
+   "guarantees": {
+    "participation_max_pct": 1,
+    "participation_max_ron": 163136.68,
+    "performance_max_pct": 10,
+    "performance_max_ron": 1631366.84,
+    "basis": "art. 154 alin. (2)-(3) din Legea nr. 98/2016",
+    "note": "Garanția de participare: cel mult 1% din valoarea estimată (la acordul-cadru, din valoarea celui mai mare contract subsecvent), dacă documentația o cere. Garanția de bună execuție: cel mult 10% din prețul contractului fără TVA — calculată aici pe valoarea estimată; se recalculează pe prețul ofertat."
+   },
+   "abnormally_low": {
+    "presumption_pct": 80.0,
+    "threshold_ron": 13050934.75,
+    "presumption_basis": "art. 136 alin. (4) din HG nr. 395/2016 coroborat cu art. 210 alin. (1) din Legea nr. 98/2016",
+    "element_audit_basis": "art. 136 alin. (1)-(3) din HG nr. 395/2016",
+    "track1": "Preț ofertat, fără TVA, sub 80% din valoarea estimată: oferta este prezumată ca având un preț aparent neobișnuit de scăzut, iar autoritatea are obligația de a cere clarificări.",
+    "track2": "Independent de procentul total, comisia cere explicații pentru orice element de preț aparent neobișnuit de scăzut raportat la prețurile pieței; dovezile neconcludente fac oferta neconformă."
+   },
+   "lowest_price_allowed": true,
+   "lowest_price_basis": "art. 187 alin. (3^1) și (8) din Legea nr. 98/2016",
+   "discount_rate": {
+    "year": 2026,
+    "rate_pct": 8.2,
+    "basis": "Ordinul ANAP nr. 12/2026 și CNSP nr. 1/2026 (M. Of. nr. 38 din 20.01.2026)",
+    "scope": "Se folosește la calculul costului pe ciclul de viață când criteriul este „costul cel mai scăzut”, pentru contractele finanțate exclusiv de la bugetul de stat. La fonduri europene nerambursabile rămâne aplicabil art. 5 din Ordinul nr. 842/175/2016."
+   },
+   "verification": {
+    "checked_at": "2026-10-23T09:59:20.795298+00:00",
+    "source": "baza de date legislativă inclusă",
+    "status": "ok",
+    "thresholds_match": null,
+    "issues": []
+   },
+   "band": "simplified",
+   "procedure_name": "Procedură simplificată",
+   "procedure_basis": "art. 7 alin. (2) și art. 113 din Legea nr. 98/2016",
+   "above_eu_threshold": false,
+   "cnsc_deadline_days": 7,
+   "cnsc_deadline_basis": "art. 8 alin. (1) lit. b) din Legea nr. 101/2016",
+   "cnsc_deadline_note": "Zile calendaristice, începând cu ziua următoare luării la cunoștință; dacă ultima zi este nelucrătoare, termenul se prelungește până la următoarea zi lucrătoare (art. 5 din Legea nr. 101/2016). Pentru conținutul documentației, data luării la cunoștință este data publicării acesteia în SEAP (art. 8 alin. (2)).",
+   "cnsc_cautiune_ron": 35000,
+   "cautiune_stage": "pre_submission",
+   "cautiune": {
+    "percent": 2,
+    "uncapped_ron": 326273.37,
+    "pre_submission_ron": 35000,
+    "pre_submission_cap_ron": 35000,
+    "post_submission_ron": 88000,
+    "post_submission_cap_ron": 88000,
+    "basis": "art. 61^1 alin. (1) lit. a) din Legea nr. 101/2016",
+    "note": "Se constituie în cel mult 5 zile de la sesizarea Consiliului, sub sancțiunea respingerii contestației. Etapa (art. 17 alin. (1)): înainte, respectiv după data-limită de depunere a ofertelor. La acordul-cadru se raportează la dublul valorii celui mai mare contract subsecvent; la procedurile pe loturi, la valoarea fiecărui lot contestat (art. 61^1 alin. (2)-(2^2))."
+   },
+   "warnings": []
+  },
+  "dossier_text": "PROPUNERE TEHNICĂ\nProcedura: Contract de achiziție publică de execuție lucrări suplimentare pentru obiectivul ”Reabilitarea și modernizarea Filarmonicii Moldova Iași”\nAutoritate contractantă: JUDETUL IASI (Iași)\nOfertant: [Denumirea ofertantului] (CUI: [CUI])\nData întocmirii: 26.10.2026\nReferință anunț: ELICITATIE-CN-101409914\nCod CPV: 45212300-9\nValoare estimată publicată: 16.313.668,44 RON fără TVA\nTemei legal: Legea nr. 98/2016 (achiziții clasice); HG nr. 395/2016 (norme de aplicare)\n\nDATE DE IDENTIFICARE A OFERTANTULUI (SUBSCRISA)\nDenumire: [Denumirea ofertantului]\nCUI: [CUI]\nNr. Reg. Com.: [a se completa]\nSediu: [a se completa]\nReprezentant legal: [a se completa]\n\n1. OBIECTUL OFERTEI ȘI ÎNCADRAREA PROCEDURALĂ\n1.1 Prezenta propunere tehnică vizează lucrări de construcții și infrastructură, în cadrul procedurii „Contract de achiziție publică de execuție lucrări suplimentare pentru obiectivul ”Reabilitarea și modernizarea Filarmonicii Moldova Iași”” organizate de JUDETUL IASI.\n1.2 La o valoare estimată de 16.313.668 RON fără TVA, sub pragul UE de 26.960.556 RON (art. 7 alin. (1) din Legea nr. 98/2016), achiziția se încadrează ca procedură simplificată — art. 7 alin. (2) și art. 113 din Legea nr. 98/2016. Pragurile sunt cele în vigoare de la 01.01.2026; se confirmă tipul procedurii din anunțul publicat.\n1.3 Ofertantul declară că a analizat integral documentația de atribuire și că oferta respectă cerințele minime obligatorii din caietul de sarcini.\n--------------------------------------------------------------------------------\n2. METODOLOGIE DE EXECUȚIE ȘI ABORDARE TEHNICĂ\n2.1 Organizarea de șantier, căi de acces provizorii și managementul traficului pe durata execuției\n2.2 Planul de mobilizare a utilajelor grele și a stațiilor de producție (betoane/mixturi asfaltice)\n2.3 Programul de control al calității pe faze determinante (PCCVI), cu puncte de staționare obligatorii\n2.4 Managementul deșeurilor din construcții și demolări conform Legii nr. 211/2011\n--------------------------------------------------------------------------------\n3. RESURSE UMANE ȘI PERSONAL-CHEIE\n3.1 Manager de Proiect (certificare PMP/PRINCE2)\n3.2 Responsabil Tehnic cu Execuția (RTE) atestat MLPDA pe domeniul aferent\n3.3 Responsabil cu Controlul Calității (CQ) atestat\n3.4 Coordonator SSM (Securitate și Sănătate în Muncă)\n3.5 Pentru fiecare expert se anexează CV în format european, diplomele/atestatele relevante și angajamentul de disponibilitate pe durata contractului.\n--------------------------------------------------------------------------------\n4. CONFORMITATE NORMATIVĂ, CALITATE ȘI MEDIU\n4.1 SR EN ISO 9001:2015 — management al calității\n4.2 SR EN ISO 14001:2015 — management de mediu\n4.3 SR ISO 45001:2018 — sănătate și securitate ocupațională\n4.4 Legea nr. 10/1995 privind calitatea în construcții, republicată\n4.5 HG nr. 766/1997 — regulamente privind calitatea în construcții\n--------------------------------------------------------------------------------\n5. MANAGEMENTUL RISCURILOR\n5.1 Riscurile identificate pentru execuția prezentului contract, alături de măsurile de atenuare aferente, sunt detaliate în planul de management al riscurilor anexat.\n5.2 Perioada de garanție a lucrărilor: minimum 36 de luni de la recepția la terminarea lucrărilor, conform HG nr. 273/1994.\n--------------------------------------------------------------------------------\n6. MATRICEA DE CONFORMITATE\n6.1 Se anexează matricea de conformitate punct-cu-punct cu specificațiile tehnice solicitate, cu trimitere la pagina din fișa tehnică a producătorului pentru fiecare cerință.\n6.2 Orice soluție echivalentă propusă este însoțită de documente justificative, conform art. 155 și 156 din Legea nr. 98/2016 (specificații tehnice și „sau echivalent”).\n--------------------------------------------------------------------------------\n7. DOCUMENTE DE CALIFICARE ANEXATE\n7.1 DUAE completat (Documentul Unic de Achiziții European), conform art. 193 din Legea nr. 98/2016.\n7.2 Declarații privind neîncadrarea în motivele de excludere prevăzute la art. 164, 165 și 167 din Legea nr. 98/2016.\n7.3 Certificate de atestare fiscală (buget de stat și buget local), în termen de valabilitate.\n7.4 Certificat constatator ONRC din care să reiasă obiectul de activitate corespunzător.\n7.5 Dovada constituirii garanției de participare, dacă este solicitată prin fișa de date.\n\n================================================================================\nDECLARAȚIE PRIVIND RESPECTAREA REGLEMENTĂRILOR OBLIGATORII ÎN DOMENIILE MEDIULUI, SOCIAL ȘI AL RELAȚIILOR DE MUNCĂ\n\nSubscrisa [Denumirea ofertantului], cu sediul în [a se completa], înregistrată la Oficiul Registrului Comerțului sub nr. [a se completa], CUI [CUI], reprezentată legal prin [a se completa], în calitate de administrator, în calitate de ofertant la procedura de atribuire a contractului „Contract de achiziție publică de execuție lucrări suplimentare pentru obiectivul ”Reabilitarea și modernizarea Filarmonicii Moldova Iași”” (anunț nr. ELICITATIE-CN-101409914), organizată de JUDETUL IASI,\n\ndeclar pe propria răspundere că, la elaborarea ofertei, am ținut cont de obligațiile relevante din domeniile mediului, social și al relațiilor de muncă, stabilite prin legislația adoptată la nivelul Uniunii Europene, legislația națională, prin acorduri colective sau prin tratatele, convențiile și acordurile internaționale în aceste domenii, conform alin. (2) al art. 51 din Legea nr. 98/2016.\n\nMă angajez ca, pe toată durata executării contractului, să respect aceste obligații, inclusiv prevederile Legii nr. 53/2003 – Codul muncii, republicată, ale Legii securității și sănătății în muncă nr. 319/2006 și ale normelor de aplicare a acesteia, precum și ale OUG nr. 195/2005 privind protecția mediului, și să asigur că personalul implicat beneficiază de condițiile de muncă și de protecție a muncii prevăzute de lege. Costurile aferente acestor obligații sunt incluse în prețul ofertei.\n\nAm luat la cunoștință că oferta care nu asigură respectarea reglementărilor obligatorii referitoare la condițiile specifice de muncă și de protecție a muncii este considerată inacceptabilă și că încălcarea acestor obligații constituie motiv de excludere.\n\nSubsemnatul declar că informațiile furnizate sunt complete și corecte în fiecare detaliu și înțeleg că autoritatea contractantă are dreptul de a solicita, în scopul verificării și confirmării declarațiilor, orice documente doveditoare de care dispunem. Înțeleg că în cazul în care această declarație nu este conformă cu realitatea sunt pasibil de încălcarea prevederilor legislației penale privind falsul în declarații (art. 326 din Legea nr. 286/2009 privind Codul penal).\n\n================================================================================\nDECLARAȚIE PRIVIND NEÎNCADRAREA ÎN SITUAȚIILE DE CONFLICT DE INTERESE\n\nSubscrisa [Denumirea ofertantului], cu sediul în [a se completa], înregistrată la Oficiul Registrului Comerțului sub nr. [a se completa], CUI [CUI], reprezentată legal prin [a se completa], în calitate de administrator, în calitate de ofertant la procedura de atribuire a contractului „Contract de achiziție publică de execuție lucrări suplimentare pentru obiectivul ”Reabilitarea și modernizarea Filarmonicii Moldova Iași”” (anunț nr. ELICITATIE-CN-101409914), organizată de JUDETUL IASI,\n\ndeclar pe propria răspundere că nu mă aflu în niciuna dintre situațiile potențial generatoare de conflict de interese definite și enumerate la art. 59 și 60 din Legea nr. 98/2016, în raport cu persoanele care dețin funcții de decizie în cadrul autorității contractante în legătură cu procedura de atribuire, indicate în documentele achiziției (de regulă, în fișa de date a achiziției) și reproduse mai jos.\n\nÎn special, declar că: (i) persoanele de mai jos nu dețin părți sociale, părți de interes sau acțiuni din capitalul ofertantului, al terților susținători ori al subcontractanților propuși și nu fac parte din consiliul de administrație/organul de conducere sau de supervizare al acestora; (ii) ofertantul, terții susținători și subcontractanții propuși nu au drept membri în cadrul consiliului de administrație/organului de conducere sau de supervizare și/sau nu au acționari ori asociați semnificativi persoane care sunt soț/soție, rudă sau afin până la gradul al doilea inclusiv ori care se află în relații comerciale cu persoanele cu funcții de decizie din autoritatea contractantă; (iii) ofertantul nu a nominalizat printre principalele persoane desemnate pentru executarea contractului persoane aflate în situațiile de mai sus.\n\nMă angajez să informez de îndată autoritatea contractantă dacă, pe parcursul procedurii de atribuire, intervine orice situație de natura celor de mai sus.\n\nSubsemnatul declar că informațiile furnizate sunt complete și corecte în fiecare detaliu și înțeleg că autoritatea contractantă are dreptul de a solicita, în scopul verificării și confirmării declarațiilor, orice documente doveditoare de care dispunem. Înțeleg că în cazul în care această declarație nu este conformă cu realitatea sunt pasibil de încălcarea prevederilor legislației penale privind falsul în declarații (art. 326 din Legea nr. 286/2009 privind Codul penal).\n\n================================================================================\nDECLARAȚIE PRIVIND CARACTERUL CONFIDENȚIAL AL UNOR INFORMAȚII DIN OFERTĂ ȘI JUSTIFICAREA ACESTUIA\n\nSubscrisa [Denumirea ofertantului], cu sediul în [a se completa], înregistrată la Oficiul Registrului Comerțului sub nr. [a se completa], CUI [CUI], reprezentată legal prin [a se completa], în calitate de administrator, în calitate de ofertant la procedura de atribuire a contractului „Contract de achiziție publică de execuție lucrări suplimentare pentru obiectivul ”Reabilitarea și modernizarea Filarmonicii Moldova Iași”” (anunț nr. ELICITATIE-CN-101409914), organizată de JUDETUL IASI,\n\nîn temeiul alin. (1) și (4) ale art. 57 din Legea nr. 98/2016 și art. 123 alin. (1) din HG nr. 395/2016, indic și dovedesc mai jos informațiile din propunerea tehnică, elementele din propunerea financiară și fundamentările/justificările de preț care au caracter confidențial, cu precizarea paginilor/secțiunilor, a categoriei legale în care se încadrează fiecare și a justificării obiective a acestui caracter.\n\nCaracterul confidențial este invocat exclusiv pentru elementele enumerate, nu pentru oferta în ansamblu. Dovezile care conferă caracterul de confidențialitate sunt anexate prezentei declarații și fac parte integrantă din ofertă. Restul informațiilor din ofertă nu sunt declarate confidențiale și pot fi puse la dispoziția celorlalți ofertanți în condițiile alin. (6) al art. 217 din Legea nr. 98/2016.\n\nSolicităm autorității contractante ca, în cazul în care apreciază că vreunul dintre elementele de mai jos nu este dovedit corespunzător, să ne solicite clarificări înainte de a permite accesul terților la acesta, pentru a ne putea completa dovezile.\n\nSubsemnatul declar că informațiile furnizate sunt complete și corecte în fiecare detaliu și înțeleg că autoritatea contractantă are dreptul de a solicita, în scopul verificării și confirmării declarațiilor, orice documente doveditoare de care dispunem. Înțeleg că în cazul în care această declarație nu este conformă cu realitatea sunt pasibil de încălcarea prevederilor legislației penale privind falsul în declarații (art. 326 din Legea nr. 286/2009 privind Codul penal).\n\n================================================================================\nDECLARAȚIE PRIVIND NEÎNCADRAREA ÎN SITUAȚIILE DE EXCLUDERE\n\nSubscrisa [Denumirea ofertantului], cu sediul în [a se completa], înregistrată la Oficiul Registrului Comerțului sub nr. [a se completa], CUI [CUI], reprezentată legal prin [a se completa], în calitate de administrator, în calitate de ofertant la procedura de atribuire a contractului „Contract de achiziție publică de execuție lucrări suplimentare pentru obiectivul ”Reabilitarea și modernizarea Filarmonicii Moldova Iași”” (anunț nr. ELICITATIE-CN-101409914), organizată de JUDETUL IASI,\n\ndeclar pe propria răspundere că nu mă aflu în niciuna dintre situațiile de excludere prevăzute la art. 164, 165 și 167 din Legea nr. 98/2016, respectiv:\n\na) ofertantul și membrii organelor sale de administrare, de conducere sau de supraveghere, precum și persoanele care au putere de reprezentare, de decizie sau de control în cadrul acestuia nu au fost condamnați prin hotărâre definitivă pentru vreuna dintre infracțiunile enumerate la art. 164 (grup infracțional organizat, corupție, fraudă, terorism, spălare de bani, trafic și exploatare de persoane vulnerabile ori fraudă împotriva intereselor financiare ale Uniunii Europene);\n\nb) ofertantul nu și-a încălcat obligațiile privind plata impozitelor, taxelor sau a contribuțiilor la bugetul general consolidat, în sensul art. 165;\n\nc) ofertantul nu se află în niciuna dintre situațiile de la art. 167 — încălcarea obligațiilor din domeniile mediului, social și al relațiilor de muncă, insolvență, lichidare, supraveghere judiciară sau încetarea activității, abatere profesională gravă, acorduri cu alți operatori economici care vizează denaturarea concurenței, conflict de interese, distorsionarea concurenței ca urmare a implicării anterioare în pregătirea procedurii, deficiențe grave în executarea unui contract anterior sancționate cu rezilierea, plata de daune-interese sau alte sancțiuni comparabile, ori furnizarea de informații false sau influențarea nelegală a procesului decizional al autorității contractante; de asemenea, ofertantul nu este o societate pe acțiuni cu capital reprezentat prin acțiuni la purtător ai căror deținători/beneficiari reali nu sunt identificați.\n\nPrezenta declarație completează informațiile din DUAE. Mă angajez să prezint, la solicitarea autorității contractante, documentele doveditoare (certificate de atestare fiscală, cazier judiciar al societății și al reprezentanților legali, certificat constatator ONRC).\n\nSubsemnatul declar că informațiile furnizate sunt complete și corecte în fiecare detaliu și înțeleg că autoritatea contractantă are dreptul de a solicita, în scopul verificării și confirmării declarațiilor, orice documente doveditoare de care dispunem. Înțeleg că în cazul în care această declarație nu este conformă cu realitatea sunt pasibil de încălcarea prevederilor legislației penale privind falsul în declarații (art. 326 din Legea nr. 286/2009 privind Codul penal).\n\n================================================================================\nDECLARAȚIE PRIVIND NEÎNCADRAREA ÎN INTERDICȚIA PREVĂZUTĂ LA ART. 5K DIN REGULAMENTUL (UE) NR. 833/2014\n\nSubscrisa [Denumirea ofertantului], cu sediul în [a se completa], înregistrată la Oficiul Registrului Comerțului sub nr. [a se completa], CUI [CUI], reprezentată legal prin [a se completa], în calitate de administrator, în calitate de ofertant la procedura de atribuire a contractului „Contract de achiziție publică de execuție lucrări suplimentare pentru obiectivul ”Reabilitarea și modernizarea Filarmonicii Moldova Iași”” (anunț nr. ELICITATIE-CN-101409914), organizată de JUDETUL IASI,\n\ndeclar pe propria răspundere că nici ofertantul, nici vreunul dintre membrii asocierii, subcontractanții, furnizorii sau entitățile pe ale căror capacități ne bazăm nu se încadrează în categoriile prevăzute la art. 5k alin. (1) lit. (a)-(c) din Regulamentul (UE) nr. 833/2014, cu modificările ulterioare, respectiv:\n\na) nu suntem resortisanți ruși, persoane fizice cu reședința în Rusia ori persoane juridice, entități sau organisme stabilite în Rusia;\n\nb) drepturile de proprietate asupra noastră nu sunt deținute, direct sau indirect, în proporție de peste 50% de către o persoană fizică sau juridică, o entitate ori un organism dintre cele de la lit. a);\n\nc) nu acționăm în numele sau la instrucțiunile unei persoane, entități sau organism dintre cele de la lit. a) sau b).\n\nDeclar, de asemenea, că niciun subcontractant, furnizor sau entitate pe ale cărei capacități ne bazăm care se încadrează la lit. a)-c) nu reprezintă mai mult de 10% din valoarea contractului. Participanții care depășesc 10% din valoarea contractului sunt enumerați în tabelul de mai jos.\n\nMă angajez să nu folosesc, pe toată durata executării contractului, subcontractanți, furnizori sau entități care se încadrează în interdicție și peste pragul de 10%, și să informez de îndată autoritatea contractantă dacă intervine o modificare a structurii acționariatului sau a lanțului de aprovizionare de natură să ne încadreze în interdicție.\n\nSubsemnatul declar că informațiile furnizate sunt complete și corecte în fiecare detaliu și înțeleg că autoritatea contractantă are dreptul de a solicita, în scopul verificării și confirmării declarațiilor, orice documente doveditoare de care dispunem. Înțeleg că în cazul în care această declarație nu este conformă cu realitatea sunt pasibil de încălcarea prevederilor legislației penale privind falsul în declarații (art. 326 din Legea nr. 286/2009 privind Codul penal).\n\n================================================================================\nDECLARAȚIE PRIVIND BENEFICIARUL REAL\n\nSubscrisa [Denumirea ofertantului], cu sediul în [a se completa], înregistrată la Oficiul Registrului Comerțului sub nr. [a se completa], CUI [CUI], reprezentată legal prin [a se completa], în calitate de administrator, în calitate de ofertant la procedura de atribuire a contractului „Contract de achiziție publică de execuție lucrări suplimentare pentru obiectivul ”Reabilitarea și modernizarea Filarmonicii Moldova Iași”” (anunț nr. ELICITATIE-CN-101409914), organizată de JUDETUL IASI,\n\ndeclar pe propria răspundere că beneficiarul real/beneficiarii reali ai societății, în sensul art. 4 alin. (1) din Legea nr. 129/2019 pentru prevenirea și combaterea spălării banilor și finanțării terorismului, sunt persoanele fizice indicate în tabelul de mai jos, care dețin sau controlează în cele din urmă societatea.\n\nDatele corespund celor declarate la Oficiul Național al Registrului Comerțului. Pentru contractele finanțate prin Mecanismul de redresare și reziliență, transmitem aceste date pentru ca autoritatea contractantă să își poată îndeplini obligația de colectare a datelor privind beneficiarul real al contractantului, prevăzută la art. 22 alin. (2) lit. (d) pct. (iii) din Regulamentul (UE) 2021/241.\n\nMă angajez să comunic de îndată autorității contractante orice modificare a beneficiarilor reali intervenită pe parcursul procedurii sau al executării contractului.\n\nSubsemnatul declar că informațiile furnizate sunt complete și corecte în fiecare detaliu și înțeleg că autoritatea contractantă are dreptul de a solicita, în scopul verificării și confirmării declarațiilor, orice documente doveditoare de care dispunem. Înțeleg că în cazul în care această declarație nu este conformă cu realitatea sunt pasibil de încălcarea prevederilor legislației penale privind falsul în declarații (art. 326 din Legea nr. 286/2009 privind Codul penal).\n\n================================================================================\nDECLARAȚIE PRIVIND RESPECTAREA PRINCIPIULUI „DE A NU PREJUDICIA ÎN MOD SEMNIFICATIV” (DNSH)\n\nSubscrisa [Denumirea ofertantului], cu sediul în [a se completa], înregistrată la Oficiul Registrului Comerțului sub nr. [a se completa], CUI [CUI], reprezentată legal prin [a se completa], în calitate de administrator, în calitate de ofertant la procedura de atribuire a contractului „Contract de achiziție publică de execuție lucrări suplimentare pentru obiectivul ”Reabilitarea și modernizarea Filarmonicii Moldova Iași”” (anunț nr. ELICITATIE-CN-101409914), organizată de JUDETUL IASI,\n\ndeclar pe propria răspundere că lucrările, produsele și serviciile ofertate, precum și modul de executare a contractului respectă principiul „de a nu prejudicia în mod semnificativ” (DNSH) în raport cu cele șase obiective de mediu prevăzute la art. 9 din Regulamentul (UE) 2020/852, astfel cum este definit la art. 17 din același regulament, și cerințele DNSH stabilite în documentația de atribuire și în documentele de finanțare ale proiectului (pentru PNRR, art. 5 alin. (2) din Regulamentul (UE) 2021/241).\n\nMăsurile prin care asigurăm respectarea principiului pentru fiecare obiectiv sunt descrise în tabelul de mai jos și detaliate în propunerea tehnică; dovezile (fișe tehnice, certificări, planul de gestionare a deșeurilor) vor fi puse la dispoziția autorității contractante la solicitare.\n\nMă angajez să mențin aceste măsuri pe toată durata executării contractului și să suport consecințele nerespectării lor, inclusiv corecțiile financiare aplicate proiectului din această cauză.\n\nSubsemnatul declar că informațiile furnizate sunt complete și corecte în fiecare detaliu și înțeleg că autoritatea contractantă are dreptul de a solicita, în scopul verificării și confirmării declarațiilor, orice documente doveditoare de care dispunem. Înțeleg că în cazul în care această declarație nu este conformă cu realitatea sunt pasibil de încălcarea prevederilor legislației penale privind falsul în declarații (art. 326 din Legea nr. 286/2009 privind Codul penal).\n\n--------------------------------------------------------------------------------\nNOTĂ: Document generat automat ca schiță de lucru de motorul RO-INTEL. Conținutul trebuie verificat și completat de un specialist în achiziții publice prin raportare la documentația de atribuire specifică procedurii. Câmpurile marcate [a se completa] trebuie completate înainte de semnare. Citările legale sunt preluate din textele consolidate de pe legislatie.just.ro; confirmați forma în vigoare la data depunerii ofertei.",
+  "structured_sections": [
+   {
+    "heading": "1. Obiectul ofertei și încadrarea procedurală",
+    "paragraphs": [
+     "1.1 Prezenta propunere tehnică vizează lucrări de construcții și infrastructură, în cadrul procedurii „Contract de achiziție publică de execuție lucrări suplimentare pentru obiectivul ”Reabilitarea și modernizarea Filarmonicii Moldova Iași”” organizate de JUDETUL IASI.",
+     "1.2 La o valoare estimată de 16.313.668 RON fără TVA, sub pragul UE de 26.960.556 RON (art. 7 alin. (1) din Legea nr. 98/2016), achiziția se încadrează ca procedură simplificată — art. 7 alin. (2) și art. 113 din Legea nr. 98/2016. Pragurile sunt cele în vigoare de la 01.01.2026; se confirmă tipul procedurii din anunțul publicat.",
+     "1.3 Ofertantul declară că a analizat integral documentația de atribuire și că oferta respectă cerințele minime obligatorii din caietul de sarcini."
+    ]
+   },
+   {
+    "heading": "2. Metodologie de execuție și abordare tehnică",
+    "paragraphs": [
+     "2.1 Organizarea de șantier, căi de acces provizorii și managementul traficului pe durata execuției",
+     "2.2 Planul de mobilizare a utilajelor grele și a stațiilor de producție (betoane/mixturi asfaltice)",
+     "2.3 Programul de control al calității pe faze determinante (PCCVI), cu puncte de staționare obligatorii",
+     "2.4 Managementul deșeurilor din construcții și demolări conform Legii nr. 211/2011"
+    ]
+   },
+   {
+    "heading": "3. Resurse umane și personal-cheie",
+    "paragraphs": [
+     "3.1 Manager de Proiect (certificare PMP/PRINCE2)",
+     "3.2 Responsabil Tehnic cu Execuția (RTE) atestat MLPDA pe domeniul aferent",
+     "3.3 Responsabil cu Controlul Calității (CQ) atestat",
+     "3.4 Coordonator SSM (Securitate și Sănătate în Muncă)",
+     "3.5 Pentru fiecare expert se anexează CV în format european, diplomele/atestatele relevante și angajamentul de disponibilitate pe durata contractului."
+    ]
+   },
+   {
+    "heading": "4. Conformitate normativă, calitate și mediu",
+    "paragraphs": [
+     "4.1 SR EN ISO 9001:2015 — management al calității",
+     "4.2 SR EN ISO 14001:2015 — management de mediu",
+     "4.3 SR ISO 45001:2018 — sănătate și securitate ocupațională",
+     "4.4 Legea nr. 10/1995 privind calitatea în construcții, republicată",
+     "4.5 HG nr. 766/1997 — regulamente privind calitatea în construcții"
+    ]
+   },
+   {
+    "heading": "5. Managementul riscurilor",
+    "paragraphs": [
+     "5.1 Riscurile identificate pentru execuția prezentului contract, alături de măsurile de atenuare aferente, sunt detaliate în planul de management al riscurilor anexat.",
+     "5.2 Perioada de garanție a lucrărilor: minimum 36 de luni de la recepția la terminarea lucrărilor, conform HG nr. 273/1994."
+    ]
+   },
+   {
+    "heading": "6. Matricea de conformitate",
+    "paragraphs": [
+     "6.1 Se anexează matricea de conformitate punct-cu-punct cu specificațiile tehnice solicitate, cu trimitere la pagina din fișa tehnică a producătorului pentru fiecare cerință.",
+     "6.2 Orice soluție echivalentă propusă este însoțită de documente justificative, conform art. 155 și 156 din Legea nr. 98/2016 (specificații tehnice și „sau echivalent”)."
+    ]
+   },
+   {
+    "heading": "7. Documente de calificare anexate",
+    "paragraphs": [
+     "7.1 DUAE completat (Documentul Unic de Achiziții European), conform art. 193 din Legea nr. 98/2016.",
+     "7.2 Declarații privind neîncadrarea în motivele de excludere prevăzute la art. 164, 165 și 167 din Legea nr. 98/2016.",
+     "7.3 Certificate de atestare fiscală (buget de stat și buget local), în termen de valabilitate.",
+     "7.4 Certificat constatator ONRC din care să reiasă obiectul de activitate corespunzător.",
+     "7.5 Dovada constituirii garanției de participare, dacă este solicitată prin fișa de date."
+    ]
+   }
+  ],
+  "compliance_rows": [
+   {
+    "requirement": "DUAE completat",
+    "response": "Se anexează, semnat electronic",
+    "reference": "art. 193 din Legea nr. 98/2016"
+   },
+   {
+    "requirement": "Neîncadrare în motive de excludere",
+    "response": "Declarație pe propria răspundere anexată",
+    "reference": "art. 164, 165 și 167 din Legea nr. 98/2016"
+   },
+   {
+    "requirement": "Certificat de atestare fiscală",
+    "response": "Se anexează, în termen de valabilitate",
+    "reference": "Fișa de date a achiziției"
+   },
+   {
+    "requirement": "Certificat constatator ONRC",
+    "response": "Se anexează, obiect de activitate corespunzător",
+    "reference": "Fișa de date a achiziției"
+   },
+   {
+    "requirement": "Garanție de participare",
+    "response": "Se constituie conform instrumentului solicitat",
+    "reference": "Fișa de date a achiziției"
+   },
+   {
+    "requirement": "SR EN ISO 9001:2015 — management al calității",
+    "response": "Certificat valabil anexat / echivalent justificat",
+    "reference": "Secțiunea 4"
+   },
+   {
+    "requirement": "SR EN ISO 14001:2015 — management de mediu",
+    "response": "Certificat valabil anexat / echivalent justificat",
+    "reference": "Secțiunea 4"
+   },
+   {
+    "requirement": "SR ISO 45001:2018 — sănătate și securitate ocupațională",
+    "response": "Certificat valabil anexat / echivalent justificat",
+    "reference": "Secțiunea 4"
+   },
+   {
+    "requirement": "Legea nr. 10/1995 privind calitatea în construcții, republicată",
+    "response": "Certificat valabil anexat / echivalent justificat",
+    "reference": "Secțiunea 4"
+   },
+   {
+    "requirement": "HG nr. 766/1997 — regulamente privind calitatea în construcții",
+    "response": "Certificat valabil anexat / echivalent justificat",
+    "reference": "Secțiunea 4"
+   }
+  ],
+  "requirements_count": 0,
+  "requirements_source": null,
+  "declarations": [
+   {
+    "id": "env_social",
+    "heading": "Declarație privind respectarea reglementărilor obligatorii în domeniile mediului, social și al relațiilor de muncă",
+    "paragraphs": [
+     "Subscrisa [Denumirea ofertantului], cu sediul în [a se completa], înregistrată la Oficiul Registrului Comerțului sub nr. [a se completa], CUI [CUI], reprezentată legal prin [a se completa], în calitate de administrator, în calitate de ofertant la procedura de atribuire a contractului „Contract de achiziție publică de execuție lucrări suplimentare pentru obiectivul ”Reabilitarea și modernizarea Filarmonicii Moldova Iași”” (anunț nr. ELICITATIE-CN-101409914), organizată de JUDETUL IASI,",
+     "declar pe propria răspundere că, la elaborarea ofertei, am ținut cont de obligațiile relevante din domeniile mediului, social și al relațiilor de muncă, stabilite prin legislația adoptată la nivelul Uniunii Europene, legislația națională, prin acorduri colective sau prin tratatele, convențiile și acordurile internaționale în aceste domenii, conform alin. (2) al art. 51 din Legea nr. 98/2016.",
+     "Mă angajez ca, pe toată durata executării contractului, să respect aceste obligații, inclusiv prevederile Legii nr. 53/2003 – Codul muncii, republicată, ale Legii securității și sănătății în muncă nr. 319/2006 și ale normelor de aplicare a acesteia, precum și ale OUG nr. 195/2005 privind protecția mediului, și să asigur că personalul implicat beneficiază de condițiile de muncă și de protecție a muncii prevăzute de lege. Costurile aferente acestor obligații sunt incluse în prețul ofertei.",
+     "Am luat la cunoștință că oferta care nu asigură respectarea reglementărilor obligatorii referitoare la condițiile specifice de muncă și de protecție a muncii este considerată inacceptabilă și că încălcarea acestor obligații constituie motiv de excludere.",
+     "Subsemnatul declar că informațiile furnizate sunt complete și corecte în fiecare detaliu și înțeleg că autoritatea contractantă are dreptul de a solicita, în scopul verificării și confirmării declarațiilor, orice documente doveditoare de care dispunem. Înțeleg că în cazul în care această declarație nu este conformă cu realitatea sunt pasibil de încălcarea prevederilor legislației penale privind falsul în declarații (art. 326 din Legea nr. 286/2009 privind Codul penal)."
+    ],
+    "legal_basis": [
+     {
+      "key": "L98/2016:51",
+      "citation": "art. 51 din Legea nr. 98/2016 privind achizițiile publice",
+      "law": "Legea nr. 98/2016 privind achizițiile publice",
+      "article": "51",
+      "text": "(1) Autoritatea contractantă precizează în documentația de atribuire reglementările obligatorii în domeniile mediului, social și al relațiilor de muncă, stabilite prin legislația adoptată la nivelul Uniunii Europene, legislația națională, prin acorduri colective sau prin tratatele, convențiile și acordurile internaționale în aceste domenii, care trebuie respectate pe parcursul executării contractului de achiziție […]",
+      "source_url": "https://legislatie.just.ro/Public/DetaliiDocument/178667",
+      "repealed": false
+     }
+    ]
+   },
+   {
+    "id": "conflict_of_interest",
+    "heading": "Declarație privind neîncadrarea în situațiile de conflict de interese",
+    "paragraphs": [
+     "Subscrisa [Denumirea ofertantului], cu sediul în [a se completa], înregistrată la Oficiul Registrului Comerțului sub nr. [a se completa], CUI [CUI], reprezentată legal prin [a se completa], în calitate de administrator, în calitate de ofertant la procedura de atribuire a contractului „Contract de achiziție publică de execuție lucrări suplimentare pentru obiectivul ”Reabilitarea și modernizarea Filarmonicii Moldova Iași”” (anunț nr. ELICITATIE-CN-101409914), organizată de JUDETUL IASI,",
+     "declar pe propria răspundere că nu mă aflu în niciuna dintre situațiile potențial generatoare de conflict de interese definite și enumerate la art. 59 și 60 din Legea nr. 98/2016, în raport cu persoanele care dețin funcții de decizie în cadrul autorității contractante în legătură cu procedura de atribuire, indicate în documentele achiziției (de regulă, în fișa de date a achiziției) și reproduse mai jos.",
+     "În special, declar că: (i) persoanele de mai jos nu dețin părți sociale, părți de interes sau acțiuni din capitalul ofertantului, al terților susținători ori al subcontractanților propuși și nu fac parte din consiliul de administrație/organul de conducere sau de supervizare al acestora; (ii) ofertantul, terții susținători și subcontractanții propuși nu au drept membri în cadrul consiliului de administrație/organului de conducere sau de supervizare și/sau nu au acționari ori asociați semnificativi persoane care sunt soț/soție, rudă sau afin până la gradul al doilea inclusiv ori care se află în relații comerciale cu persoanele cu funcții de decizie din autoritatea contractantă; (iii) ofertantul nu a nominalizat printre principalele persoane desemnate pentru executarea contractului persoane aflate în situațiile de mai sus.",
+     "Mă angajez să informez de îndată autoritatea contractantă dacă, pe parcursul procedurii de atribuire, intervine orice situație de natura celor de mai sus.",
+     "Subsemnatul declar că informațiile furnizate sunt complete și corecte în fiecare detaliu și înțeleg că autoritatea contractantă are dreptul de a solicita, în scopul verificării și confirmării declarațiilor, orice documente doveditoare de care dispunem. Înțeleg că în cazul în care această declarație nu este conformă cu realitatea sunt pasibil de încălcarea prevederilor legislației penale privind falsul în declarații (art. 326 din Legea nr. 286/2009 privind Codul penal)."
+    ],
+    "table": {
+     "caption": "Persoane cu funcții de decizie în cadrul autorității contractante",
+     "columns": [
+      "Nume și prenume",
+      "Funcția"
+     ],
+     "rows": [
+      [
+       "[a se completa]",
+       "[a se completa]"
+      ],
+      [
+       "[a se completa]",
+       "[a se completa]"
+      ],
+      [
+       "[a se completa]",
+       "[a se completa]"
+      ]
+     ]
+    },
+    "legal_basis": [
+     {
+      "key": "L98/2016:59",
+      "citation": "art. 59 din Legea nr. 98/2016 privind achizițiile publice",
+      "law": "Legea nr. 98/2016 privind achizițiile publice",
+      "article": "59",
+      "text": "În sensul prezentei legi, prin conflict de interese se înțelege orice situație în care membrii personalului autorității contractante sau ai unui furnizor de servicii de achiziție care acționează în numele autorității contractante, care sunt implicați în desfășurarea procedurii de atribuire sau care pot influența rezultatul acesteia au, în mod direct sau indirect, un interes financiar, economic sau un alt interes […]",
+      "source_url": "https://legislatie.just.ro/Public/DetaliiDocument/178667",
+      "repealed": false
+     },
+     {
+      "key": "L98/2016:60",
+      "citation": "art. 60 din Legea nr. 98/2016 privind achizițiile publice",
+      "law": "Legea nr. 98/2016 privind achizițiile publice",
+      "article": "60",
+      "text": "(1) Reprezintă situații potențial generatoare de conflict de interese orice situații care ar putea duce la apariția unui conflict de interese în sensul art. 59 , cum ar fi următoarele, reglementate cu titlu exemplificativ: a) participarea în procesul de verificare/evaluare a solicitărilor de participare/ofertelor a persoanelor care dețin părți sociale, părți de interes, acțiuni din capitalul subscris al unuia dintre […]",
+      "source_url": "https://legislatie.just.ro/Public/DetaliiDocument/178667",
+      "repealed": false
+     }
+    ]
+   },
+   {
+    "id": "confidentiality",
+    "heading": "Declarație privind caracterul confidențial al unor informații din ofertă și justificarea acestuia",
+    "paragraphs": [
+     "Subscrisa [Denumirea ofertantului], cu sediul în [a se completa], înregistrată la Oficiul Registrului Comerțului sub nr. [a se completa], CUI [CUI], reprezentată legal prin [a se completa], în calitate de administrator, în calitate de ofertant la procedura de atribuire a contractului „Contract de achiziție publică de execuție lucrări suplimentare pentru obiectivul ”Reabilitarea și modernizarea Filarmonicii Moldova Iași”” (anunț nr. ELICITATIE-CN-101409914), organizată de JUDETUL IASI,",
+     "în temeiul alin. (1) și (4) ale art. 57 din Legea nr. 98/2016 și art. 123 alin. (1) din HG nr. 395/2016, indic și dovedesc mai jos informațiile din propunerea tehnică, elementele din propunerea financiară și fundamentările/justificările de preț care au caracter confidențial, cu precizarea paginilor/secțiunilor, a categoriei legale în care se încadrează fiecare și a justificării obiective a acestui caracter.",
+     "Caracterul confidențial este invocat exclusiv pentru elementele enumerate, nu pentru oferta în ansamblu. Dovezile care conferă caracterul de confidențialitate sunt anexate prezentei declarații și fac parte integrantă din ofertă. Restul informațiilor din ofertă nu sunt declarate confidențiale și pot fi puse la dispoziția celorlalți ofertanți în condițiile alin. (6) al art. 217 din Legea nr. 98/2016.",
+     "Solicităm autorității contractante ca, în cazul în care apreciază că vreunul dintre elementele de mai jos nu este dovedit corespunzător, să ne solicite clarificări înainte de a permite accesul terților la acesta, pentru a ne putea completa dovezile.",
+     "Subsemnatul declar că informațiile furnizate sunt complete și corecte în fiecare detaliu și înțeleg că autoritatea contractantă are dreptul de a solicita, în scopul verificării și confirmării declarațiilor, orice documente doveditoare de care dispunem. Înțeleg că în cazul în care această declarație nu este conformă cu realitatea sunt pasibil de încălcarea prevederilor legislației penale privind falsul în declarații (art. 326 din Legea nr. 286/2009 privind Codul penal)."
+    ],
+    "table": {
+     "caption": "Informații declarate confidențiale",
+     "columns": [
+      "Informația / documentul",
+      "Pagini / secțiune",
+      "Categoria legală",
+      "Justificare obiectivă",
+      "Dovada anexată"
+     ],
+     "rows": [
+      [
+       "Fundamentarea prețului ofertat (structura costurilor, marje, ofertele furnizorilor)",
+       "[a se completa]",
+       "Secret comercial",
+       "Structura de cost reflectă prețurile negociate individual cu furnizorii și subcontractanții, obținute în baza unor relații comerciale proprii și protejate prin clauze de confidențialitate. Divulgarea ar permite concurenților să reconstituie marja ofertantului și să o subcoteze în proceduri viitoare, iar furnizorilor să-și revizuiască ofertele — un prejudiciu concret și actual, nu ipotetic. Informația nu este publică, are valoare comercială tocmai pentru că este secretă și a făcut obiectul unor măsuri rezonabile de păstrare a confidențialității.",
+       "Contractele/acordurile cu furnizorii care conțin clauze de confidențialitate; politica internă de clasificare a informațiilor."
+      ],
+      [
+       "Metodologia de execuție și soluțiile tehnice proprii",
+       "[a se completa]",
+       "Secret tehnic / know-how",
+       "Metodologia descrie procedee de lucru dezvoltate și perfecționate intern, care conferă ofertantului un avantaj competitiv măsurabil (productivitate, durată de execuție). Nu este accesibilă publicului și nu poate fi dedusă din documentele publice ale procedurii.",
+       "Proceduri interne de lucru, registrul de know-how, acorduri de confidențialitate semnate cu personalul."
+      ],
+      [
+       "CV-urile, diplomele și documentele de identificare ale experților",
+       "[a se completa]",
+       "Date cu caracter personal",
+       "Documentele conțin date cu caracter personal ale unor persoane fizice terțe, protejate de Regulamentul (UE) 2016/679; comunicarea lor către alți ofertanți nu are un temei legal și nu este necesară pentru verificarea legalității evaluării.",
+       "Consimțămintele/informările experților privind prelucrarea datelor, încheiate în scopul exclusiv al procedurii."
+      ]
+     ]
+    },
+    "legal_basis": [
+     {
+      "key": "L98/2016:57",
+      "citation": "art. 57 din Legea nr. 98/2016 privind achizițiile publice",
+      "law": "Legea nr. 98/2016 privind achizițiile publice",
+      "article": "57",
+      "text": "(1) Fără a aduce atingere celorlalte prevederi ale prezentei legi sau dispozițiilor legale privind liberul acces la informațiile de interes public ori ale altor acte normative care reglementează activitatea autorității contractante, autoritatea contractantă are obligația de a nu dezvălui informațiile din propunerea tehnică, elementele din propunerea financiară și/sau fundamentări/justificări de preț/cost transmise […]",
+      "source_url": "https://legislatie.just.ro/Public/DetaliiDocument/178667",
+      "repealed": false
+     }
+    ]
+   },
+   {
+    "id": "exclusion",
+    "heading": "Declarație privind neîncadrarea în situațiile de excludere",
+    "paragraphs": [
+     "Subscrisa [Denumirea ofertantului], cu sediul în [a se completa], înregistrată la Oficiul Registrului Comerțului sub nr. [a se completa], CUI [CUI], reprezentată legal prin [a se completa], în calitate de administrator, în calitate de ofertant la procedura de atribuire a contractului „Contract de achiziție publică de execuție lucrări suplimentare pentru obiectivul ”Reabilitarea și modernizarea Filarmonicii Moldova Iași”” (anunț nr. ELICITATIE-CN-101409914), organizată de JUDETUL IASI,",
+     "declar pe propria răspundere că nu mă aflu în niciuna dintre situațiile de excludere prevăzute la art. 164, 165 și 167 din Legea nr. 98/2016, respectiv:",
+     "a) ofertantul și membrii organelor sale de administrare, de conducere sau de supraveghere, precum și persoanele care au putere de reprezentare, de decizie sau de control în cadrul acestuia nu au fost condamnați prin hotărâre definitivă pentru vreuna dintre infracțiunile enumerate la art. 164 (grup infracțional organizat, corupție, fraudă, terorism, spălare de bani, trafic și exploatare de persoane vulnerabile ori fraudă împotriva intereselor financiare ale Uniunii Europene);",
+     "b) ofertantul nu și-a încălcat obligațiile privind plata impozitelor, taxelor sau a contribuțiilor la bugetul general consolidat, în sensul art. 165;",
+     "c) ofertantul nu se află în niciuna dintre situațiile de la art. 167 — încălcarea obligațiilor din domeniile mediului, social și al relațiilor de muncă, insolvență, lichidare, supraveghere judiciară sau încetarea activității, abatere profesională gravă, acorduri cu alți operatori economici care vizează denaturarea concurenței, conflict de interese, distorsionarea concurenței ca urmare a implicării anterioare în pregătirea procedurii, deficiențe grave în executarea unui contract anterior sancționate cu rezilierea, plata de daune-interese sau alte sancțiuni comparabile, ori furnizarea de informații false sau influențarea nelegală a procesului decizional al autorității contractante; de asemenea, ofertantul nu este o societate pe acțiuni cu capital reprezentat prin acțiuni la purtător ai căror deținători/beneficiari reali nu sunt identificați.",
+     "Prezenta declarație completează informațiile din DUAE. Mă angajez să prezint, la solicitarea autorității contractante, documentele doveditoare (certificate de atestare fiscală, cazier judiciar al societății și al reprezentanților legali, certificat constatator ONRC).",
+     "Subsemnatul declar că informațiile furnizate sunt complete și corecte în fiecare detaliu și înțeleg că autoritatea contractantă are dreptul de a solicita, în scopul verificării și confirmării declarațiilor, orice documente doveditoare de care dispunem. Înțeleg că în cazul în care această declarație nu este conformă cu realitatea sunt pasibil de încălcarea prevederilor legislației penale privind falsul în declarații (art. 326 din Legea nr. 286/2009 privind Codul penal)."
+    ],
+    "legal_basis": [
+     {
+      "key": "L98/2016:164",
+      "citation": "art. 164 din Legea nr. 98/2016 privind achizițiile publice",
+      "law": "Legea nr. 98/2016 privind achizițiile publice",
+      "article": "164",
+      "text": "(1) Autoritatea contractantă exclude din procedura de atribuire a contractului de achiziție publică/acordului-cadru orice operator economic cu privire la care a stabilit, în urma analizei informațiilor și documentelor prezentate de acesta, sau a luat cunoștință în orice alt mod că a fost condamnat prin hotărâre definitivă a unei instanțe judecătorești, pentru comiterea uneia dintre următoarele infracțiuni: a) […]",
+      "source_url": "https://legislatie.just.ro/Public/DetaliiDocument/178667",
+      "repealed": false
+     },
+     {
+      "key": "L98/2016:165",
+      "citation": "art. 165 din Legea nr. 98/2016 privind achizițiile publice",
+      "law": "Legea nr. 98/2016 privind achizițiile publice",
+      "article": "165",
+      "text": "(1) Autoritatea contractantă exclude din procedura de atribuire orice operator economic despre care: a) fie are cunoștință că și-a încălcat obligațiile privind plata impozitelor, taxelor sau a contribuțiilor la bugetul general consolidat, iar acest lucru a fost stabilit printr-o hotărâre judecătorească sau decizie administrativă având caracter definitiv și obligatoriu în conformitate cu legea statului în care […]",
+      "source_url": "https://legislatie.just.ro/Public/DetaliiDocument/178667",
+      "repealed": false
+     },
+     {
+      "key": "L98/2016:167",
+      "citation": "art. 167 din Legea nr. 98/2016 privind achizițiile publice",
+      "law": "Legea nr. 98/2016 privind achizițiile publice",
+      "article": "167",
+      "text": "(1) Autoritatea contractantă exclude din procedura de atribuire a contractului de achiziție publică/acordului-cadru orice operator economic care se află în oricare dintre următoarele situații: a) a încălcat obligațiile stabilite potrivit art. 51 , iar autoritatea contractantă poate demonstra acest lucru prin orice mijloc de probă adecvat, cum ar fi decizii ale autorităților competente prin care se constată […]",
+      "source_url": "https://legislatie.just.ro/Public/DetaliiDocument/178667",
+      "repealed": false
+     }
+    ]
+   },
+   {
+    "id": "sanctions_5k",
+    "heading": "Declarație privind neîncadrarea în interdicția prevăzută la art. 5k din Regulamentul (UE) nr. 833/2014",
+    "paragraphs": [
+     "Subscrisa [Denumirea ofertantului], cu sediul în [a se completa], înregistrată la Oficiul Registrului Comerțului sub nr. [a se completa], CUI [CUI], reprezentată legal prin [a se completa], în calitate de administrator, în calitate de ofertant la procedura de atribuire a contractului „Contract de achiziție publică de execuție lucrări suplimentare pentru obiectivul ”Reabilitarea și modernizarea Filarmonicii Moldova Iași”” (anunț nr. ELICITATIE-CN-101409914), organizată de JUDETUL IASI,",
+     "declar pe propria răspundere că nici ofertantul, nici vreunul dintre membrii asocierii, subcontractanții, furnizorii sau entitățile pe ale căror capacități ne bazăm nu se încadrează în categoriile prevăzute la art. 5k alin. (1) lit. (a)-(c) din Regulamentul (UE) nr. 833/2014, cu modificările ulterioare, respectiv:",
+     "a) nu suntem resortisanți ruși, persoane fizice cu reședința în Rusia ori persoane juridice, entități sau organisme stabilite în Rusia;",
+     "b) drepturile de proprietate asupra noastră nu sunt deținute, direct sau indirect, în proporție de peste 50% de către o persoană fizică sau juridică, o entitate ori un organism dintre cele de la lit. a);",
+     "c) nu acționăm în numele sau la instrucțiunile unei persoane, entități sau organism dintre cele de la lit. a) sau b).",
+     "Declar, de asemenea, că niciun subcontractant, furnizor sau entitate pe ale cărei capacități ne bazăm care se încadrează la lit. a)-c) nu reprezintă mai mult de 10% din valoarea contractului. Participanții care depășesc 10% din valoarea contractului sunt enumerați în tabelul de mai jos.",
+     "Mă angajez să nu folosesc, pe toată durata executării contractului, subcontractanți, furnizori sau entități care se încadrează în interdicție și peste pragul de 10%, și să informez de îndată autoritatea contractantă dacă intervine o modificare a structurii acționariatului sau a lanțului de aprovizionare de natură să ne încadreze în interdicție.",
+     "Subsemnatul declar că informațiile furnizate sunt complete și corecte în fiecare detaliu și înțeleg că autoritatea contractantă are dreptul de a solicita, în scopul verificării și confirmării declarațiilor, orice documente doveditoare de care dispunem. Înțeleg că în cazul în care această declarație nu este conformă cu realitatea sunt pasibil de încălcarea prevederilor legislației penale privind falsul în declarații (art. 326 din Legea nr. 286/2009 privind Codul penal)."
+    ],
+    "table": {
+     "caption": "Subcontractanți, furnizori și terți susținători care reprezintă peste 10% din valoarea contractului",
+     "columns": [
+      "Denumire",
+      "Calitate",
+      "Țara de stabilire / cetățenia",
+      "Pondere în valoarea contractului"
+     ],
+     "rows": [
+      [
+       "[a se completa]",
+       "subcontractant / furnizor / terț susținător",
+       "[a se completa]",
+       "[a se completa]"
+      ],
+      [
+       "[a se completa]",
+       "subcontractant / furnizor / terț susținător",
+       "[a se completa]",
+       "[a se completa]"
+      ]
+     ]
+    },
+    "legal_basis": [
+     {
+      "key": "REG833/2014:5k(1)",
+      "citation": "art. 5k alin. (1) din Regulamentul (UE) nr. 833/2014",
+      "law": "Regulamentul (UE) nr. 833/2014 al Consiliului privind măsuri restrictive având în vedere acțiunile Rusiei de destabilizare a situației în Ucraina",
+      "article": "5k(1)",
+      "text": "Se interzice atribuirea sau continuarea executării oricărui contract de achiziții publice sau a oricărei concesiuni care intră sub incidența directivelor privind achizițiile publice [...] către sau împreună cu: (a) un resortisant rus, o persoană fizică cu reședința în Rusia sau o persoană juridică, o entitate sau un organism stabilit(ă) în Rusia; (b) o persoană juridică, o entitate sau un organism ale cărui drepturi…",
+      "source_url": "https://eur-lex.europa.eu/legal-content/RO/TXT/?uri=CELEX:02014R0833-20260724",
+      "repealed": false,
+      "verified_on": "2026-10-24"
+     }
+    ]
+   },
+   {
+    "id": "beneficial_owner",
+    "heading": "Declarație privind beneficiarul real",
+    "paragraphs": [
+     "Subscrisa [Denumirea ofertantului], cu sediul în [a se completa], înregistrată la Oficiul Registrului Comerțului sub nr. [a se completa], CUI [CUI], reprezentată legal prin [a se completa], în calitate de administrator, în calitate de ofertant la procedura de atribuire a contractului „Contract de achiziție publică de execuție lucrări suplimentare pentru obiectivul ”Reabilitarea și modernizarea Filarmonicii Moldova Iași”” (anunț nr. ELICITATIE-CN-101409914), organizată de JUDETUL IASI,",
+     "declar pe propria răspundere că beneficiarul real/beneficiarii reali ai societății, în sensul art. 4 alin. (1) din Legea nr. 129/2019 pentru prevenirea și combaterea spălării banilor și finanțării terorismului, sunt persoanele fizice indicate în tabelul de mai jos, care dețin sau controlează în cele din urmă societatea.",
+     "Datele corespund celor declarate la Oficiul Național al Registrului Comerțului. Pentru contractele finanțate prin Mecanismul de redresare și reziliență, transmitem aceste date pentru ca autoritatea contractantă să își poată îndeplini obligația de colectare a datelor privind beneficiarul real al contractantului, prevăzută la art. 22 alin. (2) lit. (d) pct. (iii) din Regulamentul (UE) 2021/241.",
+     "Mă angajez să comunic de îndată autorității contractante orice modificare a beneficiarilor reali intervenită pe parcursul procedurii sau al executării contractului.",
+     "Subsemnatul declar că informațiile furnizate sunt complete și corecte în fiecare detaliu și înțeleg că autoritatea contractantă are dreptul de a solicita, în scopul verificării și confirmării declarațiilor, orice documente doveditoare de care dispunem. Înțeleg că în cazul în care această declarație nu este conformă cu realitatea sunt pasibil de încălcarea prevederilor legislației penale privind falsul în declarații (art. 326 din Legea nr. 286/2009 privind Codul penal)."
+    ],
+    "table": {
+     "caption": "Beneficiari reali",
+     "columns": [
+      "Nume și prenume",
+      "Data nașterii",
+      "Cetățenia",
+      "Modalitatea de deținere / control"
+     ],
+     "rows": [
+      [
+       "[a se completa]",
+       "[a se completa]",
+       "[a se completa]",
+       "[a se completa]"
+      ],
+      [
+       "[a se completa]",
+       "[a se completa]",
+       "[a se completa]",
+       "[a se completa]"
+      ]
+     ]
+    },
+    "legal_basis": [
+     {
+      "key": "L129/2019:4(1)",
+      "citation": "art. 4 alin. (1) din Legea nr. 129/2019",
+      "law": "Legea nr. 129/2019 pentru prevenirea și combaterea spălării banilor și finanțării terorismului",
+      "article": "4(1)",
+      "text": "În sensul prezentei legi, prin beneficiar real se înțelege orice persoană fizică ce deține sau controlează în cele din urmă clientul și/sau persoana fizică în numele ori în interesul căruia/căreia se realizează, direct sau indirect, o tranzacție, o operațiune sau o activitate.",
+      "source_url": "https://legislatie.just.ro/Public/DetaliiDocument/216157",
+      "repealed": false,
+      "verified_on": "2026-10-24"
+     },
+     {
+      "key": "REG2021/241:22(2)(d)",
+      "citation": "art. 22 alin. (2) lit. (d) din Regulamentul (UE) 2021/241",
+      "law": "Regulamentul (UE) 2021/241 de instituire a Mecanismului de redresare și reziliență",
+      "article": "22(2)(d)",
+      "text": "[...] de a colecta următoarele categorii de date standardizate și de a asigura accesul la acestea: [...] (ii) numele contractantului și al subcontractantului, în cazul în care destinatarul final al fondurilor este o autoritate contractantă în conformitate cu dreptul Uniunii sau cu dreptul intern privind achizițiile publice; (iii) prenumele, numele și data nașterii beneficiarului real al destinatarului fondurilor sau…",
+      "source_url": "https://eur-lex.europa.eu/legal-content/RO/TXT/?uri=CELEX:32021R0241",
+      "repealed": false,
+      "verified_on": "2026-10-24"
+     }
+    ]
+   },
+   {
+    "id": "dnsh",
+    "heading": "Declarație privind respectarea principiului „de a nu prejudicia în mod semnificativ” (DNSH)",
+    "paragraphs": [
+     "Subscrisa [Denumirea ofertantului], cu sediul în [a se completa], înregistrată la Oficiul Registrului Comerțului sub nr. [a se completa], CUI [CUI], reprezentată legal prin [a se completa], în calitate de administrator, în calitate de ofertant la procedura de atribuire a contractului „Contract de achiziție publică de execuție lucrări suplimentare pentru obiectivul ”Reabilitarea și modernizarea Filarmonicii Moldova Iași”” (anunț nr. ELICITATIE-CN-101409914), organizată de JUDETUL IASI,",
+     "declar pe propria răspundere că lucrările, produsele și serviciile ofertate, precum și modul de executare a contractului respectă principiul „de a nu prejudicia în mod semnificativ” (DNSH) în raport cu cele șase obiective de mediu prevăzute la art. 9 din Regulamentul (UE) 2020/852, astfel cum este definit la art. 17 din același regulament, și cerințele DNSH stabilite în documentația de atribuire și în documentele de finanțare ale proiectului (pentru PNRR, art. 5 alin. (2) din Regulamentul (UE) 2021/241).",
+     "Măsurile prin care asigurăm respectarea principiului pentru fiecare obiectiv sunt descrise în tabelul de mai jos și detaliate în propunerea tehnică; dovezile (fișe tehnice, certificări, planul de gestionare a deșeurilor) vor fi puse la dispoziția autorității contractante la solicitare.",
+     "Mă angajez să mențin aceste măsuri pe toată durata executării contractului și să suport consecințele nerespectării lor, inclusiv corecțiile financiare aplicate proiectului din această cauză.",
+     "Subsemnatul declar că informațiile furnizate sunt complete și corecte în fiecare detaliu și înțeleg că autoritatea contractantă are dreptul de a solicita, în scopul verificării și confirmării declarațiilor, orice documente doveditoare de care dispunem. Înțeleg că în cazul în care această declarație nu este conformă cu realitatea sunt pasibil de încălcarea prevederilor legislației penale privind falsul în declarații (art. 326 din Legea nr. 286/2009 privind Codul penal)."
+    ],
+    "table": {
+     "caption": "Măsuri DNSH pe obiective de mediu",
+     "columns": [
+      "Obiectiv de mediu",
+      "Măsura ofertantului",
+      "Dovada"
+     ],
+     "rows": [
+      [
+       "atenuarea schimbărilor climatice",
+       "[a se completa]",
+       "[a se completa]"
+      ],
+      [
+       "adaptarea la schimbările climatice",
+       "[a se completa]",
+       "[a se completa]"
+      ],
+      [
+       "utilizarea durabilă și protecția resurselor de apă și a celor marine",
+       "[a se completa]",
+       "[a se completa]"
+      ],
+      [
+       "tranziția către o economie circulară, inclusiv prevenirea generării de deșeuri și reciclarea",
+       "[a se completa]",
+       "[a se completa]"
+      ],
+      [
+       "prevenirea și controlul poluării",
+       "[a se completa]",
+       "[a se completa]"
+      ],
+      [
+       "protecția și refacerea biodiversității și a ecosistemelor",
+       "[a se completa]",
+       "[a se completa]"
+      ]
+     ]
+    },
+    "legal_basis": [
+     {
+      "key": "REG2021/241:5(2)",
+      "citation": "art. 5 alin. (2) din Regulamentul (UE) 2021/241",
+      "law": "Regulamentul (UE) 2021/241 de instituire a Mecanismului de redresare și reziliență",
+      "article": "5(2)",
+      "text": "Mecanismul sprijină doar măsurile de sprijin care respectă principiul „de a nu prejudicia în mod semnificativ”.",
+      "source_url": "https://eur-lex.europa.eu/legal-content/RO/TXT/?uri=CELEX:32021R0241",
+      "repealed": false,
+      "verified_on": "2026-10-24"
+     }
+    ]
+   }
+  ],
+  "sections_count": 7,
+  "status": "ready",
+  "disclaimer": "NOTĂ: Document generat automat ca schiță de lucru de motorul RO-INTEL. Conținutul trebuie verificat și completat de un specialist în achiziții publice prin raportare la documentația de atribuire specifică procedurii. Câmpurile marcate [a se completa] trebuie completate înainte de semnare. Citările legale sunt preluate din textele consolidate de pe legislatie.just.ro; confirmați forma în vigoare la data depunerii ofertei.",
+  "statutory_basis": {
+   "technical_specifications": [
+    {
+     "key": "L98/2016:155",
+     "citation": "art. 155 din Legea nr. 98/2016 privind achizițiile publice",
+     "law": "Legea nr. 98/2016 privind achizițiile publice",
+     "article": "155",
+     "text": "(1) Specificațiile tehnice sunt stabilite prin documentația de atribuire și definesc caracteristicile solicitate privind lucrarea, serviciul sau produsele care fac obiectul achiziției. (2) Caracteristicile prevăzute la alin. (1) pot de asemenea să vizeze procesul sau metoda specifică de execuție a lucrărilor, fabricație a produselor sau prestare a serviciilor solicitate sau un proces specific pentru un alt stadiu al ciclului de viață al acestora, chiar dacă aceste elemente nu fac parte din conținutul material al […]",
+     "source_url": "https://legislatie.just.ro/Public/DetaliiDocument/178667",
+     "repealed": false
+    },
+    {
+     "key": "L98/2016:156",
+     "citation": "art. 156 din Legea nr. 98/2016 privind achizițiile publice",
+     "law": "Legea nr. 98/2016 privind achizițiile publice",
+     "article": "156",
+     "text": "(1) Fără a aduce atingere normelor tehnice obligatorii de la nivel național, în măsura în care sunt compatibile cu actele normative adoptate la nivelul Uniunii Europene, specificațiile tehnice se stabilesc în una dintre următoarele modalități: a) prin raportare la cerințe de performanță sau cerințe funcționale, inclusiv caracteristici de mediu, cu condiția ca parametrii să fie suficient de preciși pentru a permite ofertanților să determine obiectul contractului și autoritățile contractante să atribuie contractul […]",
+     "source_url": "https://legislatie.just.ro/Public/DetaliiDocument/178667",
+     "repealed": false
+    }
+   ],
+   "exclusion_grounds": [
+    {
+     "key": "L98/2016:164",
+     "citation": "art. 164 din Legea nr. 98/2016 privind achizițiile publice",
+     "law": "Legea nr. 98/2016 privind achizițiile publice",
+     "article": "164",
+     "text": "(1) Autoritatea contractantă exclude din procedura de atribuire a contractului de achiziție publică/acordului-cadru orice operator economic cu privire la care a stabilit, în urma analizei informațiilor și documentelor prezentate de acesta, sau a luat cunoștință în orice alt mod că a fost condamnat prin hotărâre definitivă a unei instanțe judecătorești, pentru comiterea uneia dintre următoarele infracțiuni: a) constituirea unui grup infracțional organizat, prevăzută de art. 367 din Legea nr. 286/2009 privind Codul […]",
+     "source_url": "https://legislatie.just.ro/Public/DetaliiDocument/178667",
+     "repealed": false
+    },
+    {
+     "key": "L98/2016:165",
+     "citation": "art. 165 din Legea nr. 98/2016 privind achizițiile publice",
+     "law": "Legea nr. 98/2016 privind achizițiile publice",
+     "article": "165",
+     "text": "(1) Autoritatea contractantă exclude din procedura de atribuire orice operator economic despre care: a) fie are cunoștință că și-a încălcat obligațiile privind plata impozitelor, taxelor sau a contribuțiilor la bugetul general consolidat, iar acest lucru a fost stabilit printr-o hotărâre judecătorească sau decizie administrativă având caracter definitiv și obligatoriu în conformitate cu legea statului în care respectivul operator economic este înființat sau cu cele ale statului membru al autorității contractante […]",
+     "source_url": "https://legislatie.just.ro/Public/DetaliiDocument/178667",
+     "repealed": false
+    },
+    {
+     "key": "L98/2016:167",
+     "citation": "art. 167 din Legea nr. 98/2016 privind achizițiile publice",
+     "law": "Legea nr. 98/2016 privind achizițiile publice",
+     "article": "167",
+     "text": "(1) Autoritatea contractantă exclude din procedura de atribuire a contractului de achiziție publică/acordului-cadru orice operator economic care se află în oricare dintre următoarele situații: a) a încălcat obligațiile stabilite potrivit art. 51 , iar autoritatea contractantă poate demonstra acest lucru prin orice mijloc de probă adecvat, cum ar fi decizii ale autorităților competente prin care se constată încălcarea acestor obligații; b) se află în procedura insolvenței sau în lichidare, în supraveghere judiciară […]",
+     "source_url": "https://legislatie.just.ro/Public/DetaliiDocument/178667",
+     "repealed": false
+    }
+   ],
+   "qualification_criteria": [
+    {
+     "key": "L98/2016:172",
+     "citation": "art. 172 din Legea nr. 98/2016 privind achizițiile publice",
+     "law": "Legea nr. 98/2016 privind achizițiile publice",
+     "article": "172",
+     "text": "(1) Autoritatea contractantă are dreptul de a aplica în cadrul procedurii de atribuire numai criterii de capacitate referitoare la: a) capacitatea de exercitare a activității profesionale; b) situația economică și financiară; c) capacitatea tehnică și profesională. (2) Autoritatea contractantă nu are dreptul de a impune operatorilor economici alte cerințe de capacitate privind participarea la procedura de atribuire față de cele prevăzute la alin. (1) . (3) Autoritatea contractantă stabilește numai cerințe de participare care sunt necesare și adecvate pentru a se asigura că un candidat/ofertant are capacitatea juridică și financiară și competențele tehnice și profesionale pentru a executa […]",
+     "source_url": "https://legislatie.just.ro/Public/DetaliiDocument/178667",
+     "repealed": false
+    },
+    {
+     "key": "L98/2016:175",
+     "citation": "art. 175 din Legea nr. 98/2016 privind achizițiile publice",
+     "law": "Legea nr. 98/2016 privind achizițiile publice",
+     "article": "175",
+     "text": "(1) Autoritatea contractantă are dreptul de a stabili prin documentația de atribuire cerințe privind situația economică și financiară care sunt necesare și adecvate pentru a se asigura că operatorii economici dispun de capacitatea economică și financiară necesară pentru a executa contractul de achiziție publică/acordul-cadru și pentru a fi protejată față de un eventual risc de neîndeplinire corespunzătoare a contractului. (2) Cerințele privind situația economică și financiară stabilite de autoritatea contractantă pot viza elemente cum ar fi: a) un anumit nivel minim al cifrei de afaceri anuale, inclusiv o anumită cifră de afaceri minimă în domeniul obiectului contractului de achiziție […]",
+     "source_url": "https://legislatie.just.ro/Public/DetaliiDocument/178667",
+     "repealed": false
+    },
+    {
+     "key": "L98/2016:178",
+     "citation": "art. 178 din Legea nr. 98/2016 privind achizițiile publice",
+     "law": "Legea nr. 98/2016 privind achizițiile publice",
+     "article": "178",
+     "text": "(1) Autoritatea contractantă are dreptul de a stabili prin documentele achiziției cerințe privind capacitatea tehnică și profesională care sunt necesare și adecvate pentru a se asigura că operatorii economici dețin resursele umane și tehnice și experiența necesare pentru a executa contractul de achiziție publică/acordul-cadru la un standard de calitate corespunzător. (2) Cerințele privind capacitatea tehnică și profesională stabilite de autoritatea contractantă pot viza în special existența unui nivel corespunzător de experiență, prin raportare la contractele executate în trecut. (3) În cazul procedurilor de atribuire a contractelor de achiziție publică/acordurilor-cadru de servicii sau de […]",
+     "source_url": "https://legislatie.just.ro/Public/DetaliiDocument/178667",
+     "repealed": false
+    }
+   ]
+  }
+ },
+ "letters": {
+  "clarification": {
+   "document_type": "Solicitare de clarificări și remediere — art. 160 și 161 din Legea nr. 98/2016",
+   "doc_title": "Solicitare de clarificări și măsuri de remediere",
+   "sections": [
+    {
+     "paragraphs": [
+      "Către: JUDETUL IASI",
+      "În atenția: Compartimentului Achiziții Publice",
+      "",
+      "Expeditor: [Denumirea ofertantului], CUI [CUI]",
+      "Referință: anunț / procedură nr. ELICITATIE-CN-101409914",
+      "Obiect: Solicitare de clarificări și de măsuri de remediere a documentației de atribuire — „Contract de achiziție publică de execuție lucrări suplimentare pentru obiectivul ”Reabilitarea și modernizarea Filarmonicii Moldova Iași””",
+      "Data: 26.10.2026",
+      "",
+      "Stimată doamnă / Stimate domnule,"
+     ]
+    },
+    {
+     "paragraphs": [
+      "Subscrisa [Denumirea ofertantului], CUI [CUI], în calitate de operator economic interesat de participarea la procedura menționată în referință,",
+      "formulăm prezenta"
+     ]
+    },
+    {
+     "heading": "Solicitare de clarificări și de măsuri de remediere a documentației de atribuire",
+     "paragraphs": [
+      "cu privire la următoarele aspecte din documentația de atribuire:",
+      "1. Vă rugăm să precizați dacă cerința privind experiența similară poate fi îndeplinită prin contracte finalizate de un terț susținător, în condițiile art. 182 din Legea nr. 98/2016.\n2. Vă rugăm să confirmați dacă produsele cu denumire comercială indicate în caietul de sarcini pot fi înlocuite cu produse echivalente, conform art. 156 alin. (1) lit. b) din Legea nr. 98/2016."
+     ]
+    },
+    {
+     "heading": "Temei legal",
+     "paragraphs": [
+      "Solicitarea este formulată în temeiul art. 160 și 161 din Legea nr. 98/2016, precum și al art. 103 din HG nr. 395/2016.",
+      "Documentația de atribuire trebuie să asigure operatorilor economici o informare completă, corectă și precisă cu privire la cerințele achiziției (art. 154 alin. (1) din Legea nr. 98/2016), iar specificațiile tehnice trebuie să aibă legătură cu obiectul contractului și să fie proporționale cu valoarea și obiectivele acestuia (art. 155 și 156 din Legea nr. 98/2016). Cerințele care nu respectă aceste condiții încalcă principiile nediscriminării, tratamentului egal și proporționalității prevăzute la art. 2 alin. (2) din Legea nr. 98/2016.",
+      "Cerințele privind experiența similară trebuie stabilite proporțional cu obiectul și valoarea contractului, cu respectarea Instrucțiunii ANAP nr. 2/2017; o cerință care excede ceea ce este necesar pentru a demonstra capacitatea de executare a contractului restrânge nejustificat concurența."
+     ]
+    },
+    {
+     "heading": "Măsuri de remediere solicitate",
+     "paragraphs": [
+      "Pe cale de consecință, solicităm (i) clarificarea punctelor de mai sus și (ii) adoptarea măsurilor de remediere necesare — modificarea documentației de atribuire prin publicarea unei erate în SEAP și, dacă modificările sunt semnificative pentru pregătirea ofertelor, prelungirea corespunzătoare a termenului de depunere (art. 103 alin. (4) din HG nr. 395/2016).",
+      "Vă rugăm să publicați răspunsul în SEAP în termenul prevăzut la art. 161 din Legea nr. 98/2016, fără a dezvălui identitatea solicitantului."
+     ]
+    },
+    {
+     "paragraphs": [
+      "Cu deosebită considerație,",
+      "",
+      "[Denumirea ofertantului]",
+      "CUI: [CUI]",
+      "Reprezentant legal: [a se completa]",
+      "E-mail de contact: [a se completa]"
+     ],
+     "closing": true
+    }
+   ],
+   "legal_basis": [
+    "art. 160 și 161 din Legea nr. 98/2016",
+    "art. 155 și 156 din Legea nr. 98/2016",
+    "art. 2 alin. (2) din Legea nr. 98/2016"
+   ],
+   "legal_basis_verified": [
+    {
+     "key": "L98/2016:160",
+     "citation": "art. 160 din Legea nr. 98/2016 privind achizițiile publice",
+     "law": "Legea nr. 98/2016 privind achizițiile publice",
+     "article": "160",
+     "text": "(1) Orice operator economic interesat are dreptul de a solicita clarificări sau informații suplimentare în legătură cu documentația de atribuire, cu respectarea termenului limită stabilit de autoritatea contractantă în anunțul de participare/simplificat/de concurs. (2) Autoritatea contractantă stabilește prin anunțul de participare/simplificat/de concurs unul sau două termene-limită în care va răspunde în mod clar și complet tuturor solicitărilor de clarificare/informațiilor suplimentare, conform prevederilor […]",
+     "source_url": "https://legislatie.just.ro/Public/DetaliiDocument/178667",
+     "repealed": false
+    },
+    {
+     "key": "L98/2016:161",
+     "citation": "art. 161 din Legea nr. 98/2016 privind achizițiile publice",
+     "law": "Legea nr. 98/2016 privind achizițiile publice",
+     "article": "161",
+     "text": "(1) În măsura în care solicitările de clarificări sau informații suplimentare au fost adresate în termenul prevăzut în anunțul de participare/de concurs, răspunsul autorității contractante la aceste solicitări trebuie să fie transmis cu cel puțin 10 zile, respectiv 5 zile în situațiile de urgență demonstrate în mod corespunzător de autoritatea contractantă, prevăzute la art. 74 alin. (3) și art. 79 alin. (5) , înainte de termenul stabilit pentru depunerea ofertelor sau solicitărilor de participare. (2) În cazul […]",
+     "source_url": "https://legislatie.just.ro/Public/DetaliiDocument/178667",
+     "repealed": false
+    },
+    {
+     "key": "L98/2016:155",
+     "citation": "art. 155 din Legea nr. 98/2016 privind achizițiile publice",
+     "law": "Legea nr. 98/2016 privind achizițiile publice",
+     "article": "155",
+     "text": "(1) Specificațiile tehnice sunt stabilite prin documentația de atribuire și definesc caracteristicile solicitate privind lucrarea, serviciul sau produsele care fac obiectul achiziției. (2) Caracteristicile prevăzute la alin. (1) pot de asemenea să vizeze procesul sau metoda specifică de execuție a lucrărilor, fabricație a produselor sau prestare a serviciilor solicitate sau un proces specific pentru un alt stadiu al ciclului de viață al acestora, chiar dacă aceste elemente nu fac parte din conținutul material al […]",
+     "source_url": "https://legislatie.just.ro/Public/DetaliiDocument/178667",
+     "repealed": false
+    },
+    {
+     "key": "L98/2016:156",
+     "citation": "art. 156 din Legea nr. 98/2016 privind achizițiile publice",
+     "law": "Legea nr. 98/2016 privind achizițiile publice",
+     "article": "156",
+     "text": "(1) Fără a aduce atingere normelor tehnice obligatorii de la nivel național, în măsura în care sunt compatibile cu actele normative adoptate la nivelul Uniunii Europene, specificațiile tehnice se stabilesc în una dintre următoarele modalități: a) prin raportare la cerințe de performanță sau cerințe funcționale, inclusiv caracteristici de mediu, cu condiția ca parametrii să fie suficient de preciși pentru a permite ofertanților să determine obiectul contractului și autoritățile contractante să atribuie contractul […]",
+     "source_url": "https://legislatie.just.ro/Public/DetaliiDocument/178667",
+     "repealed": false
+    }
+   ],
+   "escalation_path": [
+    {
+     "key": "L101/2016:4",
+     "citation": "art. 4 din Legea nr. 101/2016 privind remediile și căile de atac",
+     "law": "Legea nr. 101/2016 privind remediile și căile de atac",
+     "article": "4",
+     "text": "(1) Pentru soluționarea contestației, persoana care se consideră vătămată se poate adresa: a) fie pe cale administrativ-jurisdicțională Consiliului Național de Soluționare a Contestațiilor; b) fie pe cale judiciară instanței de judecată. (2) Abrogat. (3) Autoritatea contractantă care a luat la cunoștință despre depunerea de către persoane diferite a unor contestații împotriva aceluiași act al autorității contractante, atât în fața Consiliului, cât și în fața instanței, are obligația să informeze Consiliul și instanța în acest sens, transmițând totodată copii de pe contestațiile formulate. (4) În cazul prevăzut la alin. (3) , instanța poate pronunța conexarea contestațiilor în condițiile […]",
+     "source_url": "https://legislatie.just.ro/Public/DetaliiDocument/178680",
+     "repealed": false
+    },
+    {
+     "key": "L101/2016:8",
+     "citation": "art. 8 din Legea nr. 101/2016 privind remediile și căile de atac",
+     "law": "Legea nr. 101/2016 privind remediile și căile de atac",
+     "article": "8",
+     "text": "(1) Persoana care se consideră vătămată de un act al autorității contractante poate sesiza Consiliul în vederea anulării actului autorității contractante, obligării acesteia la emiterea unui act sau la adoptarea de măsuri de remediere, precum și pentru recunoașterea dreptului pretins sau a interesului legitim, în termen de: a) 10 zile, începând cu ziua următoare luării la cunoștință despre actul autorității contractante considerat nelegal, în cazul în care valoarea estimată a procedurii de achiziție publică/sectorial sau de concesiune este egală sau mai mare decât pragurile valorice în raport cu care este obligatorie transmiterea spre publicare către Jurnalul Oficial al Uniunii Europene a […]",
+     "source_url": "https://legislatie.just.ro/Public/DetaliiDocument/178680",
+     "repealed": false
+    },
+    {
+     "key": "L101/2016:61^1",
+     "citation": "art. 61^1 din Legea nr. 101/2016 privind remediile și căile de atac",
+     "law": "Legea nr. 101/2016 privind remediile și căile de atac",
+     "article": "61^1",
+     "text": "(1) Pentru soluționarea contestației formulate în condițiile art. 8 sub sancțiunea respingerii acesteia, persoana care se consideră vătămată trebuie să constituie, în termen de maximum 5 zile de la data sesizării Consiliului, o cauțiune stabilită după cum urmează: a) 2% din valoarea estimată a contractului, în cazul în care aceasta este mai mică decât pragurile valorice prevăzute la art. 7 alin. (1) din Legea nr. 98/2016 , cu modificările și completările ulterioare, art. 12 alin. (1) din Legea nr. 99/2016 , cu modificările și completările ulterioare, art. 11 alin. (1) din Legea nr. 100/2016 , cu modificările și completările ulterioare, dar nu mai mult de 35.000 lei pentru contestațiile […]",
+     "source_url": "https://legislatie.just.ro/Public/DetaliiDocument/178680",
+     "repealed": false
+    }
+   ],
+   "counsel_notes": [
+    "Solicitarea de clarificări NU suspendă și NU prelungește termenul de contestare. Pentru conținutul documentației, termenul de 7 zile (art. 8 alin. (1) lit. b) din Legea nr. 101/2016) curge de la data publicării documentației în SEAP (art. 8 alin. (2) din Legea nr. 101/2016), nu de la răspunsul autorității.",
+    "Notificarea prealabilă NU mai există (art. 6-7 din Legea nr. 101/2016, abrogate prin OUG nr. 45/2018); nu este un pas obligatoriu înainte de contestație și nu prelungește niciun termen.",
+    "Verificați în fișa de date termenul-limită pentru transmiterea solicitărilor de clarificări — o solicitare tardivă nu obligă autoritatea să răspundă.",
+    "Dacă optați pentru contestație în această etapă, cauțiunea este de 35.000,00 lei (art. 61^1 alin. (1) lit. a) din Legea nr. 101/2016, etapa anterioară termenului de depunere a ofertelor), constituită în cel mult 5 zile de la sesizarea CNSC."
+   ],
+   "disclaimer": "Schiță generată automat. Verificați termenul exact de depunere a solicitărilor din fișa de date a achiziției înainte de transmitere.",
+   "recipient": "JUDETUL IASI",
+   "reference_id": "ELICITATIE-CN-101409914",
+   "request_type": "clarification",
+   "legal_metadata": {
+    "regime": "L98",
+    "regime_source": "auto",
+    "regime_reason": "Autoritate contractantă clasică (implicit).",
+    "regime_label": "Achiziții clasice",
+    "applicable_law": "Legea nr. 98/2016",
+    "norme_metodologice": "HG nr. 395/2016",
+    "contract_type": "lucrari",
+    "authority_level": "local",
+    "authority_level_source": "auto",
+    "thresholds": {
+     "direct_award_ron": 900400,
+     "direct_award_basis": "art. 7 alin. (5) din Legea nr. 98/2016",
+     "eu_ron": 26960556,
+     "eu_basis": "art. 7 alin. (1) din Legea nr. 98/2016",
+     "effective_from": "2026-01-01"
+    },
+    "estimated_value_ron": 16313668.44,
+    "transitional_note": "Pragurile se aplică după data lansării procedurii: cele din 2026 pentru procedurile inițiate după 1 ianuarie 2026. O procedură anulată și reluată este o procedură nouă și se raportează la pragurile în vigoare la reluare; contractele subsecvente unui acord-cadru urmează procedura acordului-cadru.",
+    "guarantees": {
+     "participation_max_pct": 1,
+     "participation_max_ron": 163136.68,
+     "performance_max_pct": 10,
+     "performance_max_ron": 1631366.84,
+     "basis": "art. 154 alin. (2)-(3) din Legea nr. 98/2016",
+     "note": "Garanția de participare: cel mult 1% din valoarea estimată (la acordul-cadru, din valoarea celui mai mare contract subsecvent), dacă documentația o cere. Garanția de bună execuție: cel mult 10% din prețul contractului fără TVA — calculată aici pe valoarea estimată; se recalculează pe prețul ofertat."
+    },
+    "abnormally_low": {
+     "presumption_pct": 80.0,
+     "threshold_ron": 13050934.75,
+     "presumption_basis": "art. 136 alin. (4) din HG nr. 395/2016 coroborat cu art. 210 alin. (1) din Legea nr. 98/2016",
+     "element_audit_basis": "art. 136 alin. (1)-(3) din HG nr. 395/2016",
+     "track1": "Preț ofertat, fără TVA, sub 80% din valoarea estimată: oferta este prezumată ca având un preț aparent neobișnuit de scăzut, iar autoritatea are obligația de a cere clarificări.",
+     "track2": "Independent de procentul total, comisia cere explicații pentru orice element de preț aparent neobișnuit de scăzut raportat la prețurile pieței; dovezile neconcludente fac oferta neconformă."
+    },
+    "lowest_price_allowed": true,
+    "lowest_price_basis": "art. 187 alin. (3^1) și (8) din Legea nr. 98/2016",
+    "discount_rate": {
+     "year": 2026,
+     "rate_pct": 8.2,
+     "basis": "Ordinul ANAP nr. 12/2026 și CNSP nr. 1/2026 (M. Of. nr. 38 din 20.01.2026)",
+     "scope": "Se folosește la calculul costului pe ciclul de viață când criteriul este „costul cel mai scăzut”, pentru contractele finanțate exclusiv de la bugetul de stat. La fonduri europene nerambursabile rămâne aplicabil art. 5 din Ordinul nr. 842/175/2016."
+    },
+    "verification": {
+     "checked_at": "2026-10-23T09:59:20.795298+00:00",
+     "source": "baza de date legislativă inclusă",
+     "status": "ok",
+     "thresholds_match": null,
+     "issues": []
+    },
+    "band": "simplified",
+    "procedure_name": "Procedură simplificată",
+    "procedure_basis": "art. 7 alin. (2) și art. 113 din Legea nr. 98/2016",
+    "above_eu_threshold": false,
+    "cnsc_deadline_days": 7,
+    "cnsc_deadline_basis": "art. 8 alin. (1) lit. b) din Legea nr. 101/2016",
+    "cnsc_deadline_note": "Zile calendaristice, începând cu ziua următoare luării la cunoștință; dacă ultima zi este nelucrătoare, termenul se prelungește până la următoarea zi lucrătoare (art. 5 din Legea nr. 101/2016). Pentru conținutul documentației, data luării la cunoștință este data publicării acesteia în SEAP (art. 8 alin. (2)).",
+    "cnsc_cautiune_ron": 35000,
+    "cautiune_stage": "pre_submission",
+    "cautiune": {
+     "percent": 2,
+     "uncapped_ron": 326273.37,
+     "pre_submission_ron": 35000,
+     "pre_submission_cap_ron": 35000,
+     "post_submission_ron": 88000,
+     "post_submission_cap_ron": 88000,
+     "basis": "art. 61^1 alin. (1) lit. a) din Legea nr. 101/2016",
+     "note": "Se constituie în cel mult 5 zile de la sesizarea Consiliului, sub sancțiunea respingerii contestației. Etapa (art. 17 alin. (1)): înainte, respectiv după data-limită de depunere a ofertelor. La acordul-cadru se raportează la dublul valorii celui mai mare contract subsecvent; la procedurile pe loturi, la valoarea fiecărui lot contestat (art. 61^1 alin. (2)-(2^2))."
+    },
+    "warnings": []
+   },
+   "generated_letter": "Către: JUDETUL IASI\nÎn atenția: Compartimentului Achiziții Publice\n\nExpeditor: [Denumirea ofertantului], CUI [CUI]\nReferință: anunț / procedură nr. ELICITATIE-CN-101409914\nObiect: Solicitare de clarificări și de măsuri de remediere a documentației de atribuire — „Contract de achiziție publică de execuție lucrări suplimentare pentru obiectivul ”Reabilitarea și modernizarea Filarmonicii Moldova Iași””\nData: 26.10.2026\n\nStimată doamnă / Stimate domnule,\n\nSubscrisa [Denumirea ofertantului], CUI [CUI], în calitate de operator economic interesat de participarea la procedura menționată în referință,\nformulăm prezenta\n\nSOLICITARE DE CLARIFICĂRI ȘI DE MĂSURI DE REMEDIERE A DOCUMENTAȚIEI DE ATRIBUIRE\ncu privire la următoarele aspecte din documentația de atribuire:\n1. Vă rugăm să precizați dacă cerința privind experiența similară poate fi îndeplinită prin contracte finalizate de un terț susținător, în condițiile art. 182 din Legea nr. 98/2016.\n2. Vă rugăm să confirmați dacă produsele cu denumire comercială indicate în caietul de sarcini pot fi înlocuite cu produse echivalente, conform art. 156 alin. (1) lit. b) din Legea nr. 98/2016.\n\nTEMEI LEGAL\nSolicitarea este formulată în temeiul art. 160 și 161 din Legea nr. 98/2016, precum și al art. 103 din HG nr. 395/2016.\nDocumentația de atribuire trebuie să asigure operatorilor economici o informare completă, corectă și precisă cu privire la cerințele achiziției (art. 154 alin. (1) din Legea nr. 98/2016), iar specificațiile tehnice trebuie să aibă legătură cu obiectul contractului și să fie proporționale cu valoarea și obiectivele acestuia (art. 155 și 156 din Legea nr. 98/2016). Cerințele care nu respectă aceste condiții încalcă principiile nediscriminării, tratamentului egal și proporționalității prevăzute la art. 2 alin. (2) din Legea nr. 98/2016.\nCerințele privind experiența similară trebuie stabilite proporțional cu obiectul și valoarea contractului, cu respectarea Instrucțiunii ANAP nr. 2/2017; o cerință care excede ceea ce este necesar pentru a demonstra capacitatea de executare a contractului restrânge nejustificat concurența.\n\nMĂSURI DE REMEDIERE SOLICITATE\nPe cale de consecință, solicităm (i) clarificarea punctelor de mai sus și (ii) adoptarea măsurilor de remediere necesare — modificarea documentației de atribuire prin publicarea unei erate în SEAP și, dacă modificările sunt semnificative pentru pregătirea ofertelor, prelungirea corespunzătoare a termenului de depunere (art. 103 alin. (4) din HG nr. 395/2016).\nVă rugăm să publicați răspunsul în SEAP în termenul prevăzut la art. 161 din Legea nr. 98/2016, fără a dezvălui identitatea solicitantului.\n\nCu deosebită considerație,\n\n[Denumirea ofertantului]\nCUI: [CUI]\nReprezentant legal: [a se completa]\nE-mail de contact: [a se completa]"
+  },
+  "abnormally_low_price": {
+   "document_type": "Justificare preț aparent neobișnuit de scăzut — art. 210 din Legea nr. 98/2016",
+   "doc_title": "Justificarea prețului aparent neobișnuit de scăzut",
+   "sections": [
+    {
+     "paragraphs": [
+      "Către: JUDETUL IASI",
+      "În atenția: Comisiei de evaluare",
+      "",
+      "Expeditor: [Denumirea ofertantului], CUI [CUI]",
+      "Referință: anunț / procedură nr. ELICITATIE-CN-101409914",
+      "Obiect: Justificarea prețului ofertat — „Contract de achiziție publică de execuție lucrări suplimentare pentru obiectivul ”Reabilitarea și modernizarea Filarmonicii Moldova Iași””",
+      "Data: 26.10.2026",
+      "",
+      "Stimată doamnă / Stimate domnule,"
+     ]
+    },
+    {
+     "paragraphs": [
+      "Subscrisa [Denumirea ofertantului], CUI [CUI], în calitate de ofertant în procedura menționată în referință,",
+      "ca răspuns la solicitarea dumneavoastră [a se completa], formulată în temeiul alin. (1) al art. 210 din Legea nr. 98/2016 și al art. 136 alin. (1) și (4) din HG nr. 395/2016, prezentăm fundamentarea prețului ofertat, de 12.398.388,01 lei fără TVA, structurată pe elementele prevăzute la alin. (2) al aceluiași articol și însoțită de dovezile concludente anexate."
+     ]
+    },
+    {
+     "heading": "a) Fundamentarea economică a modului de formare a prețului",
+     "paragraphs": [
+      "Prețul a fost construit ascendent, din costurile reale ale ofertantului pentru executarea contractului, conform structurii de mai jos. Pentru fiecare componentă se anexează documentele care o susțin."
+     ],
+     "table": {
+      "caption": "Structura prețului ofertat",
+      "columns": [
+       "Componentă",
+       "Valoare (lei, fără TVA)",
+       "Pondere",
+       "Dovezi anexate"
+      ],
+      "rows": [
+       [
+        "Manoperă (salarii, contribuții, sporuri)",
+        "[a se completa]",
+        "—",
+        "[oferte / state de plată / contracte anexate]"
+       ],
+       [
+        "Materiale, echipamente și produse (oferte furnizori)",
+        "[a se completa]",
+        "—",
+        "[oferte / state de plată / contracte anexate]"
+       ],
+       [
+        "Utilaje, transport și logistică",
+        "[a se completa]",
+        "—",
+        "[oferte / state de plată / contracte anexate]"
+       ],
+       [
+        "Cheltuieli indirecte",
+        "[a se completa]",
+        "—",
+        "[oferte / state de plată / contracte anexate]"
+       ],
+       [
+        "Profit",
+        "[a se completa]",
+        "—",
+        "[oferte / state de plată / contracte anexate]"
+       ],
+       [
+        "TOTAL (fără TVA)",
+        "[a se completa]",
+        "—",
+        ""
+       ]
+      ]
+     }
+    },
+    {
+     "heading": "b) Soluțiile tehnice adoptate și condițiile deosebit de favorabile",
+     "paragraphs": [
+      "[Descrieți soluțiile tehnice, prețurile preferențiale obținute de la furnizori, stocurile existente, amortizarea utilajelor proprii sau proximitatea față de amplasament.]"
+     ]
+    },
+    {
+     "heading": "c) Originalitatea lucrărilor, produselor sau serviciilor propuse",
+     "paragraphs": [
+      "[Dacă este cazul — tehnologii proprii, procedee brevetate sau know-how care reduc costul.]"
+     ]
+    },
+    {
+     "heading": "d) Respectarea obligațiilor din domeniile mediului, social și al relațiilor de muncă",
+     "paragraphs": [
+      "Prețul ofertat include integral costurile aferente respectării obligațiilor prevăzute la alin. (1) al art. 51 din Legea nr. 98/2016. Costul manoperei a fost calculat la un nivel de salarizare nu mai mic decât salariul minim brut pe țară garantat în plată în vigoare și, după caz, decât nivelul stabilit prin contractul colectiv de muncă aplicabil, cu toate contribuțiile aferente."
+     ]
+    },
+    {
+     "heading": "e) Respectarea obligațiilor privind subcontractarea",
+     "paragraphs": [
+      "Prețurile convenite cu subcontractanții propuși sunt reflectate în structura de mai sus și sunt susținute de acordurile de subcontractare anexate."
+     ]
+    },
+    {
+     "heading": "f) Ajutor de stat",
+     "paragraphs": [
+      "Ofertantul nu beneficiază de ajutor de stat pentru executarea prezentului contract."
+     ]
+    },
+    {
+     "heading": "Verificarea pe elemente de preț",
+     "paragraphs": [
+      "Pentru fiecare element de preț, anexăm dovezile pe care art. 136 alin. (2) din HG nr. 395/2016 le enumeră:"
+     ],
+     "table": {
+      "caption": "Elemente de preț și dovezile anexate",
+      "columns": [
+       "Element",
+       "Ce demonstrăm",
+       "Dovezi anexate"
+      ],
+      "rows": [
+       [
+        "Manoperă",
+        "Tariful orar acoperă salariul minim brut, contribuțiile și sporurile obligatorii pentru fiecare categorie de personal, iar orele-om corespund graficului.",
+        "Stat de funcții / extras din registrul salariaților pentru personalul propus, structura tarifului orar."
+       ],
+       [
+        "Materiale",
+        "Prețurile unitare din deviz sunt susținute de oferte ferme ale furnizorilor, datate și corelate cu cantitățile; materialele din producție proprie au fișă de calcul a costului.",
+        "Oferte de preț ale furnizorilor, contracte-cadru, situația stocurilor."
+       ],
+       [
+        "Utilaje și echipamente",
+        "Costul orar al utilajelor rezultă din inventarul propriu (amortizare, combustibil, întreținere) sau din contracte de închiriere cu tarif precizat.",
+        "Registrul mijloacelor fixe, contracte de închiriere, fișe tehnice."
+       ],
+       [
+        "Transport",
+        "Costul de transport este calculat pe distanțele reale până la amplasament și pe tarife reale, nu pe valori simbolice.",
+        "Calcul distanțe, tarife de transport, oferte ale transportatorilor."
+       ],
+       [
+        "Cheltuieli indirecte și profit",
+        "Cotele de cheltuieli indirecte și de profit sunt cuantificate pe capitole și rămân aceleași în toate răspunsurile la clarificări.",
+        "Fundamentarea cotelor (structura cheltuielilor generale ale societății), situații financiare."
+       ]
+      ]
+     }
+    },
+    {
+     "heading": "Concluzie",
+     "paragraphs": [
+      "Dovezile prezentate justifică în mod corespunzător nivelul prețului ofertat. Potrivit alin. (3) al art. 210 din Legea nr. 98/2016, oferta poate fi respinsă numai atunci când dovezile furnizate nu justifică nivelul scăzut al prețului; vă rugăm, pe cale de consecință, să constatați că prețul este fundamentat și că oferta este admisibilă."
+     ]
+    },
+    {
+     "paragraphs": [
+      "Cu deosebită considerație,",
+      "",
+      "[Denumirea ofertantului]",
+      "CUI: [CUI]",
+      "Reprezentant legal: [a se completa]",
+      "E-mail de contact: [a se completa]"
+     ],
+     "closing": true
+    }
+   ],
+   "price_breakdown": {
+    "components": {
+     "labor": 0.0,
+     "materials": 0.0,
+     "equipment_logistics": 0.0,
+     "overhead": 0.0,
+     "profit": 0.0
+    },
+    "total": 0.0,
+    "offered_price_ron": 12398388.01
+   },
+   "legal_basis": [
+    "art. 210 din Legea nr. 98/2016",
+    "art. 136 alin. (1)-(4) din HG nr. 395/2016"
+   ],
+   "legal_basis_verified": [
+    {
+     "key": "L98/2016:210",
+     "citation": "art. 210 din Legea nr. 98/2016 privind achizițiile publice",
+     "law": "Legea nr. 98/2016 privind achizițiile publice",
+     "article": "210",
+     "text": "(1) În cazul unei propuneri financiare aparent neobișnuit de scăzută în raport cu lucrările, produsele sau serviciile care constituie obiectul contractului de achiziție publică/acordului-cadru care urmează a fi atribuit/încheiat, autoritatea contractantă are obligația de a solicita ofertantului care a depus o astfel de ofertă clarificări cu privire la prețul sau costurile propuse în respectiva ofertă. (2) Clarificările prevăzute la alin. (1) se pot referi în special la: a) fundamentarea economică a modului de formare a prețului, prin raportare la procesul de producție, serviciile furnizate sau metodele de construcție utilizate; b) soluțiile tehnice adoptate și/sau orice condiții deosebit de favorabile de care beneficiază ofertantul pentru furnizarea produselor sau a serviciilor ori executarea lucrărilor; c) originalitatea lucrărilor, produselor sau serviciilor propuse de ofertant; d) […]",
+     "source_url": "https://legislatie.just.ro/Public/DetaliiDocument/178667",
+     "repealed": false
+    },
+    {
+     "key": "HG395/2016:136(4)",
+     "citation": "art. 136 alin. (4) din Normele metodologice aprobate prin HG nr. 395/2016",
+     "law": "Normele metodologice aprobate prin HG nr. 395/2016",
+     "article": "136",
+     "text": "(4) În sensul prevederilor art. 210 alin. (1) din Lege , o ofertă prezintă un preț aparent neobișnuit de scăzut în raport cu ceea ce urmează a fi furnizat, executat sau prestat atunci când prețul ofertat, fără TVA, reprezintă mai puțin de 80% din valoarea estimată a contractului respectiv.",
+     "source_url": "https://legislatie.just.ro/Public/DetaliiDocument/307053",
+     "repealed": false
+    },
+    {
+     "key": "HG395/2016:136",
+     "citation": "art. 136 din Normele metodologice aprobate prin HG nr. 395/2016",
+     "law": "Normele metodologice aprobate prin HG nr. 395/2016",
+     "article": "136",
+     "text": "(1) În situația în care comisia de evaluare constată că elemente de preț ale unei oferte sunt aparent neobișnuit de scăzute, prin raportare la prețurile pieței, utilizându-se ca referința în acest sens informații cum ar fi buletine statistice, sau cotații ale burselor de mărfuri, comisia de evaluare va solicita ofertantului care a depus oferta în cauză explicații cu privire la posibilitate îndeplinirii contractului în condițiile de calitate impuse prin documentația de atribuire. (2) Explicațiile aduse de ofertant conform prevederilor alin. (1) vor fi însoțite de dovezi concludente privind elementele prevăzute la art. 210 alin. (2) din Lege , precum și, după caz, documente privind prețurile ce pot fi obținute de la furnizori, situația stocurilor de materii prime și materiale, modul de organizare și metodele utilizate în cadrul procesului de lucru, nivelul de salarizare al personalului ofertantului, performanțele și costurile implicate de anumite utilaje sau echipamente de lucru. (3) În cazul în care ofertantul nu prezintă comisiei de evaluare informațiile și/sau documentele solicitate sau acestea nu justifică în mod corespunzător nivelul scăzut al prețului sau al costurilor propuse, oferta va fi considerată neconformă. (4) În sensul prevederilor art. 210 alin. (1) din Lege , o ofertă prezintă un preț aparent neobișnuit de scăzut în raport cu ceea ce urmează a fi furnizat, executat sau prestat atunci când prețul ofertat, fără TVA, reprezintă mai puțin de 80% din valoarea estimată a contractului respectiv.",
+     "source_url": "https://legislatie.just.ro/Public/DetaliiDocument/307053",
+     "repealed": false
+    }
+   ],
+   "abnormally_low_check": {
+    "presumption_pct": 80.0,
+    "threshold_ron": 13050934.75,
+    "presumption_basis": "art. 136 alin. (4) din HG nr. 395/2016 coroborat cu art. 210 alin. (1) din Legea nr. 98/2016",
+    "element_audit_basis": "art. 136 alin. (1)-(3) din HG nr. 395/2016",
+    "track1": "Preț ofertat, fără TVA, sub 80% din valoarea estimată: oferta este prezumată ca având un preț aparent neobișnuit de scăzut, iar autoritatea are obligația de a cere clarificări.",
+    "track2": "Independent de procentul total, comisia cere explicații pentru orice element de preț aparent neobișnuit de scăzut raportat la prețurile pieței; dovezile neconcludente fac oferta neconformă.",
+    "offered_price_ron": 12398388.01,
+    "ratio_pct": 76.0,
+    "presumption_triggered": true,
+    "margin_to_threshold_ron": -652546.74
+   },
+   "counsel_notes": [
+    "Prețul ofertat reprezintă 76,00% din valoarea estimată — sub pragul de 80% de la art. 136 alin. (4) din HG nr. 395/2016. Oferta este prezumată ca având un preț aparent neobișnuit de scăzut, de aceea vi s-a cerut justificarea; prezumția se răstoarnă numai cu dovezi concludente pentru fiecare componentă.",
+    "Fiecare componentă trebuie însoțită de dovezi concludente (oferte de la furnizori, situația stocurilor, state de salarii, costuri de utilaje) — art. 136 alin. (2) din HG nr. 395/2016. Lipsa lor face oferta neconformă (art. 136 alin. (3))."
+   ],
+   "disclaimer": "Schiță generată automat. Completați valorile și anexați dovezile pentru fiecare componentă.",
+   "recipient": "JUDETUL IASI",
+   "reference_id": "ELICITATIE-CN-101409914",
+   "request_type": "abnormally_low_price",
+   "legal_metadata": {
+    "regime": "L98",
+    "regime_source": "auto",
+    "regime_reason": "Autoritate contractantă clasică (implicit).",
+    "regime_label": "Achiziții clasice",
+    "applicable_law": "Legea nr. 98/2016",
+    "norme_metodologice": "HG nr. 395/2016",
+    "contract_type": "lucrari",
+    "authority_level": "local",
+    "authority_level_source": "auto",
+    "thresholds": {
+     "direct_award_ron": 900400,
+     "direct_award_basis": "art. 7 alin. (5) din Legea nr. 98/2016",
+     "eu_ron": 26960556,
+     "eu_basis": "art. 7 alin. (1) din Legea nr. 98/2016",
+     "effective_from": "2026-01-01"
+    },
+    "estimated_value_ron": 16313668.44,
+    "transitional_note": "Pragurile se aplică după data lansării procedurii: cele din 2026 pentru procedurile inițiate după 1 ianuarie 2026. O procedură anulată și reluată este o procedură nouă și se raportează la pragurile în vigoare la reluare; contractele subsecvente unui acord-cadru urmează procedura acordului-cadru.",
+    "guarantees": {
+     "participation_max_pct": 1,
+     "participation_max_ron": 163136.68,
+     "performance_max_pct": 10,
+     "performance_max_ron": 1631366.84,
+     "basis": "art. 154 alin. (2)-(3) din Legea nr. 98/2016",
+     "note": "Garanția de participare: cel mult 1% din valoarea estimată (la acordul-cadru, din valoarea celui mai mare contract subsecvent), dacă documentația o cere. Garanția de bună execuție: cel mult 10% din prețul contractului fără TVA — calculată aici pe valoarea estimată; se recalculează pe prețul ofertat."
+    },
+    "abnormally_low": {
+     "presumption_pct": 80.0,
+     "threshold_ron": 13050934.75,
+     "presumption_basis": "art. 136 alin. (4) din HG nr. 395/2016 coroborat cu art. 210 alin. (1) din Legea nr. 98/2016",
+     "element_audit_basis": "art. 136 alin. (1)-(3) din HG nr. 395/2016",
+     "track1": "Preț ofertat, fără TVA, sub 80% din valoarea estimată: oferta este prezumată ca având un preț aparent neobișnuit de scăzut, iar autoritatea are obligația de a cere clarificări.",
+     "track2": "Independent de procentul total, comisia cere explicații pentru orice element de preț aparent neobișnuit de scăzut raportat la prețurile pieței; dovezile neconcludente fac oferta neconformă."
+    },
+    "lowest_price_allowed": true,
+    "lowest_price_basis": "art. 187 alin. (3^1) și (8) din Legea nr. 98/2016",
+    "discount_rate": {
+     "year": 2026,
+     "rate_pct": 8.2,
+     "basis": "Ordinul ANAP nr. 12/2026 și CNSP nr. 1/2026 (M. Of. nr. 38 din 20.01.2026)",
+     "scope": "Se folosește la calculul costului pe ciclul de viață când criteriul este „costul cel mai scăzut”, pentru contractele finanțate exclusiv de la bugetul de stat. La fonduri europene nerambursabile rămâne aplicabil art. 5 din Ordinul nr. 842/175/2016."
+    },
+    "verification": {
+     "checked_at": "2026-10-23T09:59:20.795298+00:00",
+     "source": "baza de date legislativă inclusă",
+     "status": "ok",
+     "thresholds_match": null,
+     "issues": []
+    },
+    "band": "simplified",
+    "procedure_name": "Procedură simplificată",
+    "procedure_basis": "art. 7 alin. (2) și art. 113 din Legea nr. 98/2016",
+    "above_eu_threshold": false,
+    "cnsc_deadline_days": 7,
+    "cnsc_deadline_basis": "art. 8 alin. (1) lit. b) din Legea nr. 101/2016",
+    "cnsc_deadline_note": "Zile calendaristice, începând cu ziua următoare luării la cunoștință; dacă ultima zi este nelucrătoare, termenul se prelungește până la următoarea zi lucrătoare (art. 5 din Legea nr. 101/2016). Pentru conținutul documentației, data luării la cunoștință este data publicării acesteia în SEAP (art. 8 alin. (2)).",
+    "cnsc_cautiune_ron": 88000,
+    "cautiune_stage": "post_submission",
+    "cautiune": {
+     "percent": 2,
+     "uncapped_ron": 326273.37,
+     "pre_submission_ron": 35000,
+     "pre_submission_cap_ron": 35000,
+     "post_submission_ron": 88000,
+     "post_submission_cap_ron": 88000,
+     "basis": "art. 61^1 alin. (1) lit. a) din Legea nr. 101/2016",
+     "note": "Se constituie în cel mult 5 zile de la sesizarea Consiliului, sub sancțiunea respingerii contestației. Etapa (art. 17 alin. (1)): înainte, respectiv după data-limită de depunere a ofertelor. La acordul-cadru se raportează la dublul valorii celui mai mare contract subsecvent; la procedurile pe loturi, la valoarea fiecărui lot contestat (art. 61^1 alin. (2)-(2^2))."
+    },
+    "warnings": []
+   },
+   "generated_letter": "Către: JUDETUL IASI\nÎn atenția: Comisiei de evaluare\n\nExpeditor: [Denumirea ofertantului], CUI [CUI]\nReferință: anunț / procedură nr. ELICITATIE-CN-101409914\nObiect: Justificarea prețului ofertat — „Contract de achiziție publică de execuție lucrări suplimentare pentru obiectivul ”Reabilitarea și modernizarea Filarmonicii Moldova Iași””\nData: 26.10.2026\n\nStimată doamnă / Stimate domnule,\n\nSubscrisa [Denumirea ofertantului], CUI [CUI], în calitate de ofertant în procedura menționată în referință,\nca răspuns la solicitarea dumneavoastră [a se completa], formulată în temeiul alin. (1) al art. 210 din Legea nr. 98/2016 și al art. 136 alin. (1) și (4) din HG nr. 395/2016, prezentăm fundamentarea prețului ofertat, de 12.398.388,01 lei fără TVA, structurată pe elementele prevăzute la alin. (2) al aceluiași articol și însoțită de dovezile concludente anexate.\n\nA) FUNDAMENTAREA ECONOMICĂ A MODULUI DE FORMARE A PREȚULUI\nPrețul a fost construit ascendent, din costurile reale ale ofertantului pentru executarea contractului, conform structurii de mai jos. Pentru fiecare componentă se anexează documentele care o susțin.\nStructura prețului ofertat\nComponentă | Valoare (lei, fără TVA) | Pondere | Dovezi anexate\nManoperă (salarii, contribuții, sporuri) | [a se completa] | — | [oferte / state de plată / contracte anexate]\nMateriale, echipamente și produse (oferte furnizori) | [a se completa] | — | [oferte / state de plată / contracte anexate]\nUtilaje, transport și logistică | [a se completa] | — | [oferte / state de plată / contracte anexate]\nCheltuieli indirecte | [a se completa] | — | [oferte / state de plată / contracte anexate]\nProfit | [a se completa] | — | [oferte / state de plată / contracte anexate]\nTOTAL (fără TVA) | [a se completa] | — |\n\nB) SOLUȚIILE TEHNICE ADOPTATE ȘI CONDIȚIILE DEOSEBIT DE FAVORABILE\n[Descrieți soluțiile tehnice, prețurile preferențiale obținute de la furnizori, stocurile existente, amortizarea utilajelor proprii sau proximitatea față de amplasament.]\n\nC) ORIGINALITATEA LUCRĂRILOR, PRODUSELOR SAU SERVICIILOR PROPUSE\n[Dacă este cazul — tehnologii proprii, procedee brevetate sau know-how care reduc costul.]\n\nD) RESPECTAREA OBLIGAȚIILOR DIN DOMENIILE MEDIULUI, SOCIAL ȘI AL RELAȚIILOR DE MUNCĂ\nPrețul ofertat include integral costurile aferente respectării obligațiilor prevăzute la alin. (1) al art. 51 din Legea nr. 98/2016. Costul manoperei a fost calculat la un nivel de salarizare nu mai mic decât salariul minim brut pe țară garantat în plată în vigoare și, după caz, decât nivelul stabilit prin contractul colectiv de muncă aplicabil, cu toate contribuțiile aferente.\n\nE) RESPECTAREA OBLIGAȚIILOR PRIVIND SUBCONTRACTAREA\nPrețurile convenite cu subcontractanții propuși sunt reflectate în structura de mai sus și sunt susținute de acordurile de subcontractare anexate.\n\nF) AJUTOR DE STAT\nOfertantul nu beneficiază de ajutor de stat pentru executarea prezentului contract.\n\nVERIFICAREA PE ELEMENTE DE PREȚ\nPentru fiecare element de preț, anexăm dovezile pe care art. 136 alin. (2) din HG nr. 395/2016 le enumeră:\nElemente de preț și dovezile anexate\nElement | Ce demonstrăm | Dovezi anexate\nManoperă | Tariful orar acoperă salariul minim brut, contribuțiile și sporurile obligatorii pentru fiecare categorie de personal, iar orele-om corespund graficului. | Stat de funcții / extras din registrul salariaților pentru personalul propus, structura tarifului orar.\nMateriale | Prețurile unitare din deviz sunt susținute de oferte ferme ale furnizorilor, datate și corelate cu cantitățile; materialele din producție proprie au fișă de calcul a costului. | Oferte de preț ale furnizorilor, contracte-cadru, situația stocurilor.\nUtilaje și echipamente | Costul orar al utilajelor rezultă din inventarul propriu (amortizare, combustibil, întreținere) sau din contracte de închiriere cu tarif precizat. | Registrul mijloacelor fixe, contracte de închiriere, fișe tehnice.\nTransport | Costul de transport este calculat pe distanțele reale până la amplasament și pe tarife reale, nu pe valori simbolice. | Calcul distanțe, tarife de transport, oferte ale transportatorilor.\nCheltuieli indirecte și profit | Cotele de cheltuieli indirecte și de profit sunt cuantificate pe capitole și rămân aceleași în toate răspunsurile la clarificări. | Fundamentarea cotelor (structura cheltuielilor generale ale societății), situații financiare.\n\nCONCLUZIE\nDovezile prezentate justifică în mod corespunzător nivelul prețului ofertat. Potrivit alin. (3) al art. 210 din Legea nr. 98/2016, oferta poate fi respinsă numai atunci când dovezile furnizate nu justifică nivelul scăzut al prețului; vă rugăm, pe cale de consecință, să constatați că prețul este fundamentat și că oferta este admisibilă.\n\nCu deosebită considerație,\n\n[Denumirea ofertantului]\nCUI: [CUI]\nReprezentant legal: [a se completa]\nE-mail de contact: [a se completa]"
+  }
+ }
+}

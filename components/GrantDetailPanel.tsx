@@ -65,7 +65,7 @@ export default function GrantDetailPanel({ grant, onClose }: { grant: Eligibilit
 			>
 				<div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-divider bg-paper/95 p-4 backdrop-blur sm:p-6">
 					<div className="min-w-0">
-						<Eyebrow className="text-editorial">Linie de finanțare · {grant.program_id}</Eyebrow>
+						<Eyebrow className="text-accent">Linie de finanțare · {grant.program_id}</Eyebrow>
 						<h2 className="font-display mt-2 text-xl font-semibold leading-tight tracking-tight sm:text-2xl">{grant.program_name}</h2>
 					</div>
 					<button onClick={requestClose} aria-label="Închide" className="-mr-1 -mt-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-stock-500 transition-all duration-300 hover:neu-pressed-sm hover:text-ink">
@@ -106,7 +106,7 @@ export default function GrantDetailPanel({ grant, onClose }: { grant: Eligibilit
 					</div>
 
 					{uncertain && grant.caen_match && (
-						<div className="neu-pressed mt-5 rounded-r-lg border-l-2 border-editorial bg-editorial-soft px-4 py-3">
+						<div className="mt-5 rounded-xl border border-editorial-line bg-editorial-soft px-4 py-3">
 							<div className="flex items-center gap-2">
 								<Badge tone="neutral">Potrivire incertă · {grant.caen_match.depth}</Badge>
 							</div>

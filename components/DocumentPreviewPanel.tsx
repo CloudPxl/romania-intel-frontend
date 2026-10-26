@@ -9,7 +9,7 @@ import { formatNumber } from "@/lib/format";
 // LeadDossierPanel, whose slide-over this mirrors.
 const CLOSE_ANIMATION_MS = 320;
 
-const ACTION_BUTTON = "bg-[#006494] text-white hover:text-white";
+const ACTION_BUTTON = "border-transparent bg-editorial text-white hover:bg-editorial-light";
 
 function SectionTable({ table }: { table: NonNullable<DocumentSection["table"]> }) {
   return (
@@ -168,7 +168,7 @@ export default function DocumentPreviewPanel({
         <div className="z-10 border-b border-divider bg-paper/95 p-4 backdrop-blur sm:p-6">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <Eyebrow className="text-editorial">{eyebrow}</Eyebrow>
+              <Eyebrow className="text-accent">{eyebrow}</Eyebrow>
               <h2 className="font-display mt-2 text-xl font-semibold leading-tight tracking-tight">{title}</h2>
               {subtitle && <p className="font-body mt-1 text-sm text-stock-600">{subtitle}</p>}
             </div>
@@ -281,7 +281,7 @@ export default function DocumentPreviewPanel({
                 <details key={c.key} className="border-b border-divider py-2 last:border-b-0">
                   <summary className="cursor-pointer font-mono text-[11px] text-stock-600">{c.citation}</summary>
                   <p className="font-body mt-1.5 text-xs leading-relaxed text-stock-500">„{c.text}”</p>
-                  <a href={c.source_url} target="_blank" rel="noopener noreferrer" className="font-mono mt-1 inline-block text-[10px] text-editorial">
+                  <a href={c.source_url} target="_blank" rel="noopener noreferrer" className="font-mono mt-1 inline-block text-[10px] text-accent">
                     Sursa oficială →
                   </a>
                 </details>

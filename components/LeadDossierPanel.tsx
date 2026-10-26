@@ -15,9 +15,10 @@ import {
   type PreSeapMode,
   type TenderBrief,
 } from "@/lib/api";
-import { formatDate, formatLeadValue, formatNumber } from "@/lib/format";
+import { formatDate, formatNumber } from "@/lib/format";
 import { PRE_SEAP_FOIA_PRESETS, analyticsHref, draftingHref, foiaHref } from "@/lib/toolLinks";
-import { Button, Eyebrow } from "@/components/newsprint";
+import { Button } from "@/components/newsprint";
+import { daysLeft, deadlineLabel, deadlineTone } from "@/components/registry";
 import AuthorityProfilePanel from "@/components/AuthorityProfilePanel";
 
 // Matches --duration-base in globals.css. The exit keyframes are that
@@ -25,7 +26,7 @@ import AuthorityProfilePanel from "@/components/AuthorityProfilePanel";
 // caller's `{selectedLead && <LeadDossierPanel .../>}`) has to wait for
 // them to finish, since a conditionally-rendered element has nothing
 // left to animate once React has already removed it from the DOM.
-const CLOSE_ANIMATION_MS = 320;
+const CLOSE_ANIMATION_MS = 200;
 
 /**
  * The right-side "Dosar strategic" slide-over — extracted out of Căutare
@@ -74,31 +75,33 @@ function TenderBriefSection({ sourceId }: { sourceId: string }) {
   const regime = brief.legal_regime;
 
   return (
-    <div className="mt-5">
-      <Eyebrow className="mb-1.5">Brief AI al licitației</Eyebrow>
+    <section className="rounded-xl border border-divider bg-paper p-5">
+      <div className="mb-2 flex items-center gap-2">
+        <Sparkles size={16} className="text-accent" aria-hidden />
+        <h3 className="text-[16px] font-semibold">Sinteza AI</h3>
+        <span className="text-[13px] text-stock-400">{brief.status === "ready" ? "partajată · fără credit" : "1 credit"}</span>
+      </div>
       {regime?.procedure_name && !regime.not_applicable && (
-        <p className="font-mono mb-2 text-[11px] text-stock-500">
+        <p className="tabular mb-2 text-[13px] leading-5 text-stock-500">
           {regime.applicable_law} · {regime.procedure_name} ·{" "}
           {regime.cnsc_deadline_days ? `contestație CNSC ${regime.cnsc_deadline_days} zile` : "contestare în instanță (L554/2004)"}
           {regime.cautiune && ` · cauțiune ${formatNumber(regime.cautiune.pre_submission_ron)} lei`}
         </p>
       )}
       {brief.status === "ready" && brief.brief ? (
-        <div className="neu-pressed rounded-2xl bg-paper px-4 py-3">
-          <p className="font-body whitespace-pre-wrap text-sm leading-relaxed text-stock-600">{brief.brief}</p>
-          <p className="font-mono mt-2 text-[10px] uppercase tracking-widest text-stock-400">
-            Generat cu AI din datele publicate — verificați în documentația oficială
-          </p>
-        </div>
+        <>
+          <p className="whitespace-pre-wrap text-[15px] leading-6 text-stock-600">{brief.brief}</p>
+          <p className="mt-2 text-[13px] text-stock-400">Generată cu AI din datele publicate — verificați în documentația oficială.</p>
+        </>
       ) : brief.status === "pending" ? (
-        <p className="font-body text-sm text-stock-500">În pregătire în lotul de noapte — disponibil în câteva ore.</p>
+        <p className="text-[15px] text-stock-500">În pregătire în lotul de noapte — disponibilă în câteva ore.</p>
       ) : (
         <Button variant="outline" onClick={handleGenerate} disabled={busy} fullWidth>
-          {busy ? "Se generează brief-ul…" : "Generează brief AI (1 credit)"}
+          {busy ? "Se generează…" : "Generează sinteza AI (1 credit)"}
         </Button>
       )}
-      {error && <p className="font-body mt-1.5 text-xs text-warning">{error}</p>}
-    </div>
+      {error && <p className="mt-2 text-[14px] text-warning">{error}</p>}
+    </section>
   );
 }
 
@@ -118,26 +121,26 @@ function PreSeapSection({ mode, onRequest }: { mode: PreSeapMode; onRequest: () 
     ["Stadiul investiției", mode.investment_stage],
   ];
   return (
-    <div className="neu-pressed mt-5 rounded-2xl border-l-2 border-editorial bg-paper px-4 py-4">
-      <Eyebrow className="text-editorial">Semnal pre-SEAP — încă nu este licitație</Eyebrow>
+    <section className="rounded-xl border border-warning/25 bg-warning-soft p-5">
+      <p className="label-eyebrow text-warning">Semnal pre-SEAP — încă nu este licitație</p>
       <dl className="mt-3 grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">
         {rows
           .filter(([, v]) => v)
           .map(([label, value]) => (
             <div key={label}>
-              <dt className="font-sans text-[10px] font-semibold uppercase tracking-widest text-stock-500">{label}</dt>
-              <dd className="font-body text-sm leading-snug">{value}</dd>
+              <dt className="text-[13px] text-stock-500">{label}</dt>
+              <dd className="text-[15px] leading-snug text-ink">{value}</dd>
             </div>
           ))}
       </dl>
-      <p className="font-body mt-3 text-sm leading-relaxed text-stock-600">{mode.next_step}</p>
-      <div className="mt-3">
+      <p className="mt-3 text-[15px] leading-6 text-stock-600">{mode.next_step}</p>
+      <div className="mt-4">
         <Button onClick={onRequest} fullWidth>
           Cerere informații interes public — Legea 544/2001
         </Button>
       </div>
-      <p className="font-body mt-2 text-xs leading-relaxed text-stock-500">{mode.not_applicable}</p>
-    </div>
+      <p className="mt-3 text-[13px] leading-5 text-stock-500">{mode.not_applicable}</p>
+    </section>
   );
 }
 
@@ -231,121 +234,78 @@ export default function LeadDossierPanel({ lead, onClose }: { lead: Lead; onClos
     }
   };
 
+  const days = daysLeft(lead.action_deadline);
+  const value = lead.financial_value_ron || 0;
+  const facts: { label: string; value: React.ReactNode; sub?: string; tone?: string }[] = [
+    { label: preSeap ? "Valoare investiție" : "Valoare estimată", value: value ? `${formatNumber(Math.round(value))} lei` : "nepublicată", sub: "fără TVA" },
+    preSeap
+      ? { label: "Sursă finanțare", value: lead.funding_source || "nespecificată" }
+      : { label: "Prag 80% · art. 210", value: value ? `${formatNumber(Math.round(value * 0.8))} lei` : "—", sub: "sub el se cere justificarea" },
+    { label: "Termen depunere", value: lead.action_deadline ? formatDate(lead.action_deadline) : "nespecificat", sub: deadlineLabel(days), tone: deadlineTone(days) },
+    { label: "Publicat", value: formatDate(lead.published_date), sub: lead.source_type || undefined },
+    { label: "Procedură", value: lead.procedure_type ? PROCEDURE_TYPE_LABELS[lead.procedure_type] ?? lead.procedure_type : "nespecificată", sub: lead.award_criterion ? `criteriu: ${lead.award_criterion}` : undefined },
+    { label: "Scor proiect", value: lead.opportunity_score != null ? `${lead.opportunity_score} / 10` : "—", sub: lead.match?.is_match ? "se potrivește profilului" : undefined },
+  ];
+
   return (
     <>
       <div className="fixed inset-0 z-50">
         <div
-          className={
-            "absolute inset-0 bg-ink/50 backdrop-blur-sm " +
-            (closing
-              ? "animate-[fade-out_var(--duration-base)_var(--ease-glide)_both]"
-              : "animate-[fade-in_var(--duration-base)_var(--ease-glide)_both]")
-          }
+          className={"absolute inset-0 bg-overlay " + (closing ? "animate-[fade-out_var(--duration-base)_both]" : "animate-[fade-in_var(--duration-base)_both]")}
           onClick={requestClose}
           aria-hidden="true"
         />
-        <div
+        <aside
           role="dialog"
           aria-modal="true"
-          aria-label="Dosar strategic"
+          aria-label="Dosarul licitației"
           className={
-            "absolute inset-y-0 right-0 flex w-full max-w-xl flex-col overflow-y-auto bg-paper " +
+            "absolute inset-y-0 right-0 flex w-full max-w-[560px] flex-col bg-canvas shadow-float " +
             (closing
               ? "animate-[slide-over-right-out_var(--duration-base)_var(--ease-glide)_both]"
               : "animate-[slide-over-right_var(--duration-base)_var(--ease-glide)_both]")
           }
         >
-          <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-divider bg-paper/95 p-4 backdrop-blur sm:p-6">
-            <div className="min-w-0">
-              <Eyebrow className="text-editorial">
-                {preSeap ? "Semnal pre-SEAP" : "Dosar strategic"} · {lead.source_id}
-              </Eyebrow>
-              <h2 className="font-display mt-2 text-xl font-semibold leading-tight tracking-tight sm:text-2xl">
-                {lead.project_title}
-              </h2>
-              <p className="font-body mt-1 text-sm text-stock-600">
+          <div className="flex h-16 shrink-0 items-center gap-3 border-b border-divider bg-paper px-5">
+            <span className={"label-eyebrow " + (preSeap ? "text-warning" : "text-accent")}>{preSeap ? "Semnal pre-SEAP" : "Dosar"}</span>
+            <span className="tabular truncate text-[13px] text-stock-400">{lead.source_id}</span>
+            <span className="flex-1" />
+            <button onClick={requestClose} aria-label="Închide dosarul" className="flex h-10 w-10 items-center justify-center rounded-lg text-stock-500 hover:bg-surface-2 hover:text-ink">
+              <X size={20} />
+            </button>
+          </div>
+
+          <div className="flex flex-1 flex-col gap-5 overflow-y-auto px-5 pb-8 pt-6 [&>*]:shrink-0">
+            <div>
+              <h2 className="text-xl font-semibold leading-7 tracking-[-0.01em] text-ink">{lead.project_title}</h2>
+              <p className="mt-1.5 text-[15px] leading-6 text-stock-500">
                 {lead.entity_name ? (
                   <button
                     onClick={() => setAuthorityOpen(true)}
-                    className="underline decoration-divider underline-offset-4 transition-colors hover:text-editorial"
+                    className="font-medium text-ink underline decoration-line-strong underline-offset-4 hover:text-accent hover:decoration-current"
                     title="Profilul autorității: atribuiri reale, concentrare, câștigători"
                   >
                     {lead.entity_name}
                   </button>
                 ) : null}
-                {lead.county ? ` · ${lead.county}` : ""}
+                {lead.authority_cui && <span className="tabular"> · CUI {lead.authority_cui}</span>}
+                {lead.county && lead.county !== "Necunoscut" ? ` · ${lead.county}` : ""}
+                {lead.cpv_code && <span className="tabular"> · CPV {lead.cpv_code}</span>}
               </p>
             </div>
-            <button
-              onClick={requestClose}
-              aria-label="Închide dosarul"
-              className="-mr-1 -mt-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-stock-500 transition-all duration-300 hover:neu-pressed-sm hover:text-ink"
-            >
-              <X size={20} strokeWidth={1.5} />
-            </button>
-          </div>
 
-          <div className="flex-1 p-4 sm:p-6">
-            <div className="grid grid-cols-2 divide-x divide-divider neu-pressed overflow-hidden rounded-2xl bg-paper">
-              <div className="p-4">
-                <Eyebrow>{preSeap ? "Valoare investiție" : "Buget estimat"}</Eyebrow>
-                <p
-                  className={
-                    "mt-1 leading-snug " +
-                    (lead.financial_value_ron
-                      ? "tabular font-display text-xl font-semibold leading-none"
-                      : "font-body text-sm italic text-stock-400")
-                  }
-                >
-                  {formatLeadValue(lead.financial_value_ron)}
-                </p>
-              </div>
-              <div className="p-4">
-                <Eyebrow>Sursă finanțare</Eyebrow>
-                <p className="font-display mt-1 text-base font-semibold leading-tight">
-                  {lead.funding_source || "Nespecificat"}
-                </p>
-              </div>
-            </div>
-
-            <div className="scroll-x mt-5">
-              <table className="w-full min-w-[26rem] neu-pressed overflow-hidden rounded-2xl bg-paper text-left font-mono text-xs">
-                <tbody>
-                  {[
-                    ["Data publicării", formatDate(lead.published_date)],
-                    [preSeap ? "Termen" : "Termen dialog tehnic", lead.action_deadline || "Nespecificat"],
-                    ["CUI autoritate", lead.authority_cui || "Nepublicat"],
-                    [
-                      "Tip procedură",
-                      lead.procedure_type
-                        ? PROCEDURE_TYPE_LABELS[lead.procedure_type] ?? lead.procedure_type
-                        : "Nespecificat",
-                    ],
-                    // "Nepublicat" rather than "Niciunul": no live scraper
-                    // has found e-licitatie.ro's per-notice endpoint for
-                    // this yet, so an empty value means we don't have it —
-                    // not that the procedure lacks a criterion.
-                    ["Criteriu de atribuire", lead.award_criterion || "Nepublicat"],
-                    ["Cod CPV", lead.cpv_code || "—"],
-                    ["Registru sursă", lead.source_type || "—"],
-                    ["Scor proiect", lead.opportunity_score != null ? `${lead.opportunity_score} / 10` : "—"],
-                  ].map(([label, value]) => (
-                    <tr key={label} className="border-b border-divider last:border-b-0">
-                      <th
-                        scope="row"
-                        className="w-44 border-r border-divider px-3 py-2.5 font-sans text-[10px] font-semibold uppercase tracking-widest text-stock-500"
-                      >
-                        {label}
-                      </th>
-                      <td className="px-3 py-2.5">{value}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-divider bg-divider">
+              {facts.map((f) => (
+                <div key={f.label} className="bg-paper px-4 py-3">
+                  <div className="text-[13px] text-stock-500">{f.label}</div>
+                  <div className="tabular mt-0.5 text-[15px] font-medium text-ink">{f.value}</div>
+                  {f.sub && <div className={"text-[13px] " + (f.tone || "text-stock-400")}>{f.sub}</div>}
+                </div>
+              ))}
             </div>
 
             {lead.metadata?.seap_cross_reference && (
-              <p className="font-mono mt-2 text-[11px] uppercase tracking-widest text-stock-500">
+              <p className="text-[13px] text-stock-500">
                 Posibilă corespondență SEAP · bază:{" "}
                 {lead.metadata.seap_cross_reference.basis
                   .map((b) => ({ cpv_prefix: "CPV", value_within_tolerance: "valoare", buyer_name: "autoritate" }[b]))
@@ -353,105 +313,73 @@ export default function LeadDossierPanel({ lead, onClose }: { lead: Lead; onClos
               </p>
             )}
 
-            {preSeap && (
-              <PreSeapSection
-                mode={preSeap}
-                onRequest={() => router.push(foiaHref(lead.source_id, preSeap.foia_presets, fallback))}
-              />
+            {preSeap && <PreSeapSection mode={preSeap} onRequest={() => router.push(foiaHref(lead.source_id, preSeap.foia_presets, fallback))} />}
+
+            {!preSeap && (
+              <div className="flex flex-col gap-2">
+                <Button onClick={() => router.push(draftingHref(lead.source_id, "clarificari", fallback))}>Redactează clarificarea · art. 160</Button>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button variant="outline" onClick={() => router.push(analyticsHref(lead.source_id, "caiet", fallback))}>
+                    Scanează caietul
+                  </Button>
+                  <Button variant="outline" onClick={() => router.push(analyticsHref(lead.source_id, "win", fallback))}>
+                    Verifică prețul
+                  </Button>
+                  <Button variant="outline" onClick={() => router.push(draftingHref(lead.source_id, "propunere", fallback))}>
+                    Propunere tehnică
+                  </Button>
+                  <Button variant="outline" onClick={() => router.push(analyticsHref(lead.source_id, "competitor", fallback))}>
+                    Profil de piață
+                  </Button>
+                </div>
+              </div>
             )}
 
             {lead.source_id && <TenderBriefSection sourceId={lead.source_id} />}
 
-            {lead.sales_pitch_angle && (
-              <div className="neu-pressed mt-5 rounded-r-lg border-l-2 border-editorial bg-editorial-soft px-4 py-3">
-                <Eyebrow className="text-editorial">Poziționare tehnică</Eyebrow>
-                <p className="font-body mt-1.5 text-sm leading-relaxed">{lead.sales_pitch_angle}</p>
-              </div>
-            )}
-
-            {lead.executive_summary && (
-              <div className="mt-5">
-                <Eyebrow className="mb-1.5">Sinteză</Eyebrow>
-                <p className="font-body mt-2 text-sm leading-relaxed text-stock-600">{lead.executive_summary}</p>
-              </div>
-            )}
-
-            <div className="mt-6">
-              <Eyebrow className="mb-3">Acțiuni</Eyebrow>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                <Button onClick={handleSaveToPipeline} disabled={busyAction === "pipeline"}>
-                  {busyAction === "pipeline" ? "Se salvează…" : "Salvează în pipeline"}
-                </Button>
-                <Button variant="outline" onClick={handleSendEmailAlert} disabled={busyAction === "email"}>
-                  {busyAction === "email" ? "Se expediază…" : "Trimite alertă email"}
-                </Button>
-                {/* Bid tools need a procedure: hidden for a pre-SEAP signal. */}
-                {!preSeap && (
+            {(lead.sales_pitch_angle || lead.executive_summary) && (
+              <section className="rounded-xl border border-divider bg-paper p-5">
+                {lead.executive_summary && (
                   <>
-                    <Button
-                      variant="outline"
-                      onClick={() => router.push(draftingHref(lead.source_id, "propunere", fallback))}
-                    >
-                      Propunere tehnică
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => router.push(draftingHref(lead.source_id, "clarificari", fallback))}
-                    >
-                      Clarificări & acces dosar
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => router.push(analyticsHref(lead.source_id, "caiet", fallback))}
-                    >
-                      Scanează caietul de sarcini
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => router.push(analyticsHref(lead.source_id, "win", fallback))}
-                    >
-                      Poziționare preț
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => router.push(analyticsHref(lead.source_id, "competitor", fallback))}
-                    >
-                      Profil de piață
-                    </Button>
+                    <h3 className="text-[16px] font-semibold">Din anunț</h3>
+                    <p className="mt-1.5 text-[15px] leading-6 text-stock-600">{lead.executive_summary}</p>
                   </>
                 )}
-                <Button variant="outline" onClick={() => ask()}>
-                  <span className="inline-flex items-center gap-1.5">
-                    <Sparkles size={15} strokeWidth={1.75} /> Întreabă Copilotul
-                  </span>
-                </Button>
-              </div>
+                {lead.sales_pitch_angle && (
+                  <>
+                    <h3 className={"text-[16px] font-semibold" + (lead.executive_summary ? " mt-4" : "")}>Poziționare tehnică</h3>
+                    <p className="mt-1.5 text-[15px] leading-6 text-stock-600">{lead.sales_pitch_angle}</p>
+                  </>
+                )}
+              </section>
+            )}
+
+            <div className="grid grid-cols-2 gap-2">
+              <Button variant="outline" onClick={handleSaveToPipeline} disabled={busyAction === "pipeline"}>
+                {busyAction === "pipeline" ? "Se salvează…" : "Salvează în pipeline"}
+              </Button>
+              <Button variant="outline" onClick={handleSendEmailAlert} disabled={busyAction === "email"}>
+                {busyAction === "email" ? "Se trimite…" : "Trimite pe email"}
+              </Button>
+              <Button variant="ghost" className="col-span-2" onClick={() => ask()}>
+                <Sparkles size={16} className="text-accent" aria-hidden /> Întreabă Copilotul despre acest dosar
+              </Button>
             </div>
 
             {lead.source_url && (
-              <a
-                href={lead.source_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-6 flex min-h-[44px] w-full items-center justify-center rounded-lg bg-editorial px-4 font-sans text-sm font-medium text-white transition-colors hover:brightness-110"
-              >
-                Documentul oficial sursă →
+              <a href={lead.source_url} target="_blank" rel="noopener noreferrer" className="text-center text-[15px] font-medium text-accent underline underline-offset-4">
+                Anunțul oficial în sursă →
               </a>
             )}
+            {!user && <p className="text-center text-[14px] text-stock-500">Autentificați-vă pentru acțiuni.</p>}
           </div>
-        </div>
+        </aside>
       </div>
 
-      {authorityOpen && (
-        <AuthorityProfilePanel cui={lead.authority_cui} name={lead.entity_name} onClose={() => setAuthorityOpen(false)} />
-      )}
+      {authorityOpen && <AuthorityProfilePanel cui={lead.authority_cui} name={lead.entity_name} onClose={() => setAuthorityOpen(false)} />}
 
       {toast && (
-        <div
-          role="status"
-          aria-live="polite"
-          className="neu-flat fixed inset-x-4 bottom-24 z-50 rounded-2xl bg-paper px-4 py-3 font-body text-sm text-ink sm:left-auto sm:right-6 sm:max-w-sm"
-        >
+        <div role="status" aria-live="polite" className="fixed bottom-24 left-1/2 z-[60] max-w-[calc(100%-2rem)] -translate-x-1/2 rounded-lg bg-cerneala px-4 py-2.5 text-[14px] text-cerneala-text shadow-float">
           {toast}
         </div>
       )}

@@ -5,6 +5,7 @@ import AuthGate from "@/components/AuthGate";
 import Explain from "@/components/Explain";
 import GrantDetailPanel from "@/components/GrantDetailPanel";
 import { useCompanyProfile } from "@/context/CompanyProfileContext";
+import { NoResultsRelaxationBanner } from "@/components/registry";
 import { ApiError, evaluateBusinessEligibility, fetchQualificationScenarios, verifyCompany, type CompanyVerification, type EligibilityGrant, type QualificationScenarios, type EligibilityResult } from "@/lib/api";
 import { formatNumber, formatRon } from "@/lib/format";
 import { Badge, Button, Eyebrow, Field, Input, Loading, Notice, NumberInput, PageHeader, Panel, SectionTitle } from "@/components/newsprint";
@@ -36,7 +37,7 @@ const COMPACT_FIELD = "min-h-9 py-1.5";
 // criteriile de participare" is outline/bg-paper by default) or theme —
 // editorial itself differs between light and dark mode, and these two
 // are meant to look identical in either.
-const ACTION_BUTTON = "bg-[#006494] text-white hover:text-white";
+const ACTION_BUTTON = "border-transparent bg-editorial text-white hover:bg-editorial-light";
 
 function EligibilityContent() {
 	const { profile } = useAuth();
@@ -215,23 +216,28 @@ function EligibilityContent() {
 		if (company.profile?.caen_code) setCaen(company.profile.caen_code);
 		setCounty(profile.target_counties?.[0] || "");
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [profile]);
+	}, [profile, company.profile?.cui]);
 
-	const handleScan = async () => {
+	// `relax` widens a search that matched no programme: no county
+	// restriction (regional programmes), and the CAEN division (2 digits)
+	// instead of the class, which the matcher reads as a partial match.
+	const [relaxed, setRelaxed] = useState(false);
+	const handleScan = async (relax = false) => {
 		if (!companyName.trim() || !cui.trim()) {
 			setError("Completați CUI-ul companiei.");
 			return;
 		}
 		setLoading(true);
 		setError(null);
+		setRelaxed(relax);
 		try {
 			const scan = await evaluateBusinessEligibility({
 				company_name: companyName,
 				cui_fiscal: cui,
-				caen_code: caen,
+				caen_code: relax ? caen.replace(/\D/g, "").slice(0, 2) : caen,
 				turnover_ron: Number(turnover),
 				employee_count: Number(employees),
-				county,
+				county: relax ? "" : county,
 				...exclusions,
 			});
 			setResult(scan);
@@ -259,11 +265,11 @@ function EligibilityContent() {
 	};
 
 	return (
-		<main className="mx-auto w-full max-w-screen-xl flex-1 px-4 py-6 sm:py-8">
+		<main className="mx-auto w-full max-w-[1264px] flex-1 px-5 pb-16 pt-8 sm:px-8 sm:pt-12">
 			<PageHeader
 				eyebrow="Eligibilitate finanțări"
 				title="Verificarea profilului companiei"
-				standfirst="Evaluează profilul financiar față de liniile de finanțare active și verifică motivele de excludere obligatorii din Legea 98/2016 înainte de a angaja resurse într-o procedură. Verificarea se face la nivel de linie de finanțare (program), nu la nivel de apel sau proiect individual — pentru oportunități concrete, consultați Analiza de piață sau Căutarea avansată."
+				standfirst="Firma după CUI (ANAF), motivele de excludere din Legea 98/2016 și programele de finanțare pentru care se califică."
 			/>
 
 			{/* Three cards in one row, same convention as /analysis's filter
@@ -344,7 +350,7 @@ function EligibilityContent() {
 							<Notice tone="alert">{error}</Notice>
 						</div>
 					)}
-					<Button onClick={handleScan} disabled={loading} fullWidth className={`mt-6 ${ACTION_BUTTON}`}>
+					<Button onClick={() => handleScan(false)} disabled={loading} fullWidth className={`mt-6 ${ACTION_BUTTON}`}>
 						{loading ? "Se evaluează…" : "Evaluează profilul"}
 					</Button>
 				</Panel>
@@ -396,7 +402,7 @@ function EligibilityContent() {
 							</li>
 						))}
 					</ul>
-					{exclusions.has_unpaid_taxes && <p className="font-mono mt-2 text-[11px] uppercase tracking-wider text-editorial">Semnalat automat: ANAF declară firma inactivă fiscal (Art. 165).</p>}
+					{exclusions.has_unpaid_taxes && <p className="font-mono mt-2 text-[11px] uppercase tracking-wider text-accent">Semnalat automat: ANAF declară firma inactivă fiscal (Art. 165).</p>}
 				</Panel>
 			</div>
 
@@ -415,7 +421,7 @@ function EligibilityContent() {
 							<div className="neu-flat rounded-3xl bg-paper p-5">
 								<div className="flex flex-wrap items-baseline justify-between gap-3">
 									<div>
-										<Eyebrow className="text-editorial">Verdict</Eyebrow>
+										<Eyebrow className="text-accent">Verdict</Eyebrow>
 										<p className="font-display mt-1 text-2xl font-semibold leading-tight">{result.qualification_status || "Evaluare finalizată"}</p>
 									</div>
 									{result.overall_eligibility_score != null && (
@@ -456,7 +462,7 @@ function EligibilityContent() {
 							{Array.isArray(result.exclusion_grounds) && result.exclusion_grounds.length > 0 && (
 								<section>
 									<SectionTitle note={`${result.exclusion_grounds.length} identificate`}>Motive de excludere</SectionTitle>
-									<ul className="divide-y divide-negative/20 neu-pressed overflow-hidden rounded-2xl border-l-[3px] border-negative bg-paper">
+									<ul className="divide-y divide-negative/20 overflow-hidden rounded-xl border border-negative/25 bg-negative-soft">
 										{result.exclusion_grounds.map((g, i) => (
 											<li key={i} className="font-body p-4 text-sm leading-relaxed font-medium text-negative">
 												{g}
@@ -464,6 +470,24 @@ function EligibilityContent() {
 										))}
 									</ul>
 								</section>
+							)}
+
+							{Array.isArray(result.matched_grants) && result.matched_grants.length === 0 && (
+								<div className="rounded-xl border border-divider bg-paper">
+									{relaxed ? (
+										<div className="px-5 py-6">
+											<p className="text-[16px] font-semibold text-ink">Nicio linie de finanțare nici în căutarea lărgită</p>
+											<p className="mt-1 text-[14px] leading-[21px] text-stock-500">Programele active nu acoperă grupa CAEN {caen.replace(/\D/g, "").slice(0, 2)} pentru această mărime de firmă. Verificați codul CAEN sau apelurile noi din Analiza pieței.</p>
+										</div>
+									) : (
+										<NoResultsRelaxationBanner
+											title="Nicio linie de finanțare pentru profilul introdus"
+											message={`Lărgim căutarea la grupa CAEN ${caen.replace(/\D/g, "").slice(0, 2) || "—"} și la programele fără restricție de județ.`}
+											actionLabel="Lărgește căutarea"
+											onAction={() => handleScan(true)}
+										/>
+									)}
+								</div>
 							)}
 
 							{Array.isArray(result.matched_grants) && result.matched_grants.length > 0 && (
@@ -481,7 +505,7 @@ function EligibilityContent() {
 													<div className="flex flex-wrap items-baseline justify-between gap-2">
 														<h3 className="font-display flex items-center gap-1.5 text-lg font-semibold leading-snug">
 															<span>{g.program_name}</span>
-															<span aria-hidden="true" className="shrink-0 text-editorial opacity-0 transition-all duration-[var(--duration-base)] ease-[var(--ease-spring)] group-hover:translate-x-0.5 group-hover:opacity-100">
+															<span aria-hidden="true" className="shrink-0 text-accent opacity-0 transition-all duration-[var(--duration-base)] ease-[var(--ease-spring)] group-hover:translate-x-0.5 group-hover:opacity-100">
 																→
 															</span>
 														</h3>
@@ -495,7 +519,7 @@ function EligibilityContent() {
 													</div>
 
 													{uncertain && (
-														<p className="neu-pressed font-body mt-3 rounded-r-md border-l-2 border-editorial bg-editorial-soft px-3 py-2 text-xs leading-relaxed text-editorial">
+														<p className="font-body mt-3 rounded-lg border border-editorial-line bg-editorial-soft px-3 py-2 text-xs leading-relaxed text-accent">
 															Potrivire CAEN incertă ({Math.round((g.caen_match?.confidence ?? 0) * 100)}%): {g.caen_match?.note}
 														</p>
 													)}
@@ -535,7 +559,7 @@ function EligibilityContent() {
 									{/* Scenario A — can they lead. Status drives the tone, so
                       "blocked" and "eligible" are never mistakable. */}
 									{qualification.scenario_a_leader && (
-										<div className={"neu-pressed rounded-2xl bg-paper p-4 border-l-[3px] " + (qualification.scenario_a_leader.status === "eligible" ? "border-positive" : qualification.scenario_a_leader.status === "blocked" ? "border-negative" : "border-warning")}>
+										<div className={"rounded-xl border bg-paper p-4 " + (qualification.scenario_a_leader.status === "eligible" ? "border-positive" : qualification.scenario_a_leader.status === "blocked" ? "border-negative" : "border-warning")}>
 											<div className="flex flex-wrap items-center gap-2">
 												<Badge tone={qualification.scenario_a_leader.status === "eligible" ? "positive" : qualification.scenario_a_leader.status === "blocked" ? "negative" : "neutral"}>{qualification.scenario_a_leader.label}</Badge>
 												<span className="font-mono text-[11px] uppercase tracking-widest text-stock-500">{qualification.scenario_a_leader.status.replace(/_/g, " ")}</span>
@@ -584,8 +608,8 @@ function EligibilityContent() {
 									)}
 
 									{qualification.recommendation && (
-										<div className="neu-pressed mt-5 rounded-r-lg border-l-2 border-editorial bg-editorial-soft px-4 py-3">
-											<Eyebrow className="text-editorial">Recomandare</Eyebrow>
+										<div className="mt-5 rounded-xl border border-editorial-line bg-editorial-soft px-4 py-3">
+											<Eyebrow className="text-accent">Recomandare</Eyebrow>
 											<p className="font-body mt-1.5 text-sm leading-relaxed">{qualification.recommendation}</p>
 										</div>
 									)}
@@ -604,7 +628,7 @@ function EligibilityContent() {
 
 export default function EligibilityPage() {
 	return (
-		<AuthGate title="Eligibilitatea este disponibilă în contul gratuit" description="Verificarea firmei după CUI (ANAF) și potrivirea cu finanțările active. Creați un cont gratuit (doar emailul, fără card) — vă întoarceți exact pe această pagină.">
+		<AuthGate title="Eligibilitate și finanțări" description="Verificarea firmei după CUI (ANAF) și potrivirea cu finanțările active.">
 			<EligibilityContent />
 		</AuthGate>
 	);

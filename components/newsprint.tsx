@@ -1,59 +1,29 @@
 "use client";
-import React, { useEffect, useRef, useState } from "react";
+import React from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 /**
- * Shared dashboard component vocabulary (file kept as `newsprint.tsx` — the
- * name is an internal module path, not user-facing, and every page already
- * imports from it).
+ * Shared component vocabulary (the file keeps its old name — every page
+ * imports from it), built on the product's one design system: the same
+ * paper ground, 1px lines, teal accent, Geist / Geist Mono and 8 / 12px
+ * radii as the public page. Specimens and accessibility rules are on the
+ * "Sistem de design" board of the landing-page design canvas:
  *
- * Neumorphic (Soft UI) system: every surface is the same cool-grey
- * (`bg-paper`/`bg-surface` are identical), and depth comes only from the
- * `neu-*` shadow utilities defined in globals.css — never from a different
- * background tone or a hard border. An element is either "extruded"
- * (`neu-flat`, molded up out of the surface) or "pressed" (`neu-pressed`,
- * carved into it).
- *
- * MOTION. Because depth here is shadow-only, the motion vocabulary is built
- * from shadow, light and translation — never from a border appearing or a
- * background tone swapping, which would contradict the one-material rule.
- * Three gestures, used consistently:
- *
- *   arrive  — `.rise` / `.stagger`, a cascading entrance (globals.css).
- *   lift    — hover: -translate-y + `neu-glow`, the card rising toward you.
- *   press   — active: `neu-pressed-sm` + scale-95, the card taking the push.
- *
- * All of it is CSS, deliberately: these are declarative state transitions,
- * so they cost no JavaScript, survive with JS disabled, and keep every page
- * statically prerenderable. Only genuinely imperative motion — counting a
- * number toward a target — uses a hook, and each of those honours
- * `prefers-reduced-motion` itself, since a media query in CSS cannot reach
- * into rAF.
+ *   buttons   44px (40px small), one primary per area, verb + result
+ *   fields    visible label, 16px text on phones, error as text + aria
+ *   badges    always carry text — colour only reinforces it
+ *   cards     <article>/<section> with a real heading
+ *   figures   Geist Mono, tabular, with their unit; never animated
  */
 
-/* ------------------------------------------------------------------ motion */
+/* -------------------------------------------------------------- figures */
 
-/** Reads the user's motion preference at call time (never during SSR). */
-function prefersReducedMotion(): boolean {
-  return typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
-}
-
-/**
- * Counts from the previously displayed number to `value`.
- *
- * Renders 0 on the server AND on the client's first paint, then animates in
- * an effect — starting from the real value instead would hydrate a different
- * string than the server sent. Re-animates from wherever it currently is
- * when `value` changes, so a figure that arrives late (loading -> loaded)
- * still counts up, and one that merely refreshes ticks from its old value
- * rather than snapping back to zero.
- */
+/** A figure, shown as is (figures are never animated in this system). */
 export function CountUp({
   value,
   format = (n) => String(Math.round(n)),
-  duration = 1100,
   className,
 }: {
   value: number;
@@ -61,52 +31,10 @@ export function CountUp({
   duration?: number;
   className?: string;
 }) {
-  const [display, setDisplay] = useState(0);
-  const currentRef = useRef(0);
-
-  useEffect(() => {
-    if (!Number.isFinite(value)) return;
-    if (prefersReducedMotion()) {
-      currentRef.current = value;
-      setDisplay(value);
-      return;
-    }
-    const from = currentRef.current;
-    const delta = value - from;
-    if (delta === 0) return;
-
-    let frame = 0;
-    const started = performance.now();
-    const tick = (now: number) => {
-      const t = Math.min(1, (now - started) / duration);
-      // easeOutCubic — matches the decelerating character of --ease-glide,
-      // so a number settling and a card settling feel like one system.
-      const eased = 1 - Math.pow(1 - t, 3);
-      const next = from + delta * eased;
-      currentRef.current = next;
-      setDisplay(next);
-      if (t < 1) frame = requestAnimationFrame(tick);
-      else {
-        currentRef.current = value;
-        setDisplay(value);
-      }
-    };
-    frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
-  }, [value, duration]);
-
-  // `tabular` keeps the glyph width fixed so the digits don't jitter as they
-  // climb — without it a counting number visibly reflows on every frame.
-  return <span className={cn("tabular", className)}>{format(display)}</span>;
+  return <span className={cn("tabular", className)}>{Number.isFinite(value) ? format(value) : "—"}</span>;
 }
 
-/**
- * A score or completion bar that fills on mount.
- *
- * Renders at 0 width first, then transitions to the real width one frame
- * later — a CSS transition needs two distinct computed values to animate
- * between, so painting the final width immediately would show no fill at all.
- */
+/** A thin score / completion bar. */
 export function ProgressBar({
   value,
   max = 10,
@@ -120,51 +48,24 @@ export function ProgressBar({
   className?: string;
   label?: string;
 }) {
-  const target = Math.max(0, Math.min(100, (value / max) * 100));
-  const [width, setWidth] = useState(0);
-
-  useEffect(() => {
-    if (prefersReducedMotion()) {
-      setWidth(target);
-      return;
-    }
-    const frame = requestAnimationFrame(() => setWidth(target));
-    return () => cancelAnimationFrame(frame);
-  }, [target]);
-
-  const toneClass = {
-    accent: "bg-editorial",
-    positive: "bg-positive",
-    negative: "bg-negative",
-    warning: "bg-warning",
-  }[tone];
-
+  const width = Math.max(0, Math.min(100, (value / max) * 100));
+  const toneClass = { accent: "bg-editorial", positive: "bg-positive", negative: "bg-negative", warning: "bg-warning" }[tone];
   return (
     <div
-      className={cn("neu-pressed-sm h-2 w-full overflow-hidden rounded-full bg-paper", className)}
+      className={cn("h-1.5 w-full overflow-hidden rounded-full bg-surface-2", className)}
       role="progressbar"
       aria-valuenow={Math.round(value * 10) / 10}
       aria-valuemin={0}
       aria-valuemax={max}
       aria-label={label}
     >
-      <div
-        className={cn("h-full rounded-full transition-[width] duration-[900ms] ease-[var(--ease-soft)]", toneClass)}
-        style={{ width: `${width}%` }}
-      />
+      <div className={cn("h-full rounded-full", toneClass)} style={{ width: `${width}%` }} />
     </div>
   );
 }
 
-/**
- * Hover/focus tooltip for a metric or a truncated string.
- *
- * The wrapper is focusable so the label is reachable by keyboard and not
- * only by pointer, and carries the text as its accessible name — a
- * `role="tooltip"` element alone is announced by nothing unless something
- * references it. Positioned absolutely and `pointer-events-none`, so it can
- * never sit between the cursor and the thing it describes.
- */
+/** Hover/focus hint. Hidden below md (no hover on touch) — `Explainer` is
+ *  the tap-reachable alternative. */
 export function Tooltip({
   label,
   children,
@@ -177,35 +78,14 @@ export function Tooltip({
   className?: string;
 }) {
   return (
-    <span
-      className={cn("group/tip relative inline-flex max-w-full items-center", className)}
-      tabIndex={0}
-      aria-label={label}
-    >
+    <span className={cn("group/tip relative inline-flex max-w-full items-center", className)} tabIndex={0} aria-label={label}>
       {children}
       <span
         role="tooltip"
         className={cn(
-          // Not rendered below md, deliberately.
-          //
-          // This tooltip only opens on hover/focus-within, which a touch
-          // device has neither of — so on a phone it was permanently
-          // invisible AND permanently laid out, and a 16rem box centred on
-          // a trigger near the right edge pushed the document to 526px
-          // against a 360px viewport (measured). The body's overflow clip
-          // stopped that becoming a scrollbar, but an invisible element
-          // widening the page is still a bug, and one nobody would find by
-          // looking at the screen.
-          //
-          // Nothing is lost on touch: the accessible name stays on the
-          // wrapper's aria-label, and `Explainer` — click-based, portalled
-          // and viewport-clamped — is the component for content that has to
-          // be reachable by tap.
-          "neu-flat pointer-events-none absolute left-1/2 z-50 hidden w-max max-w-[16rem] -translate-x-1/2 scale-95 rounded-xl bg-paper px-3 py-2 text-left font-sans text-xs font-medium leading-snug text-ink opacity-0 transition-all duration-[var(--duration-base)] ease-[var(--ease-glide)] md:block",
-          "group-hover/tip:scale-100 group-hover/tip:opacity-100 group-focus-within/tip:scale-100 group-focus-within/tip:opacity-100",
-          side === "top"
-            ? "bottom-full mb-2 group-hover/tip:-translate-y-0.5 group-focus-within/tip:-translate-y-0.5"
-            : "top-full mt-2 group-hover/tip:translate-y-0.5 group-focus-within/tip:translate-y-0.5"
+          "pointer-events-none absolute left-1/2 z-50 hidden w-max max-w-[16rem] -translate-x-1/2 rounded-lg bg-cerneala px-3 py-2 text-left text-[13px] leading-snug text-cerneala-text opacity-0 shadow-float transition-opacity duration-[var(--duration-base)] md:block",
+          "group-hover/tip:opacity-100 group-focus-within/tip:opacity-100",
+          side === "top" ? "bottom-full mb-2" : "top-full mt-2"
         )}
       >
         {label}
@@ -215,20 +95,9 @@ export function Tooltip({
 }
 
 /**
- * The small `?` beside anything technical — a score, a legal article, a
- * derived metric — opening a plain-language explanation of what it
- * actually measures and where the number comes from.
- *
- * Deliberately not the `Tooltip` above. That one is hover-only, so it is
- * unreachable on touch, and capped at 16rem, which is a hint rather than
- * an explanation. This opens on click (and on Enter/Space), stays open
- * until dismissed, and is wide enough for two or three real sentences.
- *
- * It renders through a portal to `document.body` for the same reason the
- * modals do: several of the places that need one sit inside a `Panel` or
- * a sticky sidebar, and a popover positioned inside those gets clipped by
- * the ancestor's overflow or trapped under it by a stacking context. A
- * fixed-position node on `body` is subject to neither.
+ * The small `?` beside anything technical: a plain-language explanation,
+ * click/tap-based and portalled to `body`, so it works on touch and is
+ * never clipped by a card's overflow.
  */
 export function Explainer({
   title,
@@ -249,8 +118,6 @@ export function Explainer({
     if (!el) return;
     const r = el.getBoundingClientRect();
     const width = Math.min(320, window.innerWidth - 24);
-    // Keep it on screen on a narrow viewport rather than centring blindly
-    // on the trigger and letting half of it hang off the edge.
     const left = Math.min(Math.max(12, r.left + r.width / 2 - width / 2), window.innerWidth - width - 12);
     setPos({ top: r.bottom + 8, left });
   }, []);
@@ -263,7 +130,6 @@ export function Explainer({
       setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
-    // Reposition rather than drift: the trigger moves with the page.
     document.addEventListener("mousedown", onDocClick);
     document.addEventListener("keydown", onKey);
     window.addEventListener("resize", place);
@@ -281,12 +147,7 @@ export function Explainer({
       <button
         ref={btnRef}
         type="button"
-        // stopPropagation matters wherever this sits inside another
-        // clickable element (e.g. a whole lead card as a <button> on
-        // Căutare Avansată) — without it, tapping "?" also fired the
-        // ancestor's onClick and opened the record the explainer was
-        // annotating, a click on an unrelated control a user had every
-        // reason not to expect.
+        // Inside a clickable row the "?" must not also open the row.
         onClick={(e) => {
           e.stopPropagation();
           setOpen((v) => !v);
@@ -298,16 +159,13 @@ export function Explainer({
         aria-expanded={open}
         aria-label={title ? `Explicație: ${title}` : "Explicație"}
         className={cn(
-          // 18px is the visible dot; the -m-3 p-3 pair grows the hit area
-          // to 42px without moving anything on screen. At 18px flat this
-          // was under half the minimum touch target, on a control that
-          // appears throughout the feed, eligibility and pipeline pages.
-          "-m-3 box-content inline-flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full p-3 align-middle font-sans text-[11px] font-bold leading-none text-stock-500 transition-all duration-[var(--duration-base)] hover:text-editorial focus-visible:text-editorial",
-          open && "text-editorial",
+          // 16px visible; the -m-3 p-3 pair grows the hit area to 40px without moving layout.
+          "-m-3 box-content inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full p-3 align-middle text-[10px] font-semibold leading-none text-stock-400 hover:text-accent",
+          open && "text-accent",
           className
         )}
       >
-        ?
+        <span className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-current">?</span>
       </button>
       {open && pos && typeof document !== "undefined"
         ? createPortal(
@@ -316,19 +174,12 @@ export function Explainer({
               role="dialog"
               aria-label={title || "Explicație"}
               style={{ top: pos.top, left: pos.left, width: Math.min(320, window.innerWidth - 24) }}
-              className="neu-flat fixed z-[60] rounded-2xl bg-paper p-3.5"
-              // Keeps it open while the cursor crosses the gap between the
-              // "?" and the popover itself (it renders 8px below the
-              // trigger), and while reading a popover long enough to
-              // scroll — a hover-only trigger with no such grace would
-              // close the moment the mouse left the 18px dot.
+              className="fixed z-[60] rounded-xl border border-divider bg-paper p-4 shadow-float"
               onMouseEnter={() => setOpen(true)}
               onMouseLeave={() => setOpen(false)}
             >
-              {title && <p className="font-display text-sm font-bold leading-snug text-ink">{title}</p>}
-              <div className={cn("font-body text-[13px] leading-relaxed text-stock-600", title && "mt-1.5")}>
-                {children}
-              </div>
+              {title && <p className="text-[14px] font-semibold leading-snug text-ink">{title}</p>}
+              <div className={cn("text-[14px] leading-relaxed text-stock-500", title && "mt-1")}>{children}</div>
             </div>,
             document.body
           )
@@ -339,18 +190,19 @@ export function Explainer({
 
 /* ------------------------------------------------------------- typography */
 
+/** The kicker above a title: 12px, uppercase, accent ink. */
 export function Eyebrow({ children, className }: { children: React.ReactNode; className?: string }) {
   return <span className={cn("label-eyebrow block text-stock-500", className)}>{children}</span>;
 }
 
+/** A page's head: kicker, title (H2 of the system: 32/38, 24/30 on a
+ *  phone), one lead sentence, and the page's own actions. */
 export function PageHeader({
   eyebrow,
   title,
   standfirst,
   action,
 }: {
-  /** Optional: a page whose title stands on its own renders no kicker
-   *  rather than an empty one, which would still occupy its line. */
   eyebrow?: string;
   title: string;
   standfirst?: string;
@@ -358,44 +210,35 @@ export function PageHeader({
 }) {
   return (
     <header className="mb-8">
-      {eyebrow && <Eyebrow className="text-editorial">{eyebrow}</Eyebrow>}
-      <div className={(eyebrow ? "mt-2 " : "") + "flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"}>
-        <div className="min-w-0">
-          <h1 className="font-display text-3xl leading-tight tracking-tight text-ink sm:text-4xl">{title}</h1>
-          {standfirst && (
-            <p className="font-body mt-2 max-w-2xl text-sm leading-relaxed text-stock-500">{standfirst}</p>
-          )}
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div className="min-w-0 flex-1">
+          {eyebrow && <p className="label-eyebrow mb-2 text-accent">{eyebrow}</p>}
+          <h1 className="text-2xl font-semibold leading-[30px] tracking-[-0.015em] text-ink sm:text-[32px] sm:leading-[38px]">{title}</h1>
+          {standfirst && <p className="mt-3 max-w-2xl text-base leading-relaxed text-stock-500 sm:text-[17px]">{standfirst}</p>}
         </div>
-        {action && <div className="shrink-0">{action}</div>}
+        {action && <div className="flex shrink-0 flex-wrap items-center gap-2">{action}</div>}
       </div>
     </header>
   );
 }
 
+/** A card or section title — the system's H3 (20/28, 18/26 on a phone). */
 export function SectionTitle({ children, note }: { children: React.ReactNode; note?: string }) {
   return (
-    <div className="mb-4 flex items-center justify-between gap-3">
-      <h2 className="flex items-center gap-2.5 font-display text-base font-bold tracking-tight text-ink sm:text-lg">
-        <span className="neu-flat-sm h-2.5 w-2.5 shrink-0 rounded-full bg-editorial" aria-hidden="true" />
-        {children}
-      </h2>
-      {note && <span className="label-eyebrow shrink-0 text-stock-500">{note}</span>}
+    <div className="mb-4 flex items-baseline justify-between gap-3">
+      <h2 className="text-lg font-semibold leading-[26px] tracking-[-0.01em] text-ink sm:text-xl sm:leading-7">{children}</h2>
+      {note && <span className="tabular shrink-0 text-[13px] text-stock-400">{note}</span>}
     </div>
   );
 }
 
 export function Ornament() {
-  return (
-    <div aria-hidden="true" className="my-8 flex items-center gap-3">
-      <span className="h-px flex-1 bg-divider" />
-      <span className="neu-flat-sm h-2 w-2 rounded-full bg-editorial" />
-      <span className="h-px flex-1 bg-divider" />
-    </div>
-  );
+  return <hr aria-hidden="true" className="my-10 border-0 border-t border-divider" />;
 }
 
 /* ---------------------------------------------------------------- surfaces */
 
+/** A card: white, 1px line, 12px radius. */
 export function Panel({
   children,
   className,
@@ -405,16 +248,14 @@ export function Panel({
   children: React.ReactNode;
   className?: string;
   as?: React.ElementType;
-  /** Opt in to the lift-on-hover gesture. Off by default: a panel that
-   *  responds to the pointer implies it can be acted on, so a purely
-   *  presentational container should stay still. */
+  /** Hover edge for a card that can be acted on. */
   interactive?: boolean;
 }) {
   return (
     <Tag
       className={cn(
-        "neu-flat rounded-3xl bg-paper transition-all duration-[var(--duration-base)] ease-[var(--ease-glide)]",
-        interactive && "hover:neu-glow hover:-translate-y-1",
+        "rounded-xl border border-divider bg-paper",
+        interactive && "transition-colors duration-[var(--duration-base)] hover:border-line-strong",
         className
       )}
     >
@@ -423,6 +264,8 @@ export function Panel({
   );
 }
 
+/** One figure: the number in mono, its meaning in one line below — the
+ *  public page's proof strip. */
 export function StatCell({
   label,
   value,
@@ -437,80 +280,45 @@ export function StatCell({
   value: React.ReactNode;
   hint?: string;
   loading?: boolean;
-  /** Secondary content revealed on hover/focus — the density lives here,
-   *  out of the resting view, so the default grid stays scannable. */
   detail?: React.ReactNode;
-  /** Explains what the metric actually measures. */
   tooltip?: string;
-  /**
-   * Turns the tile into a click-through to the rows behind the number.
-   * The destination must show *exactly* the set this figure counts — a
-   * tile reading "135 matched files" that lands on the whole market is
-   * worse than one that does not link at all, because the number the user
-   * just read no longer reconciles with what they are looking at.
-   */
+  /** Click-through to exactly the rows this figure counts. */
   href?: string;
-  /** Affordance text shown on hover when `href` is set. */
   linkLabel?: string;
 }) {
-  const labelNode = tooltip ? (
-    <Tooltip label={tooltip}>
-      <Eyebrow className="cursor-help underline decoration-dotted decoration-from-font underline-offset-4">
-        {label}
-      </Eyebrow>
-    </Tooltip>
-  ) : (
-    <Eyebrow>{label}</Eyebrow>
-  );
-
   const body = (
     <>
-      {labelNode}
-      <p className="tabular font-display mt-2 text-2xl font-extrabold leading-none text-ink sm:text-3xl">
-        {loading ? <span className="animate-pulse text-stock-400">···</span> : value}
+      <p className="tabular text-[22px] font-medium leading-[28px] tracking-[-0.03em] text-ink sm:whitespace-nowrap sm:text-[28px] sm:leading-[34px]">
+        {loading ? <span className="text-stock-400">—</span> : value}
       </p>
-      {hint && <p className="font-mono mt-2 text-[11px] leading-tight text-stock-500">{hint}</p>}
-      {detail && (
-        <div className="reveal">
-          <div>
-            <div className="mt-3 border-t border-divider pt-3 font-body text-xs leading-relaxed text-stock-600">
-              {detail}
-            </div>
-          </div>
-        </div>
-      )}
+      <p className="mt-2 flex items-center gap-1 text-[14px] leading-5 text-stock-500">
+        {label}
+        {tooltip && <Explainer title={label}>{tooltip}</Explainer>}
+      </p>
+      {hint && <p className="tabular mt-1 text-[12px] leading-4 text-stock-400">{hint}</p>}
+      {detail && <div className="mt-3 border-t border-divider pt-3 text-[13px] leading-relaxed text-stock-500">{detail}</div>}
+      {href && <span className="mt-3 inline-block text-[13px] font-medium text-accent">{linkLabel || "Vezi dosarele"} →</span>}
     </>
   );
-
-  const shell =
-    "group neu-flat rounded-3xl bg-paper p-4 transition-all duration-[var(--duration-base)] ease-[var(--ease-glide)] hover:neu-glow hover:-translate-y-1 sm:p-5";
-
+  const shell = "block bg-paper p-5 sm:p-6";
   if (!href) return <div className={shell}>{body}</div>;
-
   return (
-    <Link href={href} className={cn(shell, "block active:scale-[0.99]")}>
+    <Link href={href} className={cn(shell, "transition-colors hover:bg-surface-2")}>
       {body}
-      {/* The lift alone reads as decoration on a tile that was static
-          until now, so a clickable one also says where it goes — and only
-          on hover, keeping the resting grid as quiet as it was. */}
-      <span className="reveal">
-        <span>
-          <span className="font-sans mt-3 inline-flex items-center gap-1 text-[12px] font-medium text-editorial">
-            {linkLabel || "Vezi dosarele"}
-            <span
-              aria-hidden="true"
-              className="transition-transform duration-[var(--duration-base)] ease-[var(--ease-spring)] group-hover:translate-x-1"
-            >
-              →
-            </span>
-          </span>
-        </span>
-      </span>
     </Link>
   );
 }
 
-/** Small status/count pill — a shallow well in the same material, colored text carries the meaning. */
+/** StatCells joined by 1px lines inside one card (4 across, 2 on a phone). */
+export function StatStrip({ children, className }: { children: React.ReactNode; className?: string }) {
+  return (
+    <div className={cn("grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-divider bg-divider lg:grid-cols-4", className)}>
+      {children}
+    </div>
+  );
+}
+
+/** Pill badge — text always carries the meaning. */
 export function Badge({
   children,
   tone = "neutral",
@@ -521,20 +329,14 @@ export function Badge({
   className?: string;
 }) {
   const toneClass: Record<string, string> = {
-    neutral: "text-stock-600",
-    accent: "text-editorial",
-    positive: "text-positive",
-    negative: "text-negative",
-    warning: "text-warning",
+    neutral: "bg-surface-2 text-stock-500",
+    accent: "bg-editorial-soft text-accent",
+    positive: "bg-positive-soft text-positive",
+    negative: "bg-negative-soft text-negative",
+    warning: "bg-warning-soft text-warning",
   };
   return (
-    <span
-      className={cn(
-        "neu-pressed-sm label-eyebrow inline-flex items-center gap-1.5 rounded-full bg-paper px-2.5 py-1 font-sans text-[11px] font-semibold normal-case tracking-normal",
-        toneClass[tone],
-        className
-      )}
-    >
+    <span className={cn("inline-flex h-6 items-center gap-1 whitespace-nowrap rounded-full px-2.5 text-[12px] font-semibold leading-none", toneClass[tone], className)}>
       {children}
     </span>
   );
@@ -544,20 +346,14 @@ export function Badge({
 
 type ButtonVariant = "primary" | "outline" | "ghost" | "danger";
 
-// Three states, one physical story: at rest the button is molded up out of
-// the surface; on hover it rises further toward the pointer; on press it is
-// pushed into the surface (carved shadow + scale-95), so the click has a
-// tactile result rather than only a colour change. `active:` is listed after
-// `hover:` because a pressed button is still hovered — the later utility has
-// to win on equal specificity.
 const BUTTON_BASE =
-  "neu-flat inline-flex min-h-[44px] items-center justify-center gap-2 rounded-2xl px-5 py-2 text-center font-sans text-sm font-semibold transition-all duration-[var(--duration-base)] ease-[var(--ease-glide)] hover:neu-lift hover:-translate-y-0.5 active:neu-pressed-sm active:translate-y-0 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:neu-flat disabled:hover:translate-y-0 disabled:active:scale-100";
+  "inline-flex min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-transparent px-4 text-center text-[15px] font-semibold leading-5 transition-[background-color,border-color,transform] duration-[var(--duration-base)] ease-[var(--ease-glide)] active:translate-y-px disabled:cursor-not-allowed disabled:opacity-45";
 
 const BUTTON_VARIANTS: Record<ButtonVariant, string> = {
-  primary: "bg-editorial text-white",
-  outline: "bg-paper text-ink",
-  ghost: "bg-paper text-stock-600 hover:text-ink",
-  danger: "bg-paper text-negative",
+  primary: "bg-editorial text-white hover:bg-editorial-light",
+  outline: "border-line-strong bg-paper text-ink hover:border-stock-400",
+  ghost: "bg-transparent text-ink hover:bg-surface-2",
+  danger: "border-negative/40 bg-paper text-negative hover:bg-negative-soft",
 };
 
 export function Button({
@@ -566,12 +362,7 @@ export function Button({
   fullWidth,
   ...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant; fullWidth?: boolean }) {
-  return (
-    <button
-      {...props}
-      className={cn(BUTTON_BASE, BUTTON_VARIANTS[variant], fullWidth && "w-full", className)}
-    />
-  );
+  return <button {...props} className={cn(BUTTON_BASE, BUTTON_VARIANTS[variant], fullWidth && "w-full", className)} />;
 }
 
 export function ButtonLink({
@@ -583,17 +374,13 @@ export function ButtonLink({
   ...props
 }: React.ComponentProps<typeof Link> & { variant?: ButtonVariant; fullWidth?: boolean }) {
   return (
-    <Link
-      href={href}
-      {...props}
-      className={cn(BUTTON_BASE, BUTTON_VARIANTS[variant], fullWidth && "w-full", className)}
-    >
+    <Link href={href} {...props} className={cn(BUTTON_BASE, BUTTON_VARIANTS[variant], fullWidth && "w-full", className)}>
       {children}
     </Link>
   );
 }
 
-/** Segmented tab bar — a pressed-in groove with a raised chip marking the active tab. */
+/** Segmented control (the system's `.seg`). */
 export function TabBar<T extends string>({
   tabs,
   active,
@@ -606,11 +393,7 @@ export function TabBar<T extends string>({
   label: string;
 }) {
   return (
-    <div
-      className="neu-pressed scroll-x mb-6 inline-flex w-full gap-1.5 rounded-2xl bg-paper p-1.5"
-      role="tablist"
-      aria-label={label}
-    >
+    <div className="scroll-x mb-6 flex max-w-full gap-1 rounded-[10px] border border-divider bg-surface-2 p-1" role="tablist" aria-label={label}>
       {tabs.map((tab) => (
         <button
           key={tab.id}
@@ -618,10 +401,8 @@ export function TabBar<T extends string>({
           aria-selected={active === tab.id}
           onClick={() => onChange(tab.id)}
           className={cn(
-            "min-h-[44px] flex-1 whitespace-nowrap rounded-xl px-4 py-2 font-sans text-sm font-semibold transition-all duration-[var(--duration-base)] ease-[var(--ease-glide)] active:scale-95",
-            active === tab.id
-              ? "neu-flat-sm bg-paper text-editorial"
-              : "text-stock-500 hover:bg-tab-hover hover:text-ink"
+            "min-h-10 flex-1 whitespace-nowrap rounded-[7px] px-4 text-[14px] font-medium transition-colors duration-[var(--duration-base)]",
+            active === tab.id ? "bg-paper text-ink shadow-[0_1px_2px_rgba(20,22,26,0.08)]" : "text-stock-500 hover:text-ink"
           )}
         >
           {tab.label}
@@ -646,15 +427,15 @@ export function Field({
 }) {
   return (
     <label className={cn("block", className)}>
-      <Eyebrow className="mb-1.5 text-stock-500">{label}</Eyebrow>
+      <span className="mb-1.5 block text-[14px] font-medium leading-5 text-ink">{label}</span>
       {children}
-      {hint && <span className="font-mono mt-1 block text-[10px] leading-tight text-stock-500">{hint}</span>}
+      {hint && <span className="mt-1.5 block text-[13px] leading-snug text-stock-400">{hint}</span>}
     </label>
   );
 }
 
 const CONTROL =
-  "neu-pressed w-full min-h-[44px] rounded-2xl bg-paper px-4 py-2 font-sans text-sm text-ink transition-shadow duration-300 placeholder:text-stock-400 focus-visible:neu-pressed-deep";
+  "w-full min-h-11 rounded-lg border border-line-input bg-paper px-3.5 py-2 text-[15px] text-ink transition-[border-color,box-shadow] duration-[var(--duration-base)] placeholder:text-stock-400 focus:border-editorial focus:shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-editorial)_18%,transparent)] focus:outline-none focus-visible:outline-none aria-[invalid=true]:border-negative disabled:opacity-50";
 
 export function Input({ className, ...props }: React.InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} className={cn(CONTROL, className)} />;
@@ -665,29 +446,10 @@ export function Textarea({ className, ...props }: React.TextareaHTMLAttributes<H
 }
 
 /**
- * A numeric field that can actually be emptied.
- *
- * Every numeric input in the app was `value={someNumber}` with
- * `onChange={e => setNumber(Number(e.target.value))}`, which has one
- * behaviour users hit constantly and cannot work around: clearing the field
- * makes `e.target.value` the empty string, `Number("")` is `0`, so state
- * becomes 0 and the controlled input immediately re-renders as "0". You
- * cannot select-all-and-type — the 0 stays in front of whatever you type
- * next (typing "5" over a cleared field gives 50, or leaves the caret
- * behind a 0). On a phone, where select-all is fiddly and the keyboard
- * hides the field, it is worse: budgets get submitted an order of magnitude
- * off, and nothing about the UI says anything went wrong.
- *
- * The fix is to keep the *text* as state while focused and only project it
- * to a number for the caller, so "" is a legitimate intermediate state
- * rather than being instantly coerced to 0. The caller still receives a
- * number (0 for empty), so no call site has to change its own state type.
- *
- * `inputMode` is the second half: `type="number"` alone gives iOS a
- * full alphanumeric keyboard on many versions, while inputMode="numeric"/
- * "decimal" gets the number pad. `type="text"` + inputMode also avoids
- * Chrome's scroll-wheel-changes-the-value behaviour and its spinner
- * buttons, which are far below the 44px touch target on mobile.
+ * A numeric field that can actually be emptied: the text is state while
+ * focused and only projected to a number for the caller, so clearing it
+ * does not snap back to "0". type="text" + inputMode gives the number pad
+ * without the spinner and the scroll-wheel trap.
  */
 export function NumberInput({
   value,
@@ -700,7 +462,6 @@ export function NumberInput({
 }: Omit<React.InputHTMLAttributes<HTMLInputElement>, "value" | "onChange" | "type" | "min" | "max"> & {
   value: number;
   onValueChange: (value: number) => void;
-  /** Allow a decimal separator (and show the decimal keypad). */
   decimal?: boolean;
   min?: number;
   max?: number;
@@ -714,8 +475,7 @@ export function NumberInput({
       onValueChange(0);
       return;
     }
-    // Accept the Romanian decimal comma as well as the dot — a phone
-    // keypad in a ro-RO locale offers the comma, and Number(",5") is NaN.
+    // The Romanian keypad offers a decimal comma.
     const parsed = Number(raw.replace(",", "."));
     if (!Number.isFinite(parsed)) return;
     let next = parsed;
@@ -731,31 +491,24 @@ export function NumberInput({
       inputMode={decimal ? "decimal" : "numeric"}
       value={shown}
       onChange={(e) => commit(e.target.value)}
-      // Dropping the draft on blur re-syncs the box with whatever the
-      // parent actually holds (including a clamped value), so a field left
-      // empty settles visibly on the real number instead of looking blank.
       onBlur={(e) => {
         setDraft(null);
         props.onBlur?.(e);
       }}
-      className={cn(CONTROL, className)}
+      className={cn(CONTROL, "tabular", className)}
     />
   );
 }
 
 const CHEVRON_BG =
-  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7280' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E";
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%235B616B' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E";
 
 export function Select({ className, children, style, ...props }: React.SelectHTMLAttributes<HTMLSelectElement>) {
   return (
     <select
       {...props}
-      className={cn(
-        CONTROL,
-        "cursor-pointer appearance-none bg-no-repeat pr-9 disabled:cursor-not-allowed disabled:opacity-50",
-        className
-      )}
-      style={{ backgroundImage: `url("${CHEVRON_BG}")`, backgroundPosition: "right 1rem center", backgroundSize: "12px 8px", ...style }}
+      className={cn(CONTROL, "cursor-pointer appearance-none bg-no-repeat pr-10 disabled:cursor-not-allowed", className)}
+      style={{ backgroundImage: `url("${CHEVRON_BG}")`, backgroundPosition: "right 12px center", backgroundSize: "14px 14px", ...style }}
     >
       {children}
     </select>
@@ -768,25 +521,14 @@ export function Checkbox({
   ...props
 }: React.InputHTMLAttributes<HTMLInputElement> & { label: string }) {
   return (
-    <label className={cn("flex min-h-[44px] cursor-pointer items-center gap-3 font-body text-sm text-ink", className)}>
-      <input
-        type="checkbox"
-        {...props}
-        className="neu-pressed-sm h-5 w-5 shrink-0 appearance-none rounded-md bg-paper transition-all duration-300 checked:neu-flat-sm checked:[background:var(--color-editorial)]"
-      />
+    <label className={cn("flex min-h-11 cursor-pointer items-center gap-2.5 text-[15px] text-ink", className)}>
+      <input type="checkbox" {...props} className="h-[18px] w-[18px] shrink-0" />
       <span className="leading-snug">{label}</span>
     </label>
   );
 }
 
-/**
- * Multi-select over a closed vocabulary, as toggleable chips.
- *
- * Used for județe, which were previously a comma-separated text input —
- * an open question asked of a closed set, so an unmatchable value was
- * always one typo away and failed silently. Lives here rather than in a
- * page so onboarding and the criteria editor cannot drift apart.
- */
+/** Multi-select over a closed vocabulary, as the system's chips. */
 export function ChipSelect({
   options,
   selected,
@@ -799,15 +541,10 @@ export function ChipSelect({
   emptyHint?: string;
 }) {
   const toggle = (option: string) =>
-    onChange(
-      selected.includes(option)
-        ? selected.filter((s) => s !== option)
-        : [...selected, option]
-    );
-
+    onChange(selected.includes(option) ? selected.filter((s) => s !== option) : [...selected, option]);
   return (
     <div>
-      <div className="scroll-x flex max-h-56 flex-wrap gap-1.5 overflow-y-auto p-0.5">
+      <div className="flex max-h-60 flex-wrap gap-2 overflow-y-auto p-px">
         {options.map((option) => {
           const active = selected.includes(option);
           return (
@@ -817,10 +554,8 @@ export function ChipSelect({
               onClick={() => toggle(option)}
               aria-pressed={active}
               className={cn(
-                "min-h-[36px] rounded-xl px-3 py-1.5 font-body text-[13px] transition-all duration-[var(--duration-base)] ease-[var(--ease-glide)] active:scale-95",
-                active
-                  ? "neu-pressed-sm bg-editorial-soft font-medium text-editorial"
-                  : "neu-flat-sm bg-paper text-stock-600 hover:neu-lift"
+                "min-h-9 rounded-lg border px-3 text-[14px] transition-colors duration-[var(--duration-base)]",
+                active ? "border-editorial-line bg-editorial-soft font-medium text-accent" : "border-line-strong bg-paper text-ink hover:bg-surface-2"
               )}
             >
               {option}
@@ -828,15 +563,14 @@ export function ChipSelect({
           );
         })}
       </div>
-      {selected.length === 0 && emptyHint && (
-        <p className="font-body mt-2 text-[11px] leading-snug text-stock-500">{emptyHint}</p>
-      )}
+      {selected.length === 0 && emptyHint && <p className="mt-2 text-[13px] leading-snug text-stock-400">{emptyHint}</p>}
     </div>
   );
 }
 
 /* ------------------------------------------------------------------ states */
 
+/** One line of context. Pages keep at most one per tab. */
 export function Notice({
   tone = "neutral",
   title,
@@ -848,13 +582,14 @@ export function Notice({
 }) {
   const toneClass =
     tone === "alert"
-      ? "border-l-[3px] border-negative text-negative"
+      ? "border-negative/25 bg-negative-soft"
       : tone === "warning"
-        ? "border-l-[3px] border-warning text-warning"
-        : "text-ink";
+        ? "border-warning/25 bg-warning-soft"
+        : "border-divider bg-surface-2";
+  const titleClass = tone === "alert" ? "text-negative" : tone === "warning" ? "text-warning" : "text-ink";
   return (
-    <div className={cn("neu-pressed rounded-2xl bg-paper px-4 py-3 font-body text-sm leading-relaxed", toneClass)} role="status">
-      {title && <span className="label-eyebrow mb-1 block opacity-80">{title}</span>}
+    <div className={cn("rounded-lg border px-4 py-3 text-[14px] leading-[21px] text-stock-600", toneClass)} role="status">
+      {title && <b className={cn("mb-0.5 block text-[15px] font-semibold", titleClass)}>{title}</b>}
       {children}
     </div>
   );
@@ -862,40 +597,56 @@ export function Notice({
 
 export function EmptyState({ title, children }: { title: string; children?: React.ReactNode }) {
   return (
-    <div className="neu-pressed flex flex-col items-center justify-center rounded-3xl bg-paper px-6 py-16 text-center">
-      <Eyebrow className="text-editorial">Fără rezultate</Eyebrow>
-      <p className="font-display mt-3 text-xl font-bold text-ink">{title}</p>
-      {children && <p className="font-body mt-2 max-w-md text-sm leading-relaxed text-stock-500">{children}</p>}
+    <div className="rounded-xl border border-divider bg-paper px-6 py-12 text-center">
+      <p className="text-lg font-semibold text-ink">{title}</p>
+      {children && <div className="mx-auto mt-2 max-w-md text-[15px] leading-relaxed text-stock-500">{children}</div>}
     </div>
   );
 }
 
 export function Loading({ label = "Se încarcă" }: { label?: string }) {
   return (
-    <div
-      className="neu-pressed flex items-center justify-center gap-3 rounded-3xl bg-paper px-6 py-16"
-      role="status"
-      aria-live="polite"
-    >
-      <span className="neu-flat-sm h-2.5 w-2.5 shrink-0 animate-pulse rounded-full bg-editorial" aria-hidden="true" />
-      <span className="label-eyebrow text-stock-500">{label}…</span>
+    <div className="flex items-center gap-3 rounded-xl border border-divider bg-paper px-5 py-8" role="status" aria-live="polite">
+      <span className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-editorial" aria-hidden="true" />
+      <span className="text-[15px] text-stock-500">{label}…</span>
     </div>
   );
 }
 
-/**
- * Shown when the backend served a cached snapshot because Postgres was
- * unreachable. An empty feed caused by an outage and a market with no
- * opportunities look identical from the payload alone — the API flags the
- * difference, so the UI has to state it rather than render a calm empty page.
- */
+/** The backend served a cached snapshot because Postgres was unreachable. */
 export function DegradedBanner({ detail }: { detail?: string }) {
   return (
-    <div className="neu-pressed mb-5 rounded-2xl border-l-[3px] border-warning bg-paper px-4 py-3">
-      <span className="label-eyebrow text-warning">Date degradate</span>
-      <p className="font-body mt-1 text-sm leading-relaxed text-ink">
-        {detail || "Baza de date nu a răspuns — sunt afișate ultimele date memorate în cache."}
-      </p>
+    <div className="mb-5">
+      <Notice tone="warning" title="Date din cache">
+        {detail || "Baza de date nu a răspuns — sunt afișate ultimele date memorate."}
+      </Notice>
     </div>
+  );
+}
+
+/** An accordion for supporting text (law, method notes) that should stay
+ *  one click away — the public page's FAQ row. */
+export function Disclosure({
+  summary,
+  children,
+  defaultOpen = false,
+  className,
+}: {
+  summary: React.ReactNode;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+  className?: string;
+}) {
+  return (
+    <details className={cn("group rounded-xl border border-divider bg-paper", className)} open={defaultOpen || undefined}>
+      <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-4 px-4 text-[15px] font-semibold text-ink [&::-webkit-details-marker]:hidden">
+        {summary}
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true" className="shrink-0 text-stock-400 transition-transform duration-[var(--duration-base)] group-open:rotate-45">
+          <path d="M12 5v14" />
+          <path d="M5 12h14" />
+        </svg>
+      </summary>
+      <div className="border-t border-divider px-4 py-3 text-[14px] leading-relaxed text-stock-500">{children}</div>
+    </details>
   );
 }

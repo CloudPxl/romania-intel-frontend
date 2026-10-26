@@ -191,7 +191,7 @@ export default function AnalysisPage() {
   const activeFilterCount = Object.keys(data?.filters_applied ?? {}).filter((k) => k !== "limit").length;
 
   return (
-    <main className="mx-auto w-full max-w-screen-xl flex-1 px-4 py-6 sm:py-8">
+    <main className="mx-auto w-full max-w-[1264px] flex-1 px-5 pb-16 pt-8 sm:px-8 sm:pt-12">
       <PageHeader
         eyebrow="Analiza de piață"
         title="Unde se concentrează bugetul public"
@@ -336,7 +336,7 @@ export default function AnalysisPage() {
 
             {data.is_authenticated && (
               <p className="mt-10 border-t border-divider pt-5 text-center">
-                <Link href="/cautare-avansata" className="font-sans text-sm font-medium text-editorial hover:brightness-110">
+                <Link href="/cautare-avansata" className="font-sans text-sm font-medium text-accent hover:brightness-110">
                   Vezi toate dosarele în căutarea avansată →
                 </Link>
               </p>

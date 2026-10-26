@@ -163,7 +163,7 @@ function DealCard({
             className="mt-2 block w-full text-left disabled:cursor-default"
             aria-label={`Deschide dosarul ${deal.project_title}`}
           >
-            <h3 className="font-display text-xl font-bold leading-snug tracking-tight transition-colors hover:text-editorial">
+            <h3 className="font-display text-xl font-bold leading-snug tracking-tight transition-colors hover:text-accent">
               {deal.project_title || "Dosar fără titlu"}
             </h3>
             {opp?.entity_name && (
@@ -184,7 +184,7 @@ function DealCard({
                 href={opp.source_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="normal-case tracking-normal text-editorial hover:brightness-110"
+                className="normal-case tracking-normal text-accent hover:brightness-110"
               >
                 Anunțul oficial ↗
               </a>
@@ -207,7 +207,7 @@ function DealCard({
                   key={a.artifact_id}
                   onClick={() => router.push(artifactHref(a))}
                   title={`${a.title} — ${formatDate(a.created_at)}. Redeschide cu aceleași date.`}
-                  className="neu-flat-sm rounded-full bg-paper px-2.5 py-1 font-sans text-[11px] font-semibold text-editorial transition-all hover:-translate-y-0.5"
+                  className="neu-flat-sm rounded-full bg-paper px-2.5 py-1 font-sans text-[11px] font-semibold text-accent transition-all hover:-translate-y-0.5"
                 >
                   {a.label || a.kind} · {formatDate(a.created_at)}
                 </button>
@@ -486,7 +486,7 @@ function PipelineContent() {
         : deals.filter((d) => d.stage === stageFilter);
 
   return (
-    <main className="mx-auto w-full max-w-screen-xl flex-1 px-4 py-6 sm:py-8">
+    <main className="mx-auto w-full max-w-[1264px] flex-1 px-5 pb-16 pt-8 sm:px-8 sm:pt-12">
       <PageHeader
         eyebrow={`Pipeline ofertare · ${profile?.display_name ?? ""}`}
         title="Dosare în lucru"
@@ -601,8 +601,8 @@ function PipelineContent() {
                   </table>
                   </div>
 
-                  <div className="neu-pressed mt-4 rounded-r-lg border-l-2 border-editorial bg-editorial-soft px-4 py-3">
-                    <Eyebrow className="text-editorial">Metodologie</Eyebrow>
+                  <div className="mt-4 rounded-xl border border-editorial-line bg-editorial-soft px-4 py-3">
+                    <Eyebrow className="text-accent">Metodologie</Eyebrow>
                     <p className="font-body mt-1.5 text-xs leading-relaxed text-ink">
                       {metrics.methodology_note}
                     </p>
@@ -673,8 +673,8 @@ function PipelineContent() {
 export default function PipelinePage() {
   return (
     <AuthGate
-      title="Pipeline-ul este disponibil în contul gratuit"
-      description="Urmăriți până la 10 dosare gratuit, cu etape, valoare ponderată și termene. Creați un cont gratuit (doar emailul, fără card) — vă întoarceți exact pe această pagină."
+      title="Pipeline ofertare"
+      description="Urmăriți până la 10 dosare gratuit, cu etape, valoare ponderată și termene."
     >
       <PipelineContent />
     </AuthGate>

@@ -70,7 +70,7 @@ export default function AuthorityProfilePanel({
       >
         <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-divider bg-paper/95 p-4 backdrop-blur sm:p-6">
           <div className="min-w-0">
-            <Eyebrow className="text-editorial">
+            <Eyebrow className="text-accent">
               Profil autoritate{profile?.authority_cui ? ` · CUI ${profile.authority_cui}` : ""}
             </Eyebrow>
             <h2 className="font-display mt-2 text-xl font-semibold leading-tight tracking-tight sm:text-2xl">{title}</h2>
@@ -156,7 +156,7 @@ export default function AuthorityProfilePanel({
 
               {profile.competition_factor && (
                 <div className="neu-pressed rounded-2xl bg-paper px-4 py-3">
-                  <Eyebrow className="text-editorial">Factor de concurență în pipeline</Eyebrow>
+                  <Eyebrow className="text-accent">Factor de concurență în pipeline</Eyebrow>
                   <p className="font-body mt-1 text-sm">
                     φ = {profile.competition_factor.phi} — {profile.competition_factor.basis}.
                   </p>
@@ -175,7 +175,7 @@ export default function AuthorityProfilePanel({
                       href={a.source_url || undefined}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="font-body block text-sm font-medium transition-colors hover:text-editorial"
+                      className="font-body block text-sm font-medium transition-colors hover:text-accent"
                     >
                       {a.title || "Contract fără titlu"}
                     </a>

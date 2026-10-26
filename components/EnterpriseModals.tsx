@@ -17,9 +17,11 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { currentPath } from "@/lib/authRedirect";
 import { useTheme } from "@/context/ThemeContext";
+import { useCompanyProfile } from "@/context/CompanyProfileContext";
 import { CATEGORIES, COUNTIES, DOMAIN_OPTIONS } from "@/lib/format";
 import { Badge, Button, ChipSelect, Eyebrow, Field, Input, Notice, Select } from "@/components/newsprint";
 import NotificationToggle from "@/components/NotificationToggle";
+import { PAID_PLANS, formatLei } from "@/lib/plans";
 
 /* ------------------------------------------------------------ modal shell */
 
@@ -94,34 +96,9 @@ function Modal({
 
 /* ----------------------------------------------------------------- pricing */
 
-const PLANS = [
-  {
-    id: "plan_acces_complet",
-    name: "Acces Complet",
-    tier: "Standard",
-    price: 499,
-    features: [
-      "Acces la toate registrele active de monitorizare",
-      "Sinteze executive generate automat",
-      "Export CSV al dosarelor calificate",
-      "Profil de monitorizare propriu",
-    ],
-  },
-  {
-    id: "plan_founder_vip",
-    name: "VIP Multi-Divizie",
-    tier: "Enterprise",
-    price: 1499,
-    features: [
-      "Tot ce include pachetul Acces Complet",
-      "Scanner caiet de sarcini (PDF / DOCX)",
-      "Simulator șanse de câștig și marje",
-      "Generator adrese Legea 544 și clarificări",
-      "Radar concurență și propunere tehnică",
-      "Suport prioritar",
-    ],
-  },
-] as const;
+// The paid plans as the price page states them (lib/plans.ts, the
+// engine's billing.py figures).
+const PLANS = PAID_PLANS.map((p) => ({ ...p, tier: p.id === "plan_founder_vip" ? "Ofertare completă" : "Monitorizare" }));
 
 export function PricingModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const { user, profile } = useAuth();
@@ -262,16 +239,12 @@ export function PricingModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
                 className={
                   "min-h-[44px] flex-1 rounded-xl px-4 py-2 font-sans text-sm font-semibold transition-all duration-[var(--duration-base)] active:scale-95 " +
                   (billingInterval === key
-                    ? "neu-flat-sm bg-paper text-editorial"
+                    ? "neu-flat-sm bg-paper text-accent"
                     : "text-stock-500 hover:bg-tab-hover hover:text-ink")
                 }
               >
                 {key === "monthly" ? "Lunar" : "Anual"}
-                {key === "annual" && (
-                  <span className="ml-2 text-[11px] font-bold text-positive">
-                    −{Math.round((1 - (billing?.annual_months_charged ?? 10) / 12) * 100)}%
-                  </span>
-                )}
+                {key === "annual" && <span className="ml-2 rounded-full bg-positive-soft px-1.5 text-[11px] font-semibold text-positive">până la 33% mai ieftin</span>}
               </button>
             ))}
           </div>
@@ -286,29 +259,29 @@ export function PricingModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
                   aria-pressed={active}
                   className={
                     "flex flex-col rounded-3xl bg-paper p-5 text-left transition-all duration-300 " +
-                    (active ? "neu-pressed border-l-[3px] border-editorial bg-editorial-soft" : "neu-flat hover:neu-lift")
+                    (active ? "border-2 border-editorial bg-editorial-soft" : "neu-flat hover:neu-lift")
                   }
                 >
                   <div className="flex items-baseline justify-between gap-2">
                     <span className="label-eyebrow text-stock-500">{p.tier}</span>
-                    {active && <span className="label-eyebrow text-editorial">Selectat</span>}
+                    {active && <span className="label-eyebrow text-accent">Selectat</span>}
                   </div>
                   <h3 className="font-display mt-2 text-xl font-semibold leading-tight">{p.name}</h3>
-                  <p className="tabular font-display mt-3 text-3xl font-semibold">
-                    {billingInterval === "annual" ? p.price * (billing?.annual_months_charged ?? 10) : p.price}
-                    <span className="font-mono ml-1 text-xs font-normal tracking-widest text-stock-500">
-                      RON / {billingInterval === "annual" ? "AN" : "LUNĂ"}
+                  <p className="mt-3 flex items-baseline gap-1.5">
+                    <span className="tabular text-[32px] font-medium leading-none tracking-[-0.03em]">
+                      {formatLei(billingInterval === "annual" ? p.annual : p.monthly)}
                     </span>
+                    <span className="text-[15px] text-stock-500">lei / {billingInterval === "annual" ? "an" : "lună"}, fără TVA</span>
                   </p>
                   {billingInterval === "annual" && (
-                    <p className="font-body mt-1 text-[12px] text-positive">
-                      Echivalent {p.price} RON/lună — {12 - (billing?.annual_months_charged ?? 10)} luni gratuite.
+                    <p className="mt-1 text-[13px] text-positive">
+                      ≈ {formatLei(Math.round(p.annual / 12))} lei / lună{p.annualNote ? ` · ${p.annualNote}` : ""}
                     </p>
                   )}
                   <ul className="font-body mt-4 space-y-1.5 text-sm leading-relaxed text-stock-600">
                     {p.features.map((f) => (
                       <li key={f} className="flex gap-2">
-                        <span aria-hidden="true" className="text-editorial">—</span>
+                        <span aria-hidden="true" className="text-accent">—</span>
                         <span>{f}</span>
                       </li>
                     ))}
@@ -321,7 +294,7 @@ export function PricingModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
           <div className="neu-flat rounded-3xl bg-paper p-4 sm:p-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="min-w-0">
-                <Eyebrow className="text-editorial">Plată cu cardul</Eyebrow>
+                <Eyebrow className="text-accent">Plată cu cardul</Eyebrow>
                 <p className="font-body mt-1 text-sm leading-relaxed text-stock-600">
                   Activare imediată prin Stripe. Puteți anula oricând.
                 </p>
@@ -371,14 +344,14 @@ export function PricingModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
             <Button onClick={handleGenerate} disabled={loading} fullWidth className="mt-5">
               {loading
                 ? "Se emite proforma…"
-                : `Emite proformă — ${billingInterval === "annual" ? (plan?.price ?? 0) * (billing?.annual_months_charged ?? 10) : plan?.price} RON`}
+                : `Emite proformă — ${formatLei(billingInterval === "annual" ? plan?.annual ?? 0 : plan?.monthly ?? 0)} lei, fără TVA`}
             </Button>
           </div>
         </div>
       ) : (
         <div className="space-y-5">
-          <div className="neu-pressed rounded-r-lg border-l-2 border-editorial bg-editorial-soft px-4 py-3">
-            <Eyebrow className="text-editorial">Proformă emisă</Eyebrow>
+          <div className="rounded-xl border border-editorial-line bg-editorial-soft px-4 py-3">
+            <Eyebrow className="text-accent">Proformă emisă</Eyebrow>
             <p className="font-display mt-1 text-xl font-semibold">{proforma.invoice_number}</p>
             <p className="font-body mt-1 text-sm text-stock-600">
               Total de plată: <b className="text-ink">{proforma.total_ron} RON</b> · {proforma.plan_name}
@@ -429,6 +402,128 @@ export function PricingModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
 }
 
 /* ---------------------------------------------------------------- account */
+
+/* ------------------------------------------------- bidder (Subscrisa) */
+
+/**
+ * The bidder every document is written for. The one place it is edited
+ * besides Redactare and Eligibilitate — all three read and write
+ * CompanyProfileContext, so a change here shows in the next document. On
+ * Ofertant Complet Pro the account keeps several firms (multi-CUI) and
+ * switches between them.
+ */
+function CompanySection() {
+  const { profile, save, library, libraryMax, activate, addCompany, removeCompany } = useCompanyProfile();
+  const empty = { company_name: "", cui: "", registration_number: "", address: "", legal_representative: "", representative_role: "" };
+  const [form, setForm] = useState(empty);
+  const [status, setStatus] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
+
+  useEffect(() => {
+    setForm({
+      company_name: profile?.company_name || "",
+      cui: profile?.cui || "",
+      registration_number: profile?.registration_number || "",
+      address: profile?.address || "",
+      legal_representative: profile?.legal_representative || "",
+      representative_role: profile?.representative_role || "",
+    });
+  }, [profile]);
+
+  const set = (k: keyof typeof empty) => (e: React.ChangeEvent<HTMLInputElement>) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  const digits = (v?: string | null) => (v || "").replace(/\D/g, "");
+  const activeDigits = digits(profile?.cui);
+
+  const handleSave = async () => {
+    setError(null);
+    if (adding) {
+      const { error: err } = await addCompany(form);
+      if (err) return setError(err);
+      setAdding(false);
+      setStatus("Firma a fost adăugată. O activați din listă.");
+      return;
+    }
+    await save(form);
+    setStatus("Datele firmei au fost salvate.");
+  };
+
+  const field = (k: keyof typeof empty, label: string, placeholder?: string) => (
+    <Field label={label}>
+      <Input value={form[k]} onChange={set(k)} placeholder={placeholder} />
+    </Field>
+  );
+
+  return (
+    <div className="rounded-xl border border-divider bg-paper p-5">
+      <Eyebrow className="mb-1 text-accent">Firma ofertantă (Subscrisa)</Eyebrow>
+      <p className="mb-4 text-[14px] leading-[21px] text-stock-500">Apare în antetul fiecărui document generat: propunere tehnică, declarații, clarificări.</p>
+      {libraryMax > 1 && library.length > 0 && (
+        <ul className="mb-4 divide-y divide-divider overflow-hidden rounded-lg border border-divider">
+          {library.map((p) => {
+            const d = digits(p.cui);
+            const active = d === activeDigits;
+            return (
+              <li key={d} className="flex items-center gap-3 px-3 py-2.5">
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[15px] font-medium">{p.company_name || `RO${d}`}</span>
+                  <span className="tabular block text-[13px] text-stock-400">RO{d}</span>
+                </span>
+                {active ? (
+                  <Badge tone="accent">Activă</Badge>
+                ) : (
+                  <>
+                    <Button variant="outline" className="min-h-9 px-3 text-[14px]" onClick={async () => setError((await activate(d)).error)}>
+                      Activează
+                    </Button>
+                    <Button variant="ghost" className="min-h-9 px-3 text-[14px] text-negative" onClick={async () => setError((await removeCompany(d)).error)}>
+                      Șterge
+                    </Button>
+                  </>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {field("company_name", "Denumire", "Firma Exemplu SRL")}
+        {field("cui", "CUI", "RO12345678")}
+        {field("registration_number", "Nr. Registrul Comerțului", "J22/1234/2015")}
+        {field("address", "Sediu")}
+        {field("legal_representative", "Reprezentant legal")}
+        {field("representative_role", "Funcție", "Administrator")}
+      </div>
+      {error && (
+        <div className="mt-4">
+          <Notice tone="alert">{error}</Notice>
+        </div>
+      )}
+      {status && !error && <p className="mt-3 text-[14px] text-positive">{status}</p>}
+      <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+        <Button onClick={handleSave} className="sm:flex-1">
+          {adding ? "Salvează firma nouă" : "Salvează datele firmei"}
+        </Button>
+        {libraryMax > 1 ? (
+          library.length < libraryMax && (
+            <Button
+              variant="outline"
+              onClick={() => {
+                setAdding((v) => !v);
+                setStatus(null);
+                setForm(adding ? { ...empty, ...Object.fromEntries(Object.entries(profile || {}).filter(([k]) => k in empty)) } : empty);
+              }}
+            >
+              {adding ? "Renunță" : `Adaugă altă firmă (${library.length}/${libraryMax})`}
+            </Button>
+          )
+        ) : (
+          <p className="self-center text-[13px] text-stock-400">Mai multe firme (multi-CUI): Ofertant Complet Pro.</p>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export function AccountSettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const { user, profile, signInWithGoogle, signInWithEmail, signOut } = useAuth();
@@ -540,7 +635,7 @@ export function AccountSettingsModal({ isOpen, onClose }: { isOpen: boolean; onC
       <div className="space-y-6">
         {!user ? (
           <div className="neu-flat rounded-3xl bg-paper p-4 sm:p-5">
-            <Eyebrow className="text-editorial">Neautentificat</Eyebrow>
+            <Eyebrow className="text-accent">Neautentificat</Eyebrow>
             <p className="font-body mt-2 text-sm leading-relaxed text-stock-600">
               Conectați-vă pentru a accesa registrul, a salva dosare în pipeline și a primi alerte.
             </p>
@@ -606,13 +701,15 @@ export function AccountSettingsModal({ isOpen, onClose }: { isOpen: boolean; onC
           </div>
         )}
 
+        {user && <CompanySection />}
+
         {user && (
           <div className="neu-flat rounded-3xl bg-paper p-4 sm:p-5">
             <Eyebrow className="mb-2 text-negative">Zonă cu risc</Eyebrow>
             <p className="font-body mb-4 text-sm leading-relaxed text-stock-600">
               Ștergerea contului elimină definitiv profilul dvs. de căutare, criteriile de monitorizare și
               istoricul asociat. Nu poate fi anulată. Vezi{" "}
-              <a href="/privacy" target="_blank" className="text-editorial underline underline-offset-2">
+              <a href="/privacy" target="_blank" className="text-accent underline underline-offset-2">
                 Politica de Confidențialitate
               </a>
               .
@@ -708,7 +805,7 @@ export function AccountSettingsModal({ isOpen, onClose }: { isOpen: boolean; onC
               onClick={() => setTheme("light")}
               className={
                 "min-h-[44px] flex-1 rounded-2xl px-4 py-2 font-sans text-sm font-semibold transition-all duration-[var(--duration-base)] ease-[var(--ease-glide)] active:scale-95 " +
-                (theme === "light" ? "neu-pressed text-editorial" : "neu-flat text-stock-600 hover:neu-lift")
+                (theme === "light" ? "neu-pressed text-accent" : "neu-flat text-stock-600 hover:neu-lift")
               }
             >
               Luminos
@@ -720,7 +817,7 @@ export function AccountSettingsModal({ isOpen, onClose }: { isOpen: boolean; onC
               onClick={() => setTheme("dark")}
               className={
                 "min-h-[44px] flex-1 rounded-2xl px-4 py-2 font-sans text-sm font-semibold transition-all duration-[var(--duration-base)] ease-[var(--ease-glide)] active:scale-95 " +
-                (theme === "dark" ? "neu-pressed text-editorial" : "neu-flat text-stock-600 hover:neu-lift")
+                (theme === "dark" ? "neu-pressed text-accent" : "neu-flat text-stock-600 hover:neu-lift")
               }
             >
               Întunecat
@@ -753,6 +850,8 @@ const DOMAINS = DOMAIN_OPTIONS;
  */
 export function ProfileCriteriaModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const { profile, updateProfile } = useAuth();
+  // The firm is CompanyProfileContext's (one "Subscrisa" for the whole app).
+  const company = useCompanyProfile();
   const [displayName, setDisplayName] = useState("");
   // Explicit `string`: CATEGORIES is `as const`, so CATEGORIES[0].id alone
   // narrows this to the literal "infrastructura" and nothing else assigns.
@@ -786,8 +885,8 @@ export function ProfileCriteriaModal({ isOpen, onClose }: { isOpen: boolean; onC
     setKeywords((profile.keywords || []).join(", "));
     setExcludeKeywords((profile.exclude_keywords || []).join(", "));
     setMinValue(profile.min_value_ron ? String(profile.min_value_ron) : "");
-    setCompanyName(profile.company_name || "");
-    setCui(profile.cui || "");
+    setCompanyName(company.profile?.company_name || profile.company_name || "");
+    setCui(company.profile?.cui || profile.cui || "");
     setSaved(false);
     setError(null);
   }, [isOpen, profile]);
@@ -816,6 +915,9 @@ export function ProfileCriteriaModal({ isOpen, onClose }: { isOpen: boolean; onC
     if (apiError) {
       setError(apiError);
       return;
+    }
+    if (companyName.trim() || cui.trim()) {
+      await company.save({ company_name: companyName.trim() || null, cui: cui.trim() || null });
     }
     // Confirm, then close on its own. Leaving the dialog open after a
     // successful save reads as "nothing happened" — people press the

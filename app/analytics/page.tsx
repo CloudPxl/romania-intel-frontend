@@ -110,10 +110,10 @@ function tenderFrom(lead: Lead | null, params: URLSearchParams): Tender {
 function TenderBanner({ tender }: { tender: Tender }) {
   if (!tender.source_id) return null;
   return (
-    <div className="neu-pressed mb-6 rounded-2xl bg-paper px-4 py-3">
-      <Eyebrow className="text-editorial">Licitația analizată · {tender.source_id}</Eyebrow>
-      <p className="font-body mt-1 text-sm font-semibold leading-snug">{tender.project_title}</p>
-      <p className="font-mono mt-0.5 text-[11px] text-stock-500">
+    <div className="mb-6 rounded-xl border border-divider bg-paper px-5 py-4">
+      <Eyebrow className="text-accent">Licitația analizată · <span className="tabular normal-case tracking-normal">{tender.source_id}</span></Eyebrow>
+      <p className="mt-1 text-[16px] font-semibold leading-snug">{tender.project_title}</p>
+      <p className="tabular mt-1 text-[13px] text-stock-500">
         {[tender.entity_name, tender.county, tender.cpv_code && `CPV ${tender.cpv_code}`, tender.budget && formatRon(tender.budget)]
           .filter(Boolean)
           .join(" · ")}
@@ -290,7 +290,7 @@ function CompetitorTool({ tender }: { tender: Tender }) {
                   {PRICE_POINTS.map(({ key, label, tip }) => (
                     <div key={key} className={"p-4 " + (key === "p50" ? "neu-pressed-sm rounded-2xl" : "")}>
                       <Tooltip label={tip}>
-                        <Eyebrow className={key === "p50" ? "text-editorial" : undefined}>{label}</Eyebrow>
+                        <Eyebrow className={key === "p50" ? "text-accent" : undefined}>{label}</Eyebrow>
                       </Tooltip>
                       <p className="tabular font-display mt-1.5 text-lg font-semibold leading-none">
                         {formatRon(pct.prices_ron[key] ?? null)}
@@ -355,7 +355,7 @@ function CompetitorTool({ tender }: { tender: Tender }) {
                     <button
                       disabled={!p.source_id}
                       onClick={() => p.source_id && openProcedure(p.source_id)}
-                      className="flex w-full items-baseline justify-between gap-3 py-2.5 text-left transition-colors duration-[var(--duration-base)] hover:text-editorial disabled:cursor-default"
+                      className="flex w-full items-baseline justify-between gap-3 py-2.5 text-left transition-colors duration-[var(--duration-base)] hover:text-accent disabled:cursor-default"
                     >
                       <span className="min-w-0 flex-1">
                         <span className="font-body block truncate text-sm font-medium">{p.project_title || "Fără titlu"}</span>
@@ -382,7 +382,7 @@ function CompetitorTool({ tender }: { tender: Tender }) {
                   <li key={a.name}>
                     <button
                       onClick={() => setAuthority({ cui: a.cui, name: a.name })}
-                      className="flex w-full items-baseline justify-between gap-3 py-2.5 text-left transition-colors hover:text-editorial"
+                      className="flex w-full items-baseline justify-between gap-3 py-2.5 text-left transition-colors hover:text-accent"
                       title="Atribuiri reale, concentrarea furnizorilor, câștigători"
                     >
                       <span className="font-body text-sm">{a.name}</span>
@@ -697,7 +697,7 @@ function CaietTool({ tender, artifactId }: { tender: Tender; artifactId: string 
             </span>
           </label>
           {file && (
-            <button onClick={() => setFile(null)} className="mt-2 text-sm font-medium text-editorial hover:brightness-110">
+            <button onClick={() => setFile(null)} className="mt-2 text-sm font-medium text-accent hover:brightness-110">
               Elimină fișierul
             </button>
           )}
@@ -754,7 +754,7 @@ function CaietTool({ tender, artifactId }: { tender: Tender; artifactId: string 
           <div className="neu-flat rounded-3xl bg-paper p-5">
             <div className="flex flex-wrap items-baseline justify-between gap-3">
               <div>
-                <Eyebrow className="text-editorial">Risc restrictiv</Eyebrow>
+                <Eyebrow className="text-accent">Risc restrictiv</Eyebrow>
                 <p className="font-display mt-1 text-3xl font-semibold leading-tight">
                   {riskLabel(insight?.risk?.level ?? result.bias_risk_level)}
                 </p>
@@ -861,7 +861,7 @@ function CaietTool({ tender, artifactId }: { tender: Tender; artifactId: string 
                           <button
                             type="button"
                             onClick={() => forwardToDrafting([flag])}
-                            className="font-sans text-xs font-semibold text-editorial hover:brightness-110"
+                            className="font-sans text-xs font-semibold text-accent hover:brightness-110"
                           >
                             Clarificare art. 160 →
                           </button>
@@ -932,10 +932,10 @@ const CRITERIA: { id: AwardCriterion; label: string }[] = [
 ];
 
 const RISK_BORDER: Record<string, string> = {
-  no_presumption: "border-positive",
-  near_threshold: "border-warning",
-  presumption: "border-negative",
-  over_budget: "border-negative",
+  no_presumption: "border-positive/25 bg-positive-soft",
+  near_threshold: "border-warning/25 bg-warning-soft",
+  presumption: "border-negative/25 bg-negative-soft",
+  over_budget: "border-negative/25 bg-negative-soft",
 };
 
 function WinOddsTool({ tender }: { tender: Tender }) {
@@ -1089,7 +1089,7 @@ function WinOddsTool({ tender }: { tender: Tender }) {
         <div className="mt-8 space-y-7">
           {/* 1 — Verdict and the money the bid costs before any point is scored. */}
           <section className="neu-flat rounded-3xl bg-paper p-5 sm:p-6">
-            <Eyebrow className="text-editorial">Verdict</Eyebrow>
+            <Eyebrow className="text-accent">Verdict</Eyebrow>
             <p className="font-display mt-1.5 text-3xl font-semibold leading-tight sm:text-4xl">{result.assessment}</p>
             <p className="font-mono mt-3 text-[11px] uppercase tracking-widest text-stock-500">
               {strategy.ratio_pct?.toFixed(2)}% din estimare · discount {result.discount_percentage}%
@@ -1147,7 +1147,7 @@ function WinOddsTool({ tender }: { tender: Tender }) {
                         <td className="px-3 py-2.5">{s.rival_ratio_pct}% din estimare</td>
                         <td className="px-3 py-2.5">{formatRon(s.rival_price_ron)}</td>
                         <td className="px-3 py-2.5">{qualityBased ? `${s.your_price_points} / ${s.rival_price_points}` : s.outcome}</td>
-                        <td className="px-3 py-2.5 text-editorial">
+                        <td className="px-3 py-2.5 text-accent">
                           {qualityBased ? s.outcome : s.note || "—"}
                           {qualityBased && s.note && <span className="block text-stock-500">{s.note}</span>}
                         </td>
@@ -1185,7 +1185,7 @@ function WinOddsTool({ tender }: { tender: Tender }) {
 
           {/* 3 — The legal position, once, with the way out when it bites. */}
           {risk && (
-            <section className={"neu-pressed rounded-2xl border-l-[3px] bg-paper p-4 sm:p-5 " + (RISK_BORDER[risk.code] ?? "border-divider")}>
+            <section className={"rounded-xl border p-5 sm:p-6 " + (RISK_BORDER[risk.code] ?? "border-divider bg-paper")}>
               <span className="flex items-center gap-1.5">
                 <Eyebrow className={risk.code === "no_presumption" ? "text-positive" : risk.code === "near_threshold" ? "text-warning" : "text-negative"}>
                   {risk.level} · art. {meta?.regime === "L99" ? "222" : "210"} / art. 136 alin. (1) și (4)
@@ -1213,7 +1213,7 @@ function WinOddsTool({ tender }: { tender: Tender }) {
 
               <details className="group mt-4 border-t border-divider pt-3">
                 <summary className="flex cursor-pointer list-none items-center justify-between font-sans text-xs font-semibold text-stock-600 hover:text-ink">
-                  Detalii juridice (Art. {meta?.regime === "L99" ? "222" : "210"} & Art. 136)
+                  Temei legal (Art. {meta?.regime === "L99" ? "222" : "210"} & Art. 136)
                   <ChevronDown size={15} className="transition-transform group-open:rotate-180" />
                 </summary>
                 <div className="mt-3 space-y-4">
@@ -1250,7 +1250,7 @@ function WinOddsTool({ tender }: { tender: Tender }) {
                       <Eyebrow>Textul articolelor</Eyebrow>
                       {risk.legal_basis.map((a) => (
                         <div key={a.citation}>
-                          <p className="font-mono text-[11px] font-semibold text-editorial">{a.citation}</p>
+                          <p className="font-mono text-[11px] font-semibold text-accent">{a.citation}</p>
                           <p className="font-body mt-1 text-xs leading-relaxed text-stock-600">„{a.text}”</p>
                         </div>
                       ))}
@@ -1312,8 +1312,8 @@ function AnalyticsContent() {
   useActiveTender(tender.source_id, tender.project_title || null);
 
   return (
-    <main className="mx-auto w-full max-w-screen-xl flex-1 px-4 py-6 sm:py-8">
-      <PageHeader title="Strategie" />
+    <main className="mx-auto w-full max-w-[1264px] flex-1 px-5 pb-16 pt-8 sm:px-8 sm:pt-12">
+      <PageHeader eyebrow="Instrumente" title="Strategie" standfirst="Profilul pieței, citirea caietului de sarcini și verificarea prețului față de pragul de 80% — înainte de depunere." />
 
       <TabBar tabs={TOOLS} active={activeTool} onChange={setActiveTool} label="Instrument de analiză" />
 
@@ -1362,12 +1362,12 @@ function AnalyticsContent() {
 export default function AnalyticsPage() {
   return (
     <AuthGate
-      title="Instrumentele de strategie sunt disponibile în contul gratuit"
-      description="Profilul de piață, scannerul de caiet și poziționarea prețului (art. 210). Creați un cont gratuit (doar emailul, fără card) — vă întoarceți exact pe această pagină."
+      title="Strategie"
+      description="Profilul de piață, scannerul de caiet și poziționarea prețului (art. 210)."
     >
       <Suspense
         fallback={
-          <main className="mx-auto w-full max-w-screen-xl flex-1 px-4 py-10">
+          <main className="mx-auto w-full max-w-[1264px] flex-1 px-5 pb-16 pt-8 sm:px-8 sm:pt-12">
             <Loading />
           </main>
         }

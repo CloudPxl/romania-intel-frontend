@@ -140,19 +140,19 @@ export default function LoginPage() {
 
   return (
     <main className="flex min-h-svh flex-col">
-      <div className="mx-auto grid w-full max-w-screen-xl flex-1 grid-cols-1 lg:grid-cols-12">
+      <div className="mx-auto grid w-full max-w-[1264px] flex-1 grid-cols-1 gap-10 px-5 py-8 sm:px-8 lg:grid-cols-12 lg:gap-16 lg:py-16">
         {/* Editorial column */}
-        <section className="flex flex-col justify-center border-b border-divider px-4 py-10 sm:px-8 lg:col-span-7 lg:border-b-0 lg:border-r lg:py-16">
-          <Eyebrow className="text-editorial">Intelligence achiziții publice · România</Eyebrow>
-          <Link href="/" className="font-display mt-3 flex min-h-[44px] w-fit items-center gap-2.5 text-2xl font-semibold tracking-tight">
-            <span className="neu-flat-sm flex h-9 w-9 items-center justify-center rounded-2xl bg-editorial text-base font-bold text-white">R</span>
+        <section className="flex flex-col justify-center lg:col-span-7">
+          <Link href="/" className="flex min-h-[44px] w-fit items-center gap-2.5 text-[16px] font-semibold tracking-[-0.01em] text-ink">
+            <span className="flex h-[26px] w-[26px] items-center justify-center rounded-[7px] bg-ink text-[13px] font-bold text-canvas">R</span>
             RO-INTEL
           </Link>
-          <p className="font-mono mt-4 text-[11px] uppercase tracking-[0.2em] text-stock-500">
-            {dateline || " "}
-          </p>
+          <p className="label-eyebrow mt-10 text-accent">{dateline || " "}</p>
+          <h1 className="mt-3 text-[38px] font-semibold leading-[42px] tracking-[-0.025em] text-ink sm:text-[44px] sm:leading-[48px]">
+            Intrați în registrul licitațiilor publice.
+          </h1>
 
-          <p className="font-body mt-8 max-w-xl text-base leading-relaxed text-stock-600">
+          <p className="mt-5 max-w-xl text-[17px] leading-[28px] text-stock-500">
             Contractele publice se decid înainte de a fi publicate. Registrul urmărește consultările de piață,
             anunțurile de intenție și registrele de investiții din România și le transformă în semnale calificate,
             cu mult înainte ca procedura să apară în SEAP.
@@ -165,20 +165,20 @@ export default function LoginPage() {
               ["Documente utilizabile", "Propuneri tehnice și solicitări de clarificare conform Legii 98/2016 și Legii 544/2001."],
             ].map(([title, body]) => (
               <li key={title} className="border-b border-divider py-4">
-                <h2 className="font-display text-lg font-bold leading-snug">{title}</h2>
-                <p className="font-body mt-1 text-sm leading-relaxed text-stock-600">{body}</p>
+                <h2 className="text-[17px] font-semibold leading-snug">{title}</h2>
+                <p className="mt-1 text-[15px] leading-6 text-stock-500">{body}</p>
               </li>
             ))}
           </ul>
         </section>
 
         {/* Access column */}
-        <section className="flex flex-col justify-center px-4 py-10 sm:px-8 lg:col-span-5 lg:py-16">
-          <div className="neu-flat rounded-3xl bg-paper p-5 sm:p-7">
-            <Eyebrow className="text-editorial">Acces abonați</Eyebrow>
-            <h2 className="font-display mt-2 text-2xl font-semibold leading-tight tracking-tight">Autentificare</h2>
-            <p className="font-body mt-2 text-sm leading-relaxed text-stock-600">
-              Registrul și instrumentele de ofertare sunt disponibile doar conturilor autentificate.
+        <section className="flex flex-col justify-center lg:col-span-5">
+          <div className="rounded-xl border border-divider bg-paper p-6 shadow-float sm:p-8">
+            <Eyebrow className="text-accent">Cont gratuit</Eyebrow>
+            <h2 className="mt-2 text-2xl font-semibold leading-[30px] tracking-[-0.015em]">Creați un cont sau autentificați-vă</h2>
+            <p className="mt-2 text-[15px] leading-6 text-stock-500">
+              Registrul, alertele și instrumentele de ofertare sunt incluse în contul gratuit. Fără card.
             </p>
 
             {/* Supabase accepted the credentials but the RO-INTEL backend

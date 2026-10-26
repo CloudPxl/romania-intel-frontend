@@ -7,9 +7,11 @@
  */
 export function formatRon(value: number | null | undefined): string {
   if (value === null || value === undefined || Number.isNaN(value) || value === 0) return "—";
-  if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(2)} Mld. RON`;
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(2)} Mil. RON`;
-  if (value >= 1_000) return `${(value / 1_000).toFixed(1)} Mii RON`;
+  // Romanian decimal comma: 42,24 mil. RON, not 42.24.
+  const dec = (n: number, digits: number) => n.toFixed(digits).replace(".", ",");
+  if (value >= 1_000_000_000) return `${dec(value / 1_000_000_000, 2)} mld. RON`;
+  if (value >= 1_000_000) return `${dec(value / 1_000_000, 2)} mil. RON`;
+  if (value >= 1_000) return `${dec(value / 1_000, 1)} mii RON`;
   return `${value.toFixed(0)} RON`;
 }
 
@@ -31,9 +33,13 @@ export function formatLeadValue(value: number | null | undefined): string {
   return formatRon(value);
 }
 
+/** 1.055, 13.482 — always grouped. The ro-RO locale leaves four-digit
+ *  numbers ungrouped, so 1055 and 13.482 would sit side by side. */
 export function formatNumber(value: number | null | undefined): string {
   if (value === null || value === undefined || Number.isNaN(value)) return "—";
-  return new Intl.NumberFormat("ro-RO").format(value);
+  const [int, dec] = String(Math.abs(value)).split(".");
+  const grouped = int.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return (value < 0 ? "-" : "") + grouped + (dec ? "," + dec : "");
 }
 
 /** Short editorial date: 28 aug. 2026. Returns an em dash on bad input. */

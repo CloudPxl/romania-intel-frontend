@@ -1,688 +1,285 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import OnboardingForm from "@/components/OnboardingForm";
-import MarketTrendsView from "@/components/MarketTrendsView";
 import LeadDossierPanel from "@/components/LeadDossierPanel";
-import { ApiError, fetchMarketTrends, fetchMyMarketTrends, fetchOpportunitiesPage, fetchOpportunity, type Lead, type MarketTrendFilters, type MarketTrends, type OpportunityPage } from "@/lib/api";
-import { DOMAIN_OPTIONS, formatDateline, formatLeadValue, formatNumber, formatRon } from "@/lib/format";
-import { Badge, ButtonLink, CountUp, DegradedBanner, Eyebrow, Loading, Notice, Ornament, ProgressBar, StatCell } from "@/components/newsprint";
-
-/**
- * The "Cea mai bună potrivire" / "Cea mai mare poziție" hero card, shared
- * by both the personalized and public front pages. Opens the record's full
- * dossier in place (LeadDossierPanel) rather than navigating to Căutare
- * Avansată — it used to be static text describing a lead you had no way to
- * actually open, then briefly a Link that took you elsewhere entirely.
- * `top_opportunities` doesn't carry the full Lead shape the dossier needs
- * (published_date, executive_summary, etc.), so onOpen resolves the full
- * record via fetchOpportunity — see PersonalizedHomePage. `match`
- * is only ever present on the personalized (authenticated, /me/market-
- * trends) variant; the public one only ever has opportunity_score, and the
- * two score blocks + badge already degrade individually when their data
- * isn't there.
- */
-function LeadStoryCard({ leadStory, onOpen, opening }: { leadStory: MarketTrends["top_opportunities"][number]; onOpen: (sourceId: string) => void; opening?: boolean }) {
-	const body = (
-		<div className="mt-3">
-			<h3 className="font-display flex items-start gap-1.5 text-xl font-bold leading-tight">
-				<span>{leadStory.project_title}</span>
-				{leadStory.source_id && (
-					<span aria-hidden="true" className="shrink-0 pt-1 text-base text-editorial opacity-0 transition-all duration-[var(--duration-base)] ease-[var(--ease-spring)] group-hover:translate-x-0.5 group-hover:opacity-100">
-						→
-					</span>
-				)}
-			</h3>
-			<p className="font-body mt-2 text-sm leading-relaxed text-stock-600">
-				{leadStory.entity_name} · {leadStory.county}
-			</p>
-			<p className="tabular font-display mt-4 border-t border-divider pt-3 text-3xl font-semibold">{formatLeadValue(leadStory.financial_value_ron)}</p>
-			{/* Scor proiect: the opportunity's own evidence-based quality score,
-          computed once at ingestion, independent of any profile. Scor
-          potrivire: this profile's relevance score. Shown side by side
-          deliberately — a high project score does not imply a high match
-          score, or the reverse, and showing only one used to read as
-          "this is your best match" when it was really just the
-          highest-scoring item overall. */}
-			{(leadStory.opportunity_score != null || leadStory.match != null) && (
-				<div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5">
-					{leadStory.opportunity_score != null && <p className="font-mono text-[11px] uppercase tracking-widest text-stock-500">Scor proiect {leadStory.opportunity_score} / 10</p>}
-					{leadStory.match != null && <p className="font-mono text-[11px] uppercase tracking-widest text-stock-500">Scor potrivire {leadStory.match.match_strength} / 10</p>}
-				</div>
-			)}
-			{leadStory.match?.is_match && leadStory.match.reasons.length > 0 && (
-				<Badge tone="accent" className="mt-3 inline-block">
-					Potrivire · {leadStory.match.reasons.join(", ")}
-				</Badge>
-			)}
-		</div>
-	);
-
-	// No source_id (shouldn't happen from the current backend, but this
-	// component has no control over what a caller hands it) degrades to
-	// plain, unopenable text rather than a click that can never resolve.
-	if (!leadStory.source_id) return body;
-	const sourceId = leadStory.source_id;
-	return (
-		<button type="button" onClick={() => onOpen(sourceId)} disabled={opening} className="group -mx-2 block w-full rounded-2xl px-2 text-left transition-all duration-[var(--duration-base)] ease-[var(--ease-glide)] hover:neu-pressed-sm active:scale-[0.99] disabled:opacity-60">
-			{body}
-			{opening && <p className="font-mono pb-3 text-[11px] uppercase tracking-widest text-stock-500">Se deschide…</p>}
-		</button>
-	);
-}
-
-/**
- * One profile-criterion toggle: Domeniu / Județ / Cuvinte-cheie / Valoare
- * minimă. Replaces the single "Distribuție pe domeniu" panel that used to
- * sit next to the results list here — that panel only ever showed one
- * criterion (domain) and wasn't clickable in a way that changed the
- * results below. These four are: each shows the value already configured
- * in the user's profile and toggles whether it's currently applied to the
- * results panel underneath (see PersonalizedHomePage's `results` fetch).
- * A criterion with nothing configured (no keywords, no counties, no
- * minimum value, or a domain of "toate") renders inert — there's nothing
- * to toggle on or off.
- */
-function FilterToggleCard({ label, value, active, applicable, onToggle }: { label: string; value: string; active: boolean; applicable: boolean; onToggle: () => void }) {
-	return (
-		<button
-			type="button"
-			onClick={applicable ? onToggle : undefined}
-			disabled={!applicable}
-			aria-pressed={applicable && active}
-			className={
-				"flex min-h-[44px] flex-col gap-1 rounded-3xl p-4 text-left transition-all duration-[var(--duration-base)] ease-[var(--ease-glide)] " +
-				(!applicable ? "neu-pressed-sm cursor-not-allowed opacity-50" : active ? "neu-pressed active:scale-[0.99]" : "neu-flat hover:neu-lift active:scale-[0.99]")
-			}
-		>
-			<span className="label-eyebrow text-stock-500">{label}</span>
-			<span className="font-display truncate text-base font-semibold text-ink">{value}</span>
-			<span className={"font-mono text-[10px] uppercase tracking-widest " + (applicable && active ? "text-editorial" : "text-stock-400")}>{!applicable ? "Nesetat" : active ? "Activ · dezactivează" : "Inactiv · activează"}</span>
-		</button>
-	);
-}
-
-/** `tags` name what each section actually contains — they are revealed on
- *  hover rather than shown at rest, so the grid gains density on demand
- *  instead of carrying six rows of chips by default. */
-const SECTIONS = [
-	{
-		href: "/cautare-avansata",
-		kicker: "Căutare avansată",
-		title: "Oportunități pre-SEAP, filtrate pe linia dvs. de produse",
-		body: "Fluxul complet de semnale calificate din registrele publice, cu dosar strategic pentru fiecare poziție și salvare directă în pipeline.",
-		tags: ["Filtre pe județ", "Dosar strategic", "Export CSV"],
-	},
-	{
-		href: "/analysis",
-		kicker: "Analiza de piață",
-		title: "Unde se concentrează bugetul public, în cifre",
-		body: "Distribuție pe județ, domeniu și sursă de finanțare, recalculată la fiecare interogare din datele curente.",
-		tags: ["Pe județ", "Pe domeniu", "Sursă finanțare"],
-	},
-	{
-		href: "/eligibility",
-		kicker: "Eligibilitate",
-		title: "Verificarea profilului înainte de a angaja resurse",
-		body: "Motivele de excludere obligatorii din Legea 98/2016 și liniile de finanțare pentru care compania se califică.",
-		tags: ["Legea 98/2016", "Linii de finanțare"],
-	},
-	{
-		href: "/drafting",
-		kicker: "Redactare",
-		title: "Propuneri tehnice și solicitări de clarificare",
-		body: "Documente structurate conform legislației naționale, exportabile direct în format .docx.",
-		tags: ["Propunere tehnică", "Clarificări", "Export .docx"],
-	},
-	{
-		href: "/analytics",
-		kicker: "Strategie",
-		title: "Copilot, radar concurență și scanner caiet de sarcini",
-		body: "Analiza clauzelor restrictive, profilul pieței observate și poziționarea financiară față de valoarea estimată.",
-		tags: ["Copilot", "Clauze restrictive", "Poziționare preț"],
-	},
-	{
-		href: "/pipeline",
-		kicker: "Ofertare",
-		title: "Stadiul real al dosarelor aflate în lucru",
-		body: "Valoare ponderată pe etapă, timp mediu petrecut în fiecare fază și rate de conversie din istoricul propriu.",
-		tags: ["8 etape", "Valoare ponderată", "Rate conversie"],
-	},
-];
+import LandingPage from "@/components/landing/LandingPage";
+import { ProfileCriteriaModal } from "@/components/EnterpriseModals";
+import { ApiError, fetchMyFeed, type Lead } from "@/lib/api";
+import { DOMAIN_OPTIONS, formatDateline, formatNumber, formatRon } from "@/lib/format";
+import { DegradedBanner, Loading, Notice, PageHeader, StatCell, StatStrip } from "@/components/newsprint";
+import { EmptyRegistryState, FilterChip, FilterOption, LeadList, NoResultsRelaxationBanner, daysLeft, deadlineLabel } from "@/components/registry";
+import { cn } from "@/lib/utils";
 
 export default function HomePage() {
-	const { user, needsOnboarding } = useAuth();
-
-	// Precedence deliberately mirrors AuthGate's: onboarding is checked
-	// FIRST, on its own, not as `user && needsOnboarding`. The two are
-	// orthogonal (see AuthContext.adoptSynced), and coupling them here is
-	// what previously sent a freshly-signed-in Google account to the public
-	// marketing page instead of the setup form.
-	if (needsOnboarding) {
-		return <OnboardingForm />;
-	}
-	if (user) {
-		return <PersonalizedHomePage />;
-	}
-	// Anonymous, or still resolving the session — the exact page that
-	// existed before personalization, unchanged on purpose.
-	return <PublicHomePage />;
+  const { user, needsOnboarding } = useAuth();
+  // Onboarding first, on its own: a fresh Google sign-in must reach the
+  // setup form, not the public page.
+  if (needsOnboarding) return <OnboardingForm />;
+  if (user) return <Dashboard />;
+  return <LandingPage />;
 }
 
-/**
- * Signed in and onboarded: Prima Pagina becomes a trimmed, personalized
- * version of Analiza de Piață — "metrics that only serve the user's own
- * criteria," not the whole market with matches merely ranked higher. The
- * full, unfiltered market with every metric lives one click away on
- * /analysis; this page keeps only what answers "what changed for me."
- */
-function PersonalizedHomePage() {
-	const { user, profile } = useAuth();
-	const [stats, setStats] = useState<MarketTrends | null>(null);
-	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState<string | null>(null);
-	const [dateline, setDateline] = useState("");
-
-	// top_opportunities (from /me/market-trends) is a slim projection —
-	// enough for the list/card, not enough for LeadDossierPanel (no
-	// published_date, executive_summary, source_url, ...). Opening a record
-	// in place resolves the full row via fetchOpportunity instead of
-	// navigating to Căutare Avansată to get it.
-	const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
-	const [openingLeadId, setOpeningLeadId] = useState<string | null>(null);
-
-	const openLead = async (sourceId: string) => {
-		setOpeningLeadId(sourceId);
-		try {
-			setSelectedLead(await fetchOpportunity(sourceId));
-		} catch {
-			// Best-effort — the click simply does nothing rather than navigating
-			// away, which is no worse than before this existed.
-		} finally {
-			setOpeningLeadId(null);
-		}
-	};
-
-	useEffect(() => setDateline(formatDateline()), []);
-
-	useEffect(() => {
-		let mounted = true;
-		fetchMyMarketTrends()
-			.then((d) => mounted && setStats(d))
-			.catch((e) => {
-				if (!mounted) return;
-				setError(e instanceof ApiError ? e.detail : "Nu s-au putut încărca oportunitățile dvs.");
-				setStats(null);
-			})
-			.finally(() => mounted && setLoading(false));
-		return () => {
-			mounted = false;
-		};
-	}, []);
-
-	// The four profile-criteria toggles (Domeniu/Județ/Cuvinte-cheie/Valoare
-	// minimă) — all active by default, since that reproduces the fully-
-	// personalized view the page always showed before this existed.
-	// Deactivating one re-queries the real market-trends endpoint (the
-	// same hard, server-side AND filter /analysis's quick filters use, not
-	// a client-side narrowing of an already-fetched sample — see that
-	// page's own history of undercounting for why) with that criterion
-	// dropped, widening the results panel below rather than the profile's
-	// own /me/market-trends match set, which stays fixed.
-	const [domainActive, setDomainActive] = useState(true);
-	const [countyActive, setCountyActive] = useState(true);
-	const [keywordsActive, setKeywordsActive] = useState(true);
-	const [minValueActive, setMinValueActive] = useState(true);
-
-	const domainValue = profile?.domain && profile.domain !== "toate" ? profile.domain : null;
-	const domainApplicable = Boolean(domainValue);
-	const countyValues = profile?.target_counties ?? [];
-	const countyApplicable = countyValues.length > 0;
-	const keywordValues = profile?.keywords ?? [];
-	const keywordApplicable = keywordValues.length > 0;
-	const minValueApplicable = Boolean(profile?.min_value_ron && profile.min_value_ron > 0);
-
-	const [results, setResults] = useState<MarketTrends | null>(null);
-	const [resultsLoading, setResultsLoading] = useState(true);
-	const [resultsError, setResultsError] = useState<string | null>(null);
-	// Same stale-response guard as /analysis: a slower request landing after
-	// a faster, more recent one would otherwise overwrite it.
-	const resultsSeq = useRef(0);
-
-	// The real, paginated "see everything" list — top_opportunities on
-	// `results` above is a small, per-domain-capped preview
-	// (TOP_OPPORTUNITIES_TOTAL_CAP), never the full match set. Same filters
-	// as the effect below, fetched separately so paging doesn't re-run the
-	// (heavier) breakdown/stats aggregation every click.
-	const RESULTS_PAGE_SIZE = 20;
-	const [resultsPage, setResultsPage] = useState(1);
-	const [pageData, setPageData] = useState<OpportunityPage | null>(null);
-	const [pageLoading, setPageLoading] = useState(false);
-	const pageSeq = useRef(0);
-
-	useEffect(() => {
-		if (!profile) return;
-		const seq = ++resultsSeq.current;
-		setResultsLoading(true);
-		const filters: MarketTrendFilters = {
-			categories: domainActive && domainValue ? [domainValue] : undefined,
-			counties: countyActive && countyApplicable ? countyValues : undefined,
-			keywords: keywordsActive && keywordApplicable ? keywordValues : undefined,
-			min_value_ron: minValueActive && minValueApplicable ? profile.min_value_ron : undefined,
-		};
-		fetchMarketTrends(filters)
-			.then((d) => {
-				if (seq !== resultsSeq.current) return;
-				setResults(d);
-				setResultsError(null);
-			})
-			.catch((e) => {
-				if (seq !== resultsSeq.current) return;
-				setResultsError(e instanceof ApiError ? e.detail : "Nu s-au putut încărca rezultatele filtrate.");
-				setResults(null);
-			})
-			.finally(() => {
-				if (seq === resultsSeq.current) setResultsLoading(false);
-			});
-		// domainValue/countyValues/keywordValues are all derived from profile
-		// on every render, not independent state — depending on profile
-		// (plus the four toggles, the only real inputs) is enough and avoids
-		// re-running on every render from a fresh array/string identity.
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [profile, domainActive, countyActive, keywordsActive, minValueActive]);
-
-	useEffect(() => {
-		if (!profile) return;
-		const seq = ++pageSeq.current;
-		setPageLoading(true);
-		const filters: MarketTrendFilters = {
-			categories: domainActive && domainValue ? [domainValue] : undefined,
-			counties: countyActive && countyApplicable ? countyValues : undefined,
-			keywords: keywordsActive && keywordApplicable ? keywordValues : undefined,
-			min_value_ron: minValueActive && minValueApplicable ? profile.min_value_ron : undefined,
-		};
-		fetchOpportunitiesPage(filters, resultsPage, RESULTS_PAGE_SIZE)
-			.then((d) => {
-				if (seq === pageSeq.current) setPageData(d);
-			})
-			.catch(() => {
-				if (seq === pageSeq.current) setPageData(null);
-			})
-			.finally(() => {
-				if (seq === pageSeq.current) setPageLoading(false);
-			});
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [profile, domainActive, countyActive, keywordsActive, minValueActive, resultsPage]);
-
-	const firstName = user?.full_name?.split(" ")[0];
-	const leadStory = stats?.top_opportunities?.[0];
-	const topCounty = stats?.by_county?.[0];
-	const isPersonalized = stats?.is_personalized !== false;
-	// Each tile links to exactly the set it counts. When these figures are
-	// the user's own matches, the destination has to stay filtered to those
-	// matches too — otherwise clicking "135 dosare potrivite" lands on the
-	// full market and the number the user just read no longer reconciles
-	// with what is on screen. When the profile matches nothing and these
-	// fell back to whole-market figures, the links follow them there.
-	const matchesParam = isPersonalized ? "1" : "0";
-
-	return (
-		<main className="mx-auto w-full max-w-screen-xl flex-1 px-4 py-6 sm:py-10">
-			{stats?.degraded && <DegradedBanner detail={stats.detail} />}
-
-			<div className="stagger pb-2">
-				<h1 className="font-display mt-3 text-3xl font-semibold leading-[1.05] tracking-tight sm:text-5xl">{firstName ? `Bun venit, ${firstName}.` : "Bun venit."}</h1>
-				<p className="font-mono mt-4 text-[11px] uppercase tracking-[0.2em] text-stock-500">
-					{dateline || " "} · Criterii active: {profile?.domain ? (DOMAIN_OPTIONS.find((d) => d.id === profile.domain)?.label ?? profile.domain) : "—"}
-				</p>
-			</div>
-
-			{!loading && !error && !isPersonalized && (
-				<div className="stagger mt-5">
-					<Notice tone="neutral" title="Niciun dosar nu corespunde criteriilor dvs.">
-						Cifrele de mai jos arată toată piața, nu doar potrivirile dvs. Ajustați cuvintele-cheie, județele sau valoarea minimă din setările profilului pentru a primi potriviri.
-					</Notice>
-				</div>
-			)}
-
-			{error && (
-				<div className="stagger mt-5">
-					<Notice tone="alert">{error}</Notice>
-				</div>
-			)}
-
-			{loading ? (
-				<div className="mt-8">
-					<Loading label="Se calculează potrivirile dvs." />
-				</div>
-			) : (
-				<>
-					<div className="rule-grid stagger mt-8 grid grid-cols-2 lg:grid-cols-4">
-						<StatCell
-							label={isPersonalized ? "Dosare potrivite" : "Dosare în registru"}
-							tooltip="Numărul de oportunități care corespund criteriilor dvs. de monitorizare."
-							value={<CountUp value={stats?.total_leads ?? 0} format={(n) => formatNumber(Math.round(n))} />}
-							href={`/cautare-avansata?matches=${matchesParam}`}
-							linkLabel="Vezi dosarele"
-						/>
-						<StatCell
-							label={isPersonalized ? "Valoare potriviri" : "Valoare totală piață"}
-							tooltip="Suma valorilor estimate ale dosarelor de mai sus."
-							value={<CountUp value={stats?.total_market_value_ron ?? 0} format={(n) => formatRon(n)} />}
-							href={`/cautare-avansata?matches=${matchesParam}&sort=budget_desc`}
-							linkLabel="Vezi după valoare"
-						/>
-						<StatCell
-							label="Scor mediu oportunitate"
-							tooltip="Media scorului de relevanță (0–10), calculat din dovezile găsite în textul sursei."
-							value={stats?.average_opportunity_score != null ? <CountUp value={stats.average_opportunity_score} format={(n) => `${n.toFixed(1)} / 10`} /> : "—"}
-							detail={stats?.average_opportunity_score != null ? <ProgressBar value={stats.average_opportunity_score} max={10} label="Scor mediu" /> : undefined}
-							href={`/cautare-avansata?matches=${matchesParam}&sort=score_desc`}
-							linkLabel="Vezi după scor"
-						/>
-						<StatCell
-							label={isPersonalized ? "Județ cu volum maxim (potriviri)" : "Județ cu volum maxim"}
-							value={topCounty?.county ?? "—"}
-							hint={topCounty ? formatRon(topCounty.value_ron) : undefined}
-							href={topCounty ? `/cautare-avansata?county=${encodeURIComponent(topCounty.county)}&matches=${matchesParam}` : undefined}
-							linkLabel={topCounty ? `Vezi dosarele din ${topCounty.county}` : undefined}
-						/>
-					</div>
-
-					<section className="rise mt-8 grid grid-cols-1 gap-0 neu-flat overflow-hidden rounded-3xl bg-paper lg:grid-cols-12" style={{ animationDelay: "240ms" }}>
-						<div className="border-b border-divider p-5 sm:p-8 lg:col-span-6 lg:border-b-0 lg:border-r">
-							<Eyebrow className="text-editorial">Profil activ · {profile?.display_name ?? user?.email}</Eyebrow>
-							<h2 className="font-display mt-3 text-2xl font-semibold leading-tight tracking-tight sm:text-4xl">{isPersonalized ? "Poziția cea mai bună" : "Cea mai mare poziție din piață"}</h2>
-							<p className="font-body mt-5 text-base leading-relaxed text-stock-600">
-								Registrul urmărește continuu criteriile dvs. — domeniu, județe, cuvinte-cheie și valoare minimă — și ordonează piața în funcție de ele. Modificați oricând criteriile din bara laterală; ordinea de mai jos se actualizează automat.
-							</p>
-							<div className="mt-7 flex flex-col gap-3 sm:flex-row">
-								<ButtonLink href="/cautare-avansata" className="sm:flex-none">
-									Deschide căutarea avansată
-								</ButtonLink>
-								<ButtonLink href="/analysis" variant="outline" className="sm:flex-none">
-									Toată piața
-								</ButtonLink>
-							</div>
-						</div>
-
-						<aside className="p-5 sm:p-8 lg:col-span-6">
-							<Eyebrow>{isPersonalized ? "Cea mai bună potrivire" : "Cea mai mare poziție"}</Eyebrow>
-							{leadStory ? <LeadStoryCard leadStory={leadStory} onOpen={openLead} opening={openingLeadId === leadStory.source_id} /> : <p className="font-body mt-3 text-sm leading-relaxed text-stock-600">Nicio poziție disponibilă momentan.</p>}
-						</aside>
-					</section>
-
-					<div className="stagger mt-8">
-						<div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-							<FilterToggleCard
-								label="Domeniu"
-								value={domainValue ? (DOMAIN_OPTIONS.find((d) => d.id === domainValue)?.label ?? domainValue) : "Toate domeniile"}
-								active={domainActive}
-								applicable={domainApplicable}
-								onToggle={() => {
-									setDomainActive((v) => !v);
-									setResultsPage(1);
-								}}
-							/>
-							<FilterToggleCard
-								label="Județ"
-								value={countyApplicable ? countyValues.join(", ") : "Nesetat"}
-								active={countyActive}
-								applicable={countyApplicable}
-								onToggle={() => {
-									setCountyActive((v) => !v);
-									setResultsPage(1);
-								}}
-							/>
-							<FilterToggleCard
-								label="Cuvinte-cheie"
-								value={keywordApplicable ? keywordValues.join(", ") : "Nesetat"}
-								active={keywordsActive}
-								applicable={keywordApplicable}
-								onToggle={() => {
-									setKeywordsActive((v) => !v);
-									setResultsPage(1);
-								}}
-							/>
-							<FilterToggleCard
-								label="Valoare minimă"
-								value={minValueApplicable ? formatRon(profile!.min_value_ron) : "Nesetat"}
-								active={minValueActive}
-								applicable={minValueApplicable}
-								onToggle={() => {
-									setMinValueActive((v) => !v);
-									setResultsPage(1);
-								}}
-							/>
-						</div>
-
-						<div className="relative mt-6">
-							{resultsLoading && results && (
-								<div className="absolute inset-0 z-10 flex items-start justify-center rounded-3xl bg-paper/60 pt-16 backdrop-blur-[1px]" role="status" aria-live="polite">
-									<div className="neu-flat flex items-center gap-3 rounded-full bg-paper px-5 py-3">
-										<span className="neu-flat-sm h-2.5 w-2.5 shrink-0 animate-pulse rounded-full bg-editorial" aria-hidden="true" />
-										<span className="label-eyebrow text-stock-500">Se recalculează…</span>
-									</div>
-								</div>
-							)}
-							{resultsError ? (
-								<Notice tone="alert">{resultsError}</Notice>
-							) : !results ? (
-								<Loading label="Se calculează rezultatele filtrate" />
-							) : (
-								<div className={resultsLoading ? "pointer-events-none opacity-60 transition-opacity" : "transition-opacity"}>
-									<MarketTrendsView
-									data={results}
-									variant="results"
-									onOpenLead={openLead}
-									results={{
-										items: pageData?.items ?? [],
-										total: pageData?.total ?? 0,
-										page: resultsPage,
-										pageSize: RESULTS_PAGE_SIZE,
-										onPageChange: setResultsPage,
-										loading: pageLoading,
-									}}
-								/>
-								</div>
-							)}
-						</div>
-					</div>
-				</>
-			)}
-
-			{selectedLead && <LeadDossierPanel lead={selectedLead} onClose={() => setSelectedLead(null)} />}
-		</main>
-	);
+function SideList({ title, note, leads, onOpen, empty, more }: { title: string; note?: string; leads: Lead[]; onOpen: (l: Lead) => void; empty: string; more?: React.ReactNode }) {
+  return (
+    <section className="min-w-0">
+      <div className="mb-3 flex items-baseline gap-2">
+        <h2 className="text-lg font-semibold leading-[26px] tracking-[-0.01em] sm:text-xl sm:leading-7">{title}</h2>
+        {note && <span className="text-[13px] text-stock-400">{note}</span>}
+        <span className="flex-1" />
+        {more}
+      </div>
+      <LeadList leads={leads} onOpen={onOpen} showWhy={false} empty={<p className="px-5 py-6 text-[15px] text-stock-500">{empty}</p>} />
+    </section>
+  );
 }
 
-/**
- * Anonymous, or still resolving the session. Unchanged from before
- * personalization existed — a public snapshot of the whole market, the
- * product's section index, and a way in.
- */
-function PublicHomePage() {
-	const { user } = useAuth();
-	const router = useRouter();
-	const [stats, setStats] = useState<MarketTrends | null>(null);
-	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState<string | null>(null);
-	const [dateline, setDateline] = useState("");
-	// top_opportunities is always empty for an anonymous caller (this
-	// component only ever renders when !user — see HomePage below), so
-	// leadStory is never actually truthy here in practice. Kept for type
-	// symmetry with LeadStoryCard's required onOpen: if it somehow were
-	// populated, there's no full-feed fetch available without auth, so the
-	// closest sensible thing is asking the visitor to sign in.
-	const openLead = () => router.push("/login");
+function Dashboard() {
+  const { user, profile } = useAuth();
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [degraded, setDegraded] = useState(false);
+  const [selected, setSelected] = useState<Lead | null>(null);
+  const [criteriaOpen, setCriteriaOpen] = useState(false);
+  const [dateline, setDateline] = useState("");
+  // "Now" for the 72-hour window, taken once per visit (render stays pure).
+  const [now] = useState(() => Date.now());
 
-	useEffect(() => setDateline(formatDateline()), []);
+  // The profile's criteria as chips, all on (the personalised view); taking
+  // one off widens the lists below.
+  const [useDomain, setUseDomain] = useState(true);
+  const [useCounties, setUseCounties] = useState(true);
+  const [useKeywords, setUseKeywords] = useState(true);
+  const [useMin, setUseMin] = useState(true);
+  const [onlyMatches, setOnlyMatches] = useState(true);
 
-	useEffect(() => {
-		let mounted = true;
-		fetchMarketTrends()
-			.then((d) => mounted && setStats(d))
-			.catch((e) => {
-				if (!mounted) return;
-				// A hard backend outage used to be swallowed here and render as
-				// confident "0 Dosare / 0 RON / —" tiles — indistinguishable from
-				// a genuinely empty market. Mirrors PersonalizedHomePage's own
-				// pattern one component above in this file.
-				setError(e instanceof ApiError ? e.detail : "Nu s-au putut încărca cifrele registrului.");
-				setStats(null);
-			})
-			.finally(() => mounted && setLoading(false));
-		return () => {
-			mounted = false;
-		};
-	}, [user]);
+  useEffect(() => setDateline(formatDateline()), []);
 
-	const leadStory = stats?.top_opportunities?.[0];
-	const topCounty = stats?.by_county?.[0];
-	const topCategory = stats?.by_category?.[0];
+  useEffect(() => {
+    let mounted = true;
+    setLoading(true);
+    fetchMyFeed(useDomain && profile?.domain && profile.domain !== "toate" ? profile.domain : undefined)
+      .then((feed) => {
+        if (!mounted) return;
+        setLeads(feed.leads || []);
+        setDegraded(Boolean(feed.degraded));
+        setError(null);
+      })
+      .catch((e) => mounted && setError(e instanceof ApiError ? e.detail : "Nu s-au putut încărca licitațiile dvs."))
+      .finally(() => mounted && setLoading(false));
+    return () => {
+      mounted = false;
+    };
+  }, [useDomain, profile?.domain]);
 
-	return (
-		<main className="mx-auto w-full max-w-screen-xl flex-1 px-4 py-6 sm:py-10">
-			{stats?.degraded && <DegradedBanner detail={stats.detail} />}
+  const counties = useMemo(() => profile?.target_counties ?? [], [profile]);
+  const keywords = useMemo(() => profile?.keywords ?? [], [profile]);
+  const minValue = profile?.min_value_ron ?? 0;
+  const domainLabel = profile?.domain ? DOMAIN_OPTIONS.find((d) => d.id === profile.domain)?.label ?? profile.domain : "Toate domeniile";
 
-			{/* Masthead */}
-			<div className="stagger pb-2 text-center">
-				<Eyebrow className="text-editorial">Intelligence achiziții publice · România</Eyebrow>
-				<h1 className="font-display mt-3 text-4xl font-semibold leading-[1.05] tracking-tight sm:text-6xl lg:text-7xl">Registrul Oportunităților Publice</h1>
-				<p className="font-mono mt-4 text-[11px] uppercase tracking-[0.2em] text-stock-500">{dateline || " "} · Ediție națională</p>
-			</div>
+  const filtered = useMemo(() => {
+    const fold = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+    const wanted = new Set(counties.map(fold));
+    const kws = keywords.map(fold).filter(Boolean);
+    return leads.filter((l) => {
+      if (onlyMatches && !l.match?.is_match) return false;
+      if (useCounties && wanted.size && !wanted.has(fold(l.county || ""))) return false;
+      if (useMin && minValue > 0 && (l.financial_value_ron || 0) < minValue) return false;
+      if (useKeywords && kws.length) {
+        const hay = fold(`${l.project_title} ${l.executive_summary || ""} ${l.entity_name || ""}`);
+        if (!kws.some((k) => hay.includes(k))) return false;
+      }
+      return true;
+    });
+  }, [leads, onlyMatches, useCounties, useMin, useKeywords, counties, keywords, minValue]);
 
-			{error && (
-				<div className="stagger mt-5">
-					<Notice tone="alert">{error}</Notice>
-				</div>
-			)}
+  const open = filtered.filter((l) => {
+    const d = daysLeft(l.action_deadline);
+    return d === null || d >= 0;
+  });
+  const dueSoon = open
+    .filter((l) => {
+      const d = daysLeft(l.action_deadline);
+      return d !== null && d <= 14;
+    })
+    .sort((a, b) => (daysLeft(a.action_deadline) ?? 99) - (daysLeft(b.action_deadline) ?? 99));
+  const fresh = filtered
+    .filter((l) => l.published_date && now - Date.parse(l.published_date) <= 3 * 86400000)
+    .sort((a, b) => (b.published_date || "").localeCompare(a.published_date || ""));
+  const totalValue = open.reduce((s, l) => s + (l.financial_value_ron || 0), 0);
+  const hasMatches = leads.some((l) => l.match?.is_match);
+  const firstName = user?.full_name?.split(" ")[0];
 
-			{/* Live figures ticker. Each figure counts up from zero, and each cell
-          carries a second layer that appears only on hover — the resting grid
-          stays scannable while the detail sits one gesture away. */}
-			<div className="rule-grid stagger mt-8 grid grid-cols-2 lg:grid-cols-4">
-				<StatCell
-					label="Dosare în registru"
-					tooltip="Numărul total de oportunități calificate aflate în registru la această oră."
-					value={<CountUp value={stats?.total_leads ?? 0} format={(n) => formatNumber(Math.round(n))} />}
-					loading={loading}
-					detail={topCategory ? `Cel mai activ domeniu: ${topCategory.category}, cu ${formatNumber(topCategory.count)} dosare.` : "Distribuția pe domenii devine disponibilă după prima colectare."}
-				/>
-				<StatCell
-					label="Valoare totală piață"
-					tooltip="Suma valorilor estimate ale tuturor dosarelor din registru."
-					value={<CountUp value={stats?.total_market_value_ron ?? 0} format={(n) => formatRon(n)} />}
-					loading={loading}
-					hint={topCategory ? `Domeniu dominant: ${topCategory.category}` : undefined}
-					detail="Valorile provin din anunțurile publice. Acolo unde autoritatea nu publică o estimare, dosarul intră fără valoare — nu cu una presupusă."
-				/>
-				<StatCell
-					label="Scor mediu oportunitate"
-					tooltip="Media scorului de relevanță (0–10), calculat din dovezile găsite în textul sursei."
-					value={stats?.average_opportunity_score != null ? <CountUp value={stats.average_opportunity_score} format={(n) => `${n.toFixed(1)} / 10`} /> : "—"}
-					loading={loading}
-					detail={
-						stats?.average_opportunity_score != null ? (
-							<>
-								<ProgressBar value={stats.average_opportunity_score} max={10} label="Scor mediu al oportunităților" className="mb-2" />
-								Scorul crește doar cu dovezi din textul sursei — domeniul și județul îl întăresc, nu îl creează.
-							</>
-						) : undefined
-					}
-				/>
-				<StatCell
-					label="Județ cu volum maxim"
-					tooltip="Județul care concentrează cea mai mare valoare cumulată a dosarelor."
-					value={topCounty?.county ?? "—"}
-					loading={loading}
-					hint={topCounty ? formatRon(topCounty.value_ron) : undefined}
-					detail={topCounty ? `${formatNumber(topCounty.count)} dosare active în ${topCounty.county}.` : "Clasamentul pe județe apare după prima colectare."}
-				/>
-			</div>
+  const chips = [
+    { label: "Domeniu", value: domainLabel, on: useDomain, set: setUseDomain, applicable: Boolean(profile?.domain && profile.domain !== "toate") },
+    { label: "Județe", value: counties.length ? counties.join(", ") : "nesetat", on: useCounties, set: setUseCounties, applicable: counties.length > 0 },
+    { label: "Cuvinte", value: keywords.length ? keywords.join(", ") : "nesetat", on: useKeywords, set: setUseKeywords, applicable: keywords.length > 0 },
+    { label: "Valoare", value: minValue ? `peste ${formatRon(minValue)}` : "nesetat", on: useMin, set: setUseMin, applicable: minValue > 0 },
+  ];
 
-			{/* Lead article */}
-			<section className="rise mt-8 grid grid-cols-1 gap-0 neu-flat overflow-hidden rounded-3xl bg-paper lg:grid-cols-12" style={{ animationDelay: "240ms" }}>
-				<div className="border-b border-divider p-5 sm:p-8 lg:col-span-8 lg:border-b-0 lg:border-r">
-					<Eyebrow className="text-editorial">Ediția publică</Eyebrow>
-					<h2 className="font-display mt-3 text-2xl font-semibold leading-tight tracking-tight sm:text-4xl">Contractele publice se decid înainte de a fi publicate.</h2>
-					<p className="font-body mt-5 text-base leading-relaxed text-stock-600">
-						RO-INTEL urmărește registrele publice, consultările de piață și anunțurile de intenție din România și le transformă în semnale calificate — cu mult înainte ca procedura să apară în SEAP. Fiecare poziție primește un scor pe baza dovezilor din sursă, nu a unei estimări: dacă o
-						sursă nu răspunde sau nu are date, sistemul raportează zero, nu inventează.
-					</p>
+  return (
+    <main className="mx-auto w-full max-w-[1264px] flex-1 px-5 pb-16 pt-8 sm:px-8 sm:pt-12">
+      <PageHeader
+        eyebrow={dateline || " "}
+        title={firstName ? `Bună ziua, ${firstName}.` : "Bună ziua."}
+        standfirst="Licitațiile deschise care se potrivesc firmei dvs., ordonate după termen și potrivire."
+      />
 
-					<div className="mt-7 flex flex-col gap-3 sm:flex-row">
-						<ButtonLink href="/login" className="sm:flex-none">
-							Autentificare
-						</ButtonLink>
-						<ButtonLink href="/analysis" variant="outline" className="sm:flex-none">
-							Analiza de piață
-						</ButtonLink>
-					</div>
-				</div>
+      <div className="mb-8 flex flex-wrap items-center gap-2" role="toolbar" aria-label="Criteriile profilului">
+        <FilterChip label="Afișez" value={onlyMatches ? "potrivirile mele" : "toată piața"} width={240}>
+          {(close) => (
+            <>
+              <FilterOption
+                active={onlyMatches}
+                onClick={() => {
+                  setOnlyMatches(true);
+                  close();
+                }}
+              >
+                Doar potrivirile mele
+              </FilterOption>
+              <FilterOption
+                active={!onlyMatches}
+                onClick={() => {
+                  setOnlyMatches(false);
+                  close();
+                }}
+              >
+                Toată piața
+              </FilterOption>
+            </>
+          )}
+        </FilterChip>
+        {chips.map((c) => (
+          <button
+            key={c.label}
+            type="button"
+            disabled={!c.applicable}
+            aria-pressed={c.applicable && c.on}
+            onClick={() => c.set(!c.on)}
+            aria-label={`${c.applicable ? (c.on ? "Elimină" : "Aplică") : "Nesetat"} criteriul ${c.label}: ${c.value}`}
+            className={cn(
+              "inline-flex min-h-9 max-w-[320px] items-center gap-1.5 rounded-lg border bg-paper px-3 text-[14px] transition-[opacity,background-color] duration-[var(--duration-base)]",
+              !c.applicable
+                ? "cursor-not-allowed border-dashed border-line-strong text-stock-400"
+                : c.on
+                  ? "border-line-strong text-ink hover:bg-surface-2"
+                  : "border-dashed border-line-strong opacity-60"
+            )}
+          >
+            <span className="text-stock-400">{c.label}:</span>
+            <span className={cn("truncate", c.applicable && !c.on && "line-through")}>{c.value}</span>
+          </button>
+        ))}
+        <button type="button" onClick={() => setCriteriaOpen(true)} className="inline-flex min-h-9 items-center rounded-lg px-3 text-[14px] font-medium text-accent hover:bg-surface-2">
+          Editează criteriile
+        </button>
+      </div>
 
-				<aside className="p-5 sm:p-8 lg:col-span-4">
-					<Eyebrow>Cea mai mare poziție</Eyebrow>
-					{loading ? (
-						<p className="font-body mt-3 text-sm text-stock-500">Se încarcă…</p>
-					) : leadStory ? (
-						<LeadStoryCard leadStory={leadStory} onOpen={openLead} />
-					) : (
-						<div className="mt-3">
-							<p className="font-body text-sm leading-relaxed text-stock-600">Pozițiile identificate nominal sunt vizibile doar pentru conturile autentificate. Cifrele agregate de mai sus rămân publice.</p>
-							<ButtonLink href="/login" variant="outline" fullWidth className="mt-5">
-								Deblochează dosarele
-							</ButtonLink>
-						</div>
-					)}
-				</aside>
-			</section>
+      {degraded && <DegradedBanner />}
+      {error && (
+        <div className="mb-6">
+          <Notice tone="alert" title="Licitațiile nu s-au încărcat">
+            {error}
+          </Notice>
+        </div>
+      )}
+      {!loading && !error && leads.length > 0 && !hasMatches && (
+        <div className="mb-6">
+          <Notice title="Niciun dosar nu corespunde criteriilor dvs.">
+            Lărgiți criteriile sau{" "}
+            <button className="font-medium text-accent underline underline-offset-2" onClick={() => setOnlyMatches(false)}>
+              vedeți toată piața
+            </button>
+            .
+          </Notice>
+        </div>
+      )}
 
-			<Ornament />
+      {loading ? (
+        <Loading label="Se calculează potrivirile dvs." />
+      ) : (
+        <div className="flex flex-col gap-12">
+          <StatStrip>
+            <StatCell
+              label={onlyMatches ? "potriviri cu termen încă deschis" : "licitații cu termen încă deschis"}
+              value={formatNumber(open.length)}
+              href="/cautare-avansata?matches=1"
+              linkLabel="Deschide în Licitații"
+            />
+            <StatCell label="valoare estimată cumulată, fără TVA" value={formatRon(totalValue)} />
+            <StatCell
+              label="termene în următoarele 14 zile"
+              value={formatNumber(dueSoon.length)}
+              hint={dueSoon[0] ? `primul: ${deadlineLabel(daysLeft(dueSoon[0].action_deadline))}` : undefined}
+            />
+            <StatCell label="publicate în ultimele 72 de ore" value={formatNumber(fresh.length)} />
+          </StatStrip>
 
-			{/* Section index */}
-			<div className="mb-4 flex items-baseline justify-between gap-3 border-b border-divider pb-2">
-				<h2 className="font-display text-2xl font-bold tracking-tight">Secțiuni</h2>
-				<span className="label-eyebrow text-stock-500">{SECTIONS.length} rubrici</span>
-			</div>
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+            <SideList
+              title="Termene în următoarele 14 zile"
+              leads={dueSoon.slice(0, 5)}
+              onOpen={setSelected}
+              empty="Niciun termen de depunere în următoarele 14 zile."
+              more={
+                <Link href="/cautare-avansata?sort=deadline" className="text-[14px] font-medium text-accent hover:underline">
+                  Toate →
+                </Link>
+              }
+            />
+            <SideList
+              title="Noi pentru profilul dvs."
+              note="ultimele 72 h"
+              leads={fresh.slice(0, 5)}
+              onOpen={setSelected}
+              empty="Nicio licitație nouă în ultimele 72 de ore pentru aceste criterii."
+            />
+          </div>
 
-			<div className="stagger grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-				{SECTIONS.map((section) => (
-					<Link key={section.href} href={section.href} className="group flex flex-col neu-flat rounded-3xl bg-paper p-5 transition-all duration-[var(--duration-base)] ease-[var(--ease-glide)] hover:neu-glow hover:-translate-y-1 active:scale-[0.99] sm:p-6">
-						<Eyebrow className="text-editorial">{section.kicker}</Eyebrow>
-						<h3 className="font-display mt-2 text-xl font-semibold leading-snug tracking-tight text-ink">{section.title}</h3>
-						<p className="font-body mt-2 flex-1 text-sm leading-relaxed text-stock-500">{section.body}</p>
-						{/* Quick actions surface on hover, so the resting card keeps its
-                editorial calm and the grid does not read as a wall of chips. */}
-						<div className="reveal">
-							<div>
-								<div className="mt-3 flex flex-wrap gap-1.5 border-t border-divider pt-3">
-									{section.tags.map((tag) => (
-										<span key={tag} className="neu-pressed-sm rounded-full bg-paper px-2.5 py-1 font-sans text-[11px] font-semibold text-stock-600">
-											{tag}
-										</span>
-									))}
-								</div>
-							</div>
-						</div>
-						<span className="font-sans mt-4 inline-flex items-center gap-1 text-[13px] font-medium text-editorial">
-							Deschide
-							<span aria-hidden="true" className="transition-transform duration-[var(--duration-base)] ease-[var(--ease-spring)] group-hover:translate-x-1">
-								→
-							</span>
-						</span>
-					</Link>
-				))}
-			</div>
+          <section>
+            <div className="mb-3 flex items-baseline gap-2">
+              <h2 className="text-lg font-semibold leading-[26px] tracking-[-0.01em] sm:text-xl sm:leading-7">
+                {onlyMatches ? "Cele mai potrivite licitații" : "Licitații din piață"}
+              </h2>
+              <span className="tabular text-[13px] text-stock-400">
+                {Math.min(open.length, 12)} din {formatNumber(open.length)}
+              </span>
+              <span className="flex-1" />
+              <Link href="/cautare-avansata" className="text-[14px] font-medium text-accent hover:underline">
+                Toate în Licitații →
+              </Link>
+            </div>
+            <LeadList
+              leads={open.slice(0, 12)}
+              onOpen={setSelected}
+              selectedId={selected?.source_id}
+              empty={
+                leads.length > 0 ? (
+                  <NoResultsRelaxationBanner
+                    title="Criteriile active exclud toate licitațiile deschise"
+                    message="Scoateți un criteriu din lista de sus sau vedeți toată piața."
+                    actionLabel="Vezi toată piața"
+                    onAction={() => {
+                      setOnlyMatches(false);
+                      setUseCounties(false);
+                      setUseKeywords(false);
+                      setUseMin(false);
+                    }}
+                  />
+                ) : (
+                  <EmptyRegistryState onEditCriteria={() => setCriteriaOpen(true)} />
+                )
+              }
+            />
+          </section>
+        </div>
+      )}
 
-			<footer className="mt-10 border-t border-divider pt-5">
-				<div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-					<span className="label-eyebrow text-stock-500">RO-INTEL · Registrul Oportunităților Publice</span>
-					<span className="label-eyebrow text-stock-400">Date colectate din surse publice oficiale</span>
-				</div>
-			</footer>
-		</main>
-	);
+      {selected && <LeadDossierPanel key={selected.source_id} lead={selected} onClose={() => setSelected(null)} />}
+      <ProfileCriteriaModal isOpen={criteriaOpen} onClose={() => setCriteriaOpen(false)} />
+    </main>
+  );
 }

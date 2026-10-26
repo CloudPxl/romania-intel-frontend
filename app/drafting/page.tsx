@@ -62,7 +62,7 @@ type ToolId = (typeof TOOLS)[number]["id"];
 // Same compact-field and accent-button conventions as /eligibility, so the
 // two tool pages read as one product.
 const COMPACT_FIELD = "min-h-9 py-1.5";
-const ACTION_BUTTON = "bg-[#006494] text-white hover:text-white";
+const ACTION_BUTTON = "border-transparent bg-editorial text-white hover:bg-editorial-light";
 
 const CONTRACT_TYPES: { id: ContractType; label: string }[] = [
   { id: "lucrari", label: "Lucrări" },
@@ -447,7 +447,7 @@ function BidderCard({ bidder, setBidder }: { bidder: BidderIdentity; setBidder: 
             {bidder.cui && <span className="font-mono ml-2 text-[11px] font-normal text-stock-500">CUI {bidder.cui}</span>}
           </p>
         </div>
-        <span className="font-mono shrink-0 text-[11px] text-editorial">{open ? "Restrânge" : "Editează"}</span>
+        <span className="font-mono shrink-0 text-[11px] text-accent">{open ? "Restrânge" : "Editează"}</span>
       </button>
       {open && (
         <div className="mt-4 grid grid-cols-1 gap-4 border-t border-divider pt-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -792,7 +792,7 @@ function LetterTool({
             aria-pressed={type === opt.id}
             className={
               "rounded-2xl bg-paper px-3 py-2.5 text-left transition-all duration-300 " +
-              (type === opt.id ? "neu-pressed border-l-[3px] border-editorial bg-editorial-soft" : "neu-flat-sm hover:neu-flat")
+              (type === opt.id ? "border-2 border-editorial bg-editorial-soft" : "neu-flat-sm hover:neu-flat")
             }
           >
             <span className="font-display block text-sm font-semibold leading-snug">{opt.title}</span>
@@ -857,7 +857,7 @@ function LetterTool({
                 onClick={() => setPresets(active ? presets.filter((x) => x !== p.id) : [...presets, p.id])}
                 className={
                   "min-h-[36px] rounded-xl px-3 py-1.5 font-body text-[13px] transition-all duration-300 " +
-                  (active ? "neu-pressed-sm bg-editorial-soft font-medium text-editorial" : "neu-flat-sm bg-paper text-stock-600 hover:neu-lift")
+                  (active ? "neu-pressed-sm bg-editorial-soft font-medium text-accent" : "neu-flat-sm bg-paper text-stock-600 hover:neu-lift")
                 }
               >
                 {p.label}
@@ -1255,7 +1255,7 @@ function DraftingContent() {
     setForm({ ...form, [key]: e.target.value });
 
   return (
-    <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:py-8">
+    <main className="mx-auto w-full max-w-[1064px] flex-1 px-5 pb-16 pt-8 sm:px-8 sm:pt-12">
       <PageHeader
         eyebrow="Redactare documente"
         title="Documente de procedură"
@@ -1412,12 +1412,12 @@ function DraftingContent() {
 export default function DraftingPage() {
   return (
     <AuthGate
-      title="Redactarea documentelor este disponibilă în contul gratuit"
-      description="Propunere tehnică, declarații, clarificări și justificarea prețului, exportate în .docx. Creați un cont gratuit (doar emailul, fără card) — vă întoarceți exact pe această pagină."
+      title="Redactare documente"
+      description="Propunere tehnică, declarații, clarificări și justificarea prețului, exportate în .docx."
     >
       <Suspense
         fallback={
-          <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-10">
+          <main className="mx-auto w-full max-w-[1064px] flex-1 px-5 pb-16 pt-8 sm:px-8 sm:pt-12">
             <Loading />
           </main>
         }

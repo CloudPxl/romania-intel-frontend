@@ -1,575 +1,457 @@
 "use client";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { useAuth } from "@/context/AuthContext";
+import { Search } from "lucide-react";
 import AuthGate from "@/components/AuthGate";
-import Explain from "@/components/Explain";
 import LeadDossierPanel from "@/components/LeadDossierPanel";
+import { ProfileCriteriaModal } from "@/components/EnterpriseModals";
 import { ApiError, PROCEDURE_TYPE_LABELS, downloadMyCsv, fetchMyFeed, fetchOpportunity, type Lead } from "@/lib/api";
-import { CATEGORIES, categoryLabel, formatDate, formatLeadValue, formatRon } from "@/lib/format";
-import { Badge, Button, DegradedBanner, EmptyState, Eyebrow, Field, Input, Loading, Notice, Select } from "@/components/newsprint";
+import { CATEGORIES, categoryLabel, formatDate, formatNumber, formatRon } from "@/lib/format";
+import { Button, DegradedBanner, Loading, Notice, PageHeader } from "@/components/newsprint";
+import {
+  CountyMultiSelect,
+  EmptyRegistryState,
+  FilterChip,
+  FilterOption,
+  LeadList,
+  NoResultsRelaxationBanner,
+  SORT_LABELS,
+  sortLeads,
+  type LeadSort,
+} from "@/components/registry";
 
-const SORTS = [
-	{ id: "score_desc", label: "Scor proiect" },
-	{ id: "budget_desc", label: "Buget descrescător" },
-	{ id: "budget_asc", label: "Buget crescător" },
-	{ id: "date_desc", label: "Cele mai recente" },
-] as const;
+const LEGACY_SORTS: Record<string, LeadSort> = {
+  budget_desc: "value_desc",
+  budget_asc: "value_asc",
+  score_desc: "score_desc",
+  date_desc: "date_desc",
+  deadline: "deadline_asc",
+};
 
-type SortId = (typeof SORTS)[number]["id"];
+/** The register is long; it renders in pages of this many rows. */
+const PAGE = 40;
 
-function CautareAvansataContent() {
-	const searchParams = useSearchParams();
-	const { profile } = useAuth();
+function LicitatiiContent() {
+  const searchParams = useSearchParams();
 
-	const [leads, setLeads] = useState<Lead[]>([]);
-	const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
-	const [loading, setLoading] = useState(true);
-	const [refreshing, setRefreshing] = useState(false);
-	const [error, setError] = useState<string | null>(null);
-	const [degraded, setDegraded] = useState<boolean>(false);
-	const [updatedAt, setUpdatedAt] = useState<string | null>(null);
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [degraded, setDegraded] = useState(false);
+  const [updatedAt, setUpdatedAt] = useState<string | null>(null);
+  const [criteriaOpen, setCriteriaOpen] = useState(false);
+  const [shown, setShown] = useState(PAGE);
 
-	// A click-through from Analiza de Piață or Prima Pagina arrives with one
-	// of these set — a deliberate choice to see a specific slice, not the
-	// page's own default. Read once, via lazy initializers, rather than in
-	// an effect: that avoids a second fetch firing right after the first.
-	const initialCounty = searchParams.get("county") || "all";
-	const initialCategory = searchParams.get("category") || "all";
-	const initialFundingSource = searchParams.get("fundingSource") || "all";
-	// The e-mail alert's "Deschide dosarul complet" link and every
-	// top-opportunity row name one dossier. `source_id` is accepted too.
-	const initialOpenLead = searchParams.get("openLead") || searchParams.get("source_id");
-	const arrivedWithUrlFilter = initialCounty !== "all" || initialCategory !== "all" || initialFundingSource !== "all";
-	// `?matches=1` states explicitly which side of the soft filter the link
-	// meant, instead of leaving it to the heuristic below. Prima Pagina's KPI
-	// tiles count the signed-in user's OWN matches, so "Brașov · 145 mil RON"
-	// has to land on the user's matches in Brașov — landing on the whole
-	// Brașov market would show a different, larger set than the number the
-	// user just clicked, which is worse than not linking at all.
-	const initialMatchesParam = searchParams.get("matches");
-	const initialSort = searchParams.get("sort");
+  // A click-through (Prima pagină, Analiza pieței, an e-mail alert) names a
+  // slice; read once so it does not trigger a second fetch.
+  const initialCounty = searchParams.get("county");
+  const initialCategory = searchParams.get("category") || "all";
+  const initialFundingSource = searchParams.get("fundingSource") || "all";
+  const initialOpenLead = searchParams.get("openLead") || searchParams.get("source_id");
+  const arrivedWithUrlFilter = Boolean(initialCounty) || initialCategory !== "all" || initialFundingSource !== "all";
+  const initialMatchesParam = searchParams.get("matches");
+  const initialSort = searchParams.get("sort");
 
-	const [activeCategory, setActiveCategory] = useState<string>(initialCategory);
-	// The feed now returns the WHOLE market ranked, not just matches, so
-	// this toggle is what lets someone go back to just their own.
-	// Start on the user's own matches, not the whole market. The feed is a
-	// soft filter server-side — it ranks everything and hides nothing — but
-	// landing on all 500 rows made the criteria someone just entered at
-	// onboarding look like they had been ignored. `matchDefaultApplied`
-	// makes this a one-time decision per load: once the user touches the
-	// toggle, their choice stands and is never overridden by a refresh.
-	//
-	// Arriving via a specific county/category/funding-source link is its own
-	// deliberate choice — the visitor clicked "Hunedoara" to see everything
-	// in Hunedoara, not their own matches narrowed further by county — so it
-	// starts on the full market (onlyMatches false) and is marked as already
-	// decided, so the no-matches fallback effect below never re-litigates it.
-	// An explicit ?matches= wins over both the default and the arrived-with-
-	// a-filter rule, since it is the link stating what it meant.
-	const [onlyMatches, setOnlyMatches] = useState(initialMatchesParam !== null ? initialMatchesParam === "1" : !arrivedWithUrlFilter);
-	const [matchDefaultApplied, setMatchDefaultApplied] = useState(arrivedWithUrlFilter || initialMatchesParam !== null);
-	const [selectedCounty, setSelectedCounty] = useState(initialCounty);
-	const [selectedFundingSource, setSelectedFundingSource] = useState(initialFundingSource);
-	const [searchQuery, setSearchQuery] = useState("");
-	const [sortBy, setSortBy] = useState<SortId>(SORTS.some((s) => s.id === initialSort) ? (initialSort as SortId) : "score_desc");
-	const [filtersOpen, setFiltersOpen] = useState(false);
-	// Server-side filters, unlike every other control on this panel. The
-	// CUI keeps a separate draft value so typing one digit at a time doesn't
-	// fire a request per keystroke — it commits on Enter or blur. The
-	// committed values are what the fetch depends on.
-	const [cuiDraft, setCuiDraft] = useState("");
-	const [authorityCui, setAuthorityCui] = useState("");
-	const [procedureType, setProcedureType] = useState("");
+  const [activeCategory, setActiveCategory] = useState<string>(initialCategory);
+  // Start on the user's own matches; a link that named a county or category
+  // meant the whole slice. An explicit ?matches= wins over both.
+  const [onlyMatches, setOnlyMatches] = useState(initialMatchesParam !== null ? initialMatchesParam === "1" : !arrivedWithUrlFilter);
+  const [matchDefaultApplied, setMatchDefaultApplied] = useState(arrivedWithUrlFilter || initialMatchesParam !== null);
+  const [counties, setCounties] = useState<string[]>(initialCounty ? [initialCounty] : []);
+  const [fundingSource, setFundingSource] = useState(initialFundingSource);
+  const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<LeadSort>((initialSort && LEGACY_SORTS[initialSort]) || "relevance");
+  // Server-side filters: the CUI commits on Enter, not per keystroke.
+  const [cuiDraft, setCuiDraft] = useState("");
+  const [authorityCui, setAuthorityCui] = useState("");
+  const [procedureType, setProcedureType] = useState("");
 
-	const [toast, setToast] = useState<string | null>(null);
-	const [busyAction, setBusyAction] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+  const [busyCsv, setBusyCsv] = useState(false);
 
-	// Monotonic request id: clicking through the domain rail starts a fetch
-	// per click, and a slow earlier response landing after a fast later one
-	// silently replaced the list — while `finally` had already cleared the
-	// spinner, so the rows mutated under a UI that said it was done.
-	const feedSeq = useRef(0);
+  // Monotonic request id: a slow earlier response must not replace a newer one.
+  const feedSeq = useRef(0);
 
-	const loadWorkspace = useCallback(
-		async (force = false) => {
-			const seq = ++feedSeq.current;
-			if (force) setRefreshing(true);
-			else setLoading(true);
-			setError(null);
-			try {
-				const feed = await fetchMyFeed(activeCategory, force, {
-					authorityCui: authorityCui || undefined,
-					procedureType: procedureType || undefined,
-				});
-				if (seq !== feedSeq.current) return;
-				setLeads(feed.leads || []);
-				setDegraded(Boolean(feed.degraded));
-				setUpdatedAt(feed.data_updated_at);
-			} catch (e) {
-				if (seq !== feedSeq.current) return;
-				// A failed load used to be swallowed into console.warn, leaving the
-				// page on a permanent "no signals" state that looked like a real
-				// (empty) market rather than a broken request.
-				setError(e instanceof ApiError ? e.detail : "Nu s-a putut încărca registrul.");
-				setLeads([]);
-			} finally {
-				if (seq === feedSeq.current) {
-					setLoading(false);
-					setRefreshing(false);
-				}
-			}
-		},
-		[activeCategory, authorityCui, procedureType],
-	);
+  const loadFeed = useCallback(
+    async (force = false) => {
+      const seq = ++feedSeq.current;
+      if (force) setRefreshing(true);
+      else setLoading(true);
+      setError(null);
+      try {
+        const feed = await fetchMyFeed(activeCategory, force, {
+          authorityCui: authorityCui || undefined,
+          procedureType: procedureType || undefined,
+        });
+        if (seq !== feedSeq.current) return;
+        setLeads(feed.leads || []);
+        setDegraded(Boolean(feed.degraded));
+        setUpdatedAt(feed.data_updated_at);
+      } catch (e) {
+        if (seq !== feedSeq.current) return;
+        setError(e instanceof ApiError ? e.detail : "Nu s-a putut încărca registrul.");
+        setLeads([]);
+      } finally {
+        if (seq === feedSeq.current) {
+          setLoading(false);
+          setRefreshing(false);
+        }
+      }
+    },
+    [activeCategory, authorityCui, procedureType]
+  );
 
-	useEffect(() => {
-		loadWorkspace(false);
-	}, [loadWorkspace]);
+  useEffect(() => {
+    loadFeed(false);
+  }, [loadFeed]);
 
-	// The one case where defaulting to "my matches" would backfire: a
-	// profile that currently matches nothing would open on an empty page,
-	// which reads as a broken product rather than as a narrow filter. Fall
-	// back to the full market and say why. Runs once per mount, so it
-	// cannot fight the user after they set the toggle themselves.
-	useEffect(() => {
-		if (loading || matchDefaultApplied || leads.length === 0) return;
-		if (!leads.some((l) => l.match?.is_match)) setOnlyMatches(false);
-		setMatchDefaultApplied(true);
-	}, [loading, leads, matchDefaultApplied]);
+  // A profile that matches nothing would open on an empty list; fall back
+  // to the whole market once, and say why.
+  useEffect(() => {
+    if (loading || matchDefaultApplied || leads.length === 0) return;
+    if (!leads.some((l) => l.match?.is_match)) setOnlyMatches(false);
+    setMatchDefaultApplied(true);
+  }, [loading, leads, matchDefaultApplied]);
 
-	useEffect(() => {
-		if (!toast) return;
-		const t = setTimeout(() => setToast(null), 4000);
-		return () => clearTimeout(t);
-	}, [toast]);
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 4000);
+    return () => clearTimeout(t);
+  }, [toast]);
 
-	const closeDossier = () => {
-		setSelectedLead(null);
-		// Drop the id from the address, so a refresh shows the list rather
-		// than reopening the dossier that was just closed.
-		if (initialOpenLead && typeof window !== "undefined") {
-			const url = new URL(window.location.href);
-			url.searchParams.delete("openLead");
-			url.searchParams.delete("source_id");
-			window.history.replaceState(null, "", url.pathname + url.search);
-		}
-	};
+  const closeDossier = useCallback(() => {
+    setSelectedLead(null);
+    // A refresh should show the list, not reopen the dossier just closed.
+    if (initialOpenLead && typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("openLead");
+      url.searchParams.delete("source_id");
+      window.history.replaceState(null, "", url.pathname + url.search);
+    }
+  }, [initialOpenLead]);
 
-	useEffect(() => {
-		if (!selectedLead) return;
-		const onKey = (e: KeyboardEvent) => e.key === "Escape" && closeDossier();
-		window.addEventListener("keydown", onKey);
-		// Lock the page behind the drawer, the same way EnterpriseModals and
-		// the mobile sidebar drawer already do. Without it, scrolling inside
-		// the dossier chained to the feed underneath, so closing the drawer
-		// left the list at a different position than where it was opened.
-		const previousOverflow = document.body.style.overflow;
-		document.body.style.overflow = "hidden";
-		return () => {
-			window.removeEventListener("keydown", onKey);
-			document.body.style.overflow = previousOverflow;
-		};
-	}, [selectedLead]);
+  // A link naming one dossier opens it by id, from the whole register — not
+  // only from this user's ranked slice.
+  useEffect(() => {
+    if (!initialOpenLead) return;
+    let mounted = true;
+    fetchOpportunity(initialOpenLead)
+      .then((lead) => mounted && setSelectedLead(lead))
+      .catch((e) => {
+        if (!mounted) return;
+        setToast(
+          e instanceof ApiError && e.status === 404
+            ? `Dosarul ${initialOpenLead} nu mai există în registru (anunț retras sau expirat).`
+            : "Dosarul din link nu a putut fi deschis acum — reîncercați."
+        );
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [initialOpenLead]);
 
-	// A link that names one dossier opens it by id, straight from the
-	// register — in parallel with the feed and independent of it. It used to
-	// be looked up inside the loaded feed, which is the user's ranked slice
-	// under their saved domain and filters, so an e-mail alert for a tender
-	// outside that slice landed on the list with "Dosarul din link nu este
-	// în registrul dvs. curent" instead of the dossier the e-mail promised.
-	useEffect(() => {
-		if (!initialOpenLead) return;
-		let mounted = true;
-		fetchOpportunity(initialOpenLead)
-			.then((lead) => mounted && setSelectedLead(lead))
-			.catch((e) => {
-				if (!mounted) return;
-				setToast(
-					e instanceof ApiError && e.status === 404
-						? `Dosarul ${initialOpenLead} nu mai există în registru (anunț retras sau expirat).`
-						: "Dosarul din link nu a putut fi deschis acum — reîncercați.",
-				);
-			});
-		return () => {
-			mounted = false;
-		};
-	}, [initialOpenLead]);
+  const countyCounts = useMemo(() => {
+    const out: Record<string, number> = {};
+    leads.forEach((l) => l.county && (out[l.county] = (out[l.county] || 0) + 1));
+    return out;
+  }, [leads]);
 
-	const counties = useMemo(() => {
-		const set = new Set<string>();
-		leads.forEach((l) => l.county && set.add(l.county));
-		return Array.from(set).sort((a, b) => a.localeCompare(b, "ro"));
-	}, [leads]);
+  const fundingSources = useMemo(() => {
+    const set = new Set<string>();
+    leads.forEach((l) => l.funding_source && set.add(l.funding_source));
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "ro"));
+  }, [leads]);
 
-	const fundingSources = useMemo(() => {
-		const set = new Set<string>();
-		leads.forEach((l) => l.funding_source && set.add(l.funding_source));
-		return Array.from(set).sort((a, b) => a.localeCompare(b, "ro"));
-	}, [leads]);
+  const visibleLeads = useMemo(() => {
+    const fold = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+    const q = fold(query.trim());
+    const wanted = new Set(counties.map(fold));
+    const filtered = leads.filter((l) => {
+      if (onlyMatches && !l.match?.is_match) return false;
+      if (wanted.size && !wanted.has(fold(l.county || ""))) return false;
+      if (fundingSource !== "all" && fold(l.funding_source || "") !== fold(fundingSource)) return false;
+      if (q) {
+        const hay = fold([l.project_title, l.entity_name, l.locality, l.sub_category, l.county, l.cpv_code, l.source_id].filter(Boolean).join(" "));
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+    // "relevance" keeps the server's ranking — the whole feed is built on it.
+    return sortLeads(filtered, sort);
+  }, [leads, query, counties, fundingSource, onlyMatches, sort]);
 
-	const visibleLeads = useMemo(() => {
-		const query = searchQuery.trim().toLowerCase();
+  useEffect(() => setShown(PAGE), [visibleLeads]);
 
-		const filtered = leads.filter((l) => {
-			if (onlyMatches && !l.match?.is_match) return false;
-			if (selectedCounty !== "all" && (l.county || "").toLowerCase() !== selectedCounty.toLowerCase()) return false;
-			if (selectedFundingSource !== "all" && (l.funding_source || "").toLowerCase() !== selectedFundingSource.toLowerCase()) return false;
-			if (query) {
-				const haystack = [l.project_title, l.entity_name, l.locality, l.sub_category, l.county].filter(Boolean).join(" ").toLowerCase();
-				if (!haystack.includes(query)) return false;
-			}
-			return true;
-		});
+  const totalValue = visibleLeads.reduce((sum, l) => sum + (l.financial_value_ron || 0), 0);
+  const noMatchesForProfile = !loading && leads.length > 0 && !leads.some((l) => l.match?.is_match);
+  const filtersActive =
+    counties.length > 0 || fundingSource !== "all" || query.trim() !== "" || activeCategory !== "all" || !!authorityCui || !!procedureType;
 
-		return filtered.sort((a, b) => {
-			if (sortBy === "budget_desc") return (b.financial_value_ron || 0) - (a.financial_value_ron || 0);
-			if (sortBy === "budget_asc") return (a.financial_value_ron || 0) - (b.financial_value_ron || 0);
-			if (sortBy === "date_desc") return (b.published_date || "").localeCompare(a.published_date || "");
-			// Default: leave the server's relevance order alone. Re-sorting by
-			// opportunity_score here would discard the ranking the whole feed
-			// was just built around.
-			return 0;
-		});
-	}, [leads, searchQuery, selectedCounty, selectedFundingSource, onlyMatches, sortBy]);
+  const resetFilters = () => {
+    setMatchDefaultApplied(true);
+    setOnlyMatches(false);
+    setCounties([]);
+    setFundingSource("all");
+    setQuery("");
+    setActiveCategory("all");
+    setCuiDraft("");
+    setAuthorityCui("");
+    setProcedureType("");
+  };
 
-	const totalValue = visibleLeads.reduce((sum, l) => sum + (l.financial_value_ron || 0), 0);
+  const handleExport = async () => {
+    setBusyCsv(true);
+    try {
+      await downloadMyCsv();
+    } catch (e) {
+      setToast(e instanceof ApiError ? e.detail : "Exportul CSV a eșuat.");
+    } finally {
+      setBusyCsv(false);
+    }
+  };
 
-	const noMatchesForProfile = leads.length > 0 && !leads.some((l) => l.match?.is_match);
+  // Which filter removed the rows, so the banner can name it.
+  const relaxation = (() => {
+    if (onlyMatches && leads.some((l) => !l.match?.is_match))
+      return {
+        title: "Nicio potrivire pentru filtrele curente",
+        label: "Caută în toată piața",
+        action: () => {
+          setMatchDefaultApplied(true);
+          setOnlyMatches(false);
+        },
+      };
+    if (query.trim()) return { title: `0 rezultate pentru „${query.trim()}”`, label: "Șterge căutarea", action: () => setQuery("") };
+    if (counties.length) return { title: "Niciun rezultat în județele alese", label: "Toate județele", action: () => setCounties([]) };
+    return { title: "Niciun rezultat pentru filtrele curente", label: "Resetează filtrele", action: resetFilters };
+  })();
 
-	const handleExport = async () => {
-		setBusyAction("csv");
-		try {
-			await downloadMyCsv();
-		} catch (e) {
-			setToast(e instanceof ApiError ? e.detail : "Exportul CSV a eșuat.");
-		} finally {
-			setBusyAction(null);
-		}
-	};
+  const pick = (fn: () => void, close: () => void) => () => {
+    fn();
+    close();
+  };
 
-	const filterPanel = (
-		<div className="space-y-6">
-			<div>
-				<Eyebrow className="mb-2">Domenii</Eyebrow>
-				<div className="flex flex-col gap-0.5">
-					{[{ id: "all", label: "Toate domeniile" }, ...CATEGORIES].map((c) => (
-						<button
-							key={c.id}
-							onClick={() => setActiveCategory(c.id)}
-							className={"min-h-[40px] rounded-lg px-2.5 py-2 text-left font-body text-sm transition-colors " + (activeCategory === c.id ? "neu-pressed-sm bg-editorial-soft font-medium text-editorial" : "text-stock-600 hover:neu-flat-sm")}>
-							{c.label}
-						</button>
-					))}
-				</div>
-			</div>
+  return (
+    <main className="mx-auto w-full max-w-[1264px] flex-1 px-5 pb-16 pt-8 sm:px-8 sm:pt-12">
+      <PageHeader
+        eyebrow="Registru"
+        title="Licitații"
+        standfirst={
+          loading
+            ? "Se încarcă registrul…"
+            : `${formatNumber(visibleLeads.length)} din ${formatNumber(leads.length)} dosare · ${formatRon(totalValue)} · sincronizat ${formatDate(updatedAt)}`
+        }
+        action={
+          <>
+            <Button variant="outline" onClick={() => loadFeed(true)} disabled={refreshing}>
+              {refreshing ? "Se actualizează…" : "Actualizează"}
+            </Button>
+            <Button variant="outline" onClick={handleExport} disabled={busyCsv}>
+              {busyCsv ? "Se exportă…" : "Export CSV"}
+            </Button>
+          </>
+        }
+      />
 
-			<div>
-				<Eyebrow className="mb-2">Relevanță</Eyebrow>
-				<div className="flex flex-col gap-0.5">
-					{[
-						{ id: false, label: "Toată piața" },
-						{ id: true, label: "Doar potrivirile mele" },
-					].map((opt) => (
-						<button
-							key={String(opt.id)}
-							onClick={() => {
-								// Claim the decision, so a still-loading feed cannot
-								// flip the toggle back underneath the user.
-								setMatchDefaultApplied(true);
-								setOnlyMatches(opt.id);
-							}}
-							className={"min-h-[40px] rounded-lg px-2.5 py-2 text-left font-body text-sm transition-colors " + (onlyMatches === opt.id ? "neu-pressed-sm bg-editorial-soft font-medium text-editorial" : "text-stock-600 hover:neu-flat-sm")}>
-							{opt.label}
-						</button>
-					))}
-				</div>
-				<p className="font-body mt-2 px-2.5 text-[11px] leading-snug text-stock-500">
-					{onlyMatches ? "Vedeți dosarele care corespund criteriilor dvs. Comutați pe „Toată piața” pentru restul licitațiilor, ordonate după relevanță." : "Vedeți toată piața, ordonată după potrivirea cu criteriile dvs. Dosarele potrivite sunt marcate."}
-				</p>
-			</div>
+      <div className="mb-6 flex flex-wrap items-center gap-2" role="toolbar" aria-label="Filtre">
+        <label className="relative w-full sm:w-[300px]">
+          <span className="sr-only">Caută în registru</span>
+          <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-stock-400" aria-hidden />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Proiect, autoritate, CPV…"
+            className="h-10 w-full rounded-lg border border-line-input bg-paper pl-9 pr-3 text-[15px] text-ink outline-none placeholder:text-stock-400 focus:border-editorial focus:shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-editorial)_18%,transparent)]"
+          />
+        </label>
+        <FilterChip label="Afișez" value={onlyMatches ? "potrivirile mele" : "toată piața"} width={280}>
+          {(close) => (
+            <>
+              <FilterOption active={onlyMatches} onClick={pick(() => { setMatchDefaultApplied(true); setOnlyMatches(true); }, close)}>
+                Doar potrivirile mele
+              </FilterOption>
+              <FilterOption active={!onlyMatches} onClick={pick(() => { setMatchDefaultApplied(true); setOnlyMatches(false); }, close)}>
+                Toată piața, ordonată după potrivire
+              </FilterOption>
+            </>
+          )}
+        </FilterChip>
+        <FilterChip label="Domeniu" value={activeCategory === "all" ? "toate" : categoryLabel(activeCategory)} width={320} onClear={activeCategory !== "all" ? () => setActiveCategory("all") : undefined}>
+          {(close) => (
+            <>
+              <FilterOption active={activeCategory === "all"} onClick={pick(() => setActiveCategory("all"), close)}>
+                Toate domeniile
+              </FilterOption>
+              {CATEGORIES.map((c) => (
+                <FilterOption key={c.id} active={activeCategory === c.id} onClick={pick(() => setActiveCategory(c.id), close)}>
+                  {c.label}
+                </FilterOption>
+              ))}
+            </>
+          )}
+        </FilterChip>
+        <FilterChip
+          label="Județe"
+          value={counties.length === 0 ? "toate" : counties.length <= 2 ? counties.join(", ") : `${counties.slice(0, 2).join(", ")} +${counties.length - 2}`}
+          onClear={counties.length ? () => setCounties([]) : undefined}
+        >
+          {(close) => <CountyMultiSelect selected={counties} onChange={setCounties} counts={countyCounts} onDone={close} />}
+        </FilterChip>
+        <FilterChip label="Finanțare" value={fundingSource === "all" ? "toate" : fundingSource} width={300} onClear={fundingSource !== "all" ? () => setFundingSource("all") : undefined}>
+          {(close) => (
+            <div className="max-h-72 overflow-y-auto">
+              <FilterOption active={fundingSource === "all"} onClick={pick(() => setFundingSource("all"), close)}>
+                Toate sursele
+              </FilterOption>
+              {fundingSources.map((fs) => (
+                <FilterOption key={fs} active={fundingSource === fs} onClick={pick(() => setFundingSource(fs), close)}>
+                  {fs}
+                </FilterOption>
+              ))}
+            </div>
+          )}
+        </FilterChip>
+        <FilterChip label="Procedură" value={procedureType ? PROCEDURE_TYPE_LABELS[procedureType] ?? procedureType : "toate"} width={300} onClear={procedureType ? () => setProcedureType("") : undefined}>
+          {(close) => (
+            <>
+              <FilterOption active={!procedureType} onClick={pick(() => setProcedureType(""), close)}>
+                Toate
+              </FilterOption>
+              {Object.entries(PROCEDURE_TYPE_LABELS).map(([value, label]) => (
+                <FilterOption key={value} active={procedureType === value} onClick={pick(() => setProcedureType(value), close)}>
+                  {label}
+                </FilterOption>
+              ))}
+            </>
+          )}
+        </FilterChip>
+        <FilterChip
+          label="CUI autoritate"
+          value={authorityCui || "oricare"}
+          width={280}
+          onClear={
+            authorityCui
+              ? () => {
+                  setCuiDraft("");
+                  setAuthorityCui("");
+                }
+              : undefined
+          }
+        >
+          {(close) => (
+            <div className="p-1.5">
+              <label className="mb-1.5 block text-[14px] font-medium" htmlFor="cui-filter">
+                CUI-ul autorității contractante
+              </label>
+              <input
+                id="cui-filter"
+                value={cuiDraft}
+                inputMode="numeric"
+                placeholder="ex. 4540712"
+                autoFocus
+                onChange={(e) => setCuiDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    setAuthorityCui(cuiDraft.trim());
+                    close();
+                  }
+                }}
+                className="tabular h-10 w-full rounded-lg border border-line-input bg-paper px-3 text-[15px] text-ink outline-none focus:border-editorial"
+              />
+              <p className="mt-1.5 text-[13px] text-stock-400">Enter pentru a filtra. Prefixul „RO” e acceptat.</p>
+            </div>
+          )}
+        </FilterChip>
+        <FilterChip label="Ordonare" value={SORT_LABELS[sort].toLowerCase()} width={240} align="right">
+          {(close) => (
+            <>
+              {(Object.keys(SORT_LABELS) as LeadSort[]).map((s) => (
+                <FilterOption key={s} active={sort === s} onClick={pick(() => setSort(s), close)}>
+                  {SORT_LABELS[s]}
+                </FilterOption>
+              ))}
+            </>
+          )}
+        </FilterChip>
+        {filtersActive && (
+          <button type="button" onClick={resetFilters} className="min-h-9 rounded-lg px-3 text-[14px] font-medium text-accent hover:bg-surface-2">
+            Resetează filtrele
+          </button>
+        )}
+      </div>
 
-			<Field label="Județ">
-				<Select value={selectedCounty} onChange={(e) => setSelectedCounty(e.target.value)}>
-					<option value="all">Toate județele ({counties.length})</option>
-					{counties.map((c) => (
-						<option key={c} value={c}>
-							{c}
-						</option>
-					))}
-				</Select>
-			</Field>
+      {(degraded || error || noMatchesForProfile) && (
+        <div className="mb-5 flex flex-col gap-3">
+          {degraded && <DegradedBanner />}
+          {error && (
+            <Notice tone="alert" title="Registrul nu a răspuns">
+              {error}
+            </Notice>
+          )}
+          {noMatchesForProfile && !error && (
+            <Notice title="Niciun dosar nu corespunde criteriilor dvs.">
+              Afișăm toată piața, ordonată după relevanță.{" "}
+              <button type="button" onClick={() => setCriteriaOpen(true)} className="font-medium text-accent underline underline-offset-2">
+                Ajustați criteriile
+              </button>
+            </Notice>
+          )}
+        </div>
+      )}
 
-			<Field label="Sursă finanțare">
-				<Select value={selectedFundingSource} onChange={(e) => setSelectedFundingSource(e.target.value)}>
-					<option value="all">Toate sursele ({fundingSources.length})</option>
-					{fundingSources.map((fs) => (
-						<option key={fs} value={fs}>
-							{fs}
-						</option>
-					))}
-				</Select>
-			</Field>
+      {loading ? (
+        <Loading label="Se sincronizează registrul" />
+      ) : (
+        <LeadList
+          leads={visibleLeads.slice(0, shown)}
+          onOpen={setSelectedLead}
+          selectedId={selectedLead?.source_id}
+          empty={
+            leads.length > 0 ? (
+              <NoResultsRelaxationBanner title={relaxation.title} message="Filtrele exclud toate dosarele din registru." actionLabel={relaxation.label} onAction={relaxation.action} />
+            ) : (
+              <EmptyRegistryState onEditCriteria={() => setCriteriaOpen(true)} />
+            )
+          }
+          footer={
+            visibleLeads.length > 0 ? (
+              <>
+                <span className="tabular">
+                  {formatNumber(Math.min(shown, visibleLeads.length))} din {formatNumber(visibleLeads.length)}
+                </span>
+                <span className="flex-1" />
+                {shown < visibleLeads.length && (
+                  <Button variant="outline" onClick={() => setShown((n) => n + PAGE)}>
+                    Arată încă {formatNumber(Math.min(PAGE, visibleLeads.length - shown))}
+                  </Button>
+                )}
+              </>
+            ) : undefined
+          }
+        />
+      )}
 
-			<Field label="Tip procedură">
-				<Select value={procedureType} onChange={(e) => setProcedureType(e.target.value)} aria-label="Filtrează după tipul procedurii">
-					<option value="">Toate</option>
-					{Object.entries(PROCEDURE_TYPE_LABELS).map(([value, label]) => (
-						<option key={value} value={value}>
-							{label}
-						</option>
-					))}
-				</Select>
-			</Field>
+      {selectedLead && <LeadDossierPanel key={selectedLead.source_id} lead={selectedLead} onClose={closeDossier} />}
+      <ProfileCriteriaModal isOpen={criteriaOpen} onClose={() => setCriteriaOpen(false)} />
 
-			<Field label="CUI autoritate contractantă">
-				<Input
-					value={cuiDraft}
-					inputMode="numeric"
-					placeholder="ex. 4374873"
-					aria-label="Filtrează după CUI-ul autorității contractante"
-					onChange={(e) => setCuiDraft(e.target.value)}
-					// Committed on Enter/blur rather than per keystroke: this filter
-					// is applied server-side, so a change is a network request.
-					onKeyDown={(e) => {
-						if (e.key === "Enter") {
-							e.preventDefault();
-							setAuthorityCui(cuiDraft.trim());
-						}
-					}}
-					onBlur={() => setAuthorityCui(cuiDraft.trim())}
-				/>
-				<p className="font-body mt-1.5 text-[11px] leading-snug text-stock-500">
-					{authorityCui ? (
-						<button
-							type="button"
-							className="text-editorial underline underline-offset-2"
-							onClick={() => {
-								setCuiDraft("");
-								setAuthorityCui("");
-							}}>
-							Șterge filtrul CUI ({authorityCui})
-						</button>
-					) : (
-						"Apăsați Enter pentru a filtra. Prefixul „RO” este acceptat."
-					)}
-				</p>
-			</Field>
-
-			<div className="neu-flat rounded-2xl bg-paper p-4">
-				<Eyebrow>Volum filtrat</Eyebrow>
-				<p className="tabular font-display mt-1 text-2xl font-semibold leading-none">{formatRon(totalValue)}</p>
-				<p className="font-mono mt-2 text-[11px] text-stock-500">
-					{visibleLeads.length} din {leads.length} dosare
-				</p>
-			</div>
-		</div>
-	);
-
-	return (
-		<main className="mx-auto w-full max-w-screen-xl flex-1 px-4 py-6 sm:py-8">
-			<header className="border-b border-divider pb-6">
-				<Eyebrow className="text-editorial">Căutare avansată · {profile?.display_name ?? ""}</Eyebrow>
-				<div className="mt-2 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-					<div>
-						<h1 className="font-display text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">Oportunități pre-SEAP</h1>
-						<p className="font-mono mt-2 text-[11px] uppercase tracking-[0.18em] text-stock-500">Ultima sincronizare: {formatDate(updatedAt)}</p>
-					</div>
-					<div className="flex flex-wrap gap-2">
-						<Button variant="outline" onClick={() => loadWorkspace(true)} disabled={refreshing}>
-							{refreshing ? "Se actualizează…" : "Actualizează"}
-						</Button>
-						<Button variant="outline" onClick={handleExport} disabled={busyAction === "csv"}>
-							{busyAction === "csv" ? "Se exportă…" : "Export CSV"}
-						</Button>
-						<Button variant="ghost" className="lg:hidden" onClick={() => setFiltersOpen((v) => !v)} aria-expanded={filtersOpen}>
-							{filtersOpen ? "Ascunde filtre" : "Filtre"}
-						</Button>
-					</div>
-				</div>
-			</header>
-
-			{degraded && (
-				<div className="mt-5">
-					<DegradedBanner />
-				</div>
-			)}
-
-			<div className="mt-6 grid grid-cols-1 gap-8 lg:grid-cols-12">
-				{/* Filters */}
-				<aside className={"lg:col-span-3 " + (filtersOpen ? "block" : "hidden lg:block")}>{filterPanel}</aside>
-
-				{/* Feed */}
-				<section className="lg:col-span-9">
-					<div className="mb-5 flex flex-col gap-3 border-y border-divider py-3 sm:flex-row sm:items-center">
-						<Input type="search" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Caută proiect, autoritate, localitate…" aria-label="Caută în registru" className="sm:flex-1" />
-						<Select value={sortBy} onChange={(e) => setSortBy(e.target.value as SortId)} aria-label="Sortare" className="sm:w-64">
-							{SORTS.map((s) => (
-								<option key={s.id} value={s.id}>
-									Sortare: {s.label}
-								</option>
-							))}
-						</Select>
-					</div>
-
-					{error && (
-						<div className="mb-5">
-							<Notice tone="alert" title="Eroare la încărcare">
-								{error}
-							</Notice>
-						</div>
-					)}
-
-					{/* The criteria are being honoured and still matched nothing —
-              say so, otherwise falling back to the whole market looks
-              like the filter silently failing. */}
-					{!loading && !error && noMatchesForProfile && (
-						<div className="mb-5">
-							<Notice tone="neutral" title="Niciun dosar nu corespunde criteriilor dvs.">
-								Afișăm toată piața, ordonată după relevanță. Ajustați cuvintele-cheie, județele sau valoarea minimă din setările profilului pentru a primi potriviri.
-							</Notice>
-						</div>
-					)}
-
-					{loading ? (
-						<Loading label="Se sincronizează registrul" />
-					) : visibleLeads.length === 0 ? (
-						<EmptyState title="Niciun dosar pentru criteriile selectate">
-							{leads.length > 0 ? "Relaxați filtrele de domeniu, județ sau divizie pentru a vedea restul registrului." : "Registrul nu conține încă dosare potrivite pentru acest profil. Datele se actualizează la fiecare ciclu de scanare."}
-						</EmptyState>
-					) : (
-						<ul className="divide-y divide-divider neu-flat overflow-hidden rounded-3xl bg-paper">
-							{visibleLeads.map((lead) => {
-								const matched = Boolean(lead.match?.is_match);
-								return (
-									<li key={lead.source_id}>
-										{/* A div, not a <button>: the row holds the "?" explainers,
-										    which are buttons, and a button inside a button is invalid
-										    HTML (React flags it, browsers re-parent it). */}
-										<div
-											role="button"
-											tabIndex={0}
-											onClick={() => setSelectedLead(lead)}
-											onKeyDown={(e) => {
-												if (e.target !== e.currentTarget) return;
-												if (e.key === "Enter" || e.key === " ") {
-													e.preventDefault();
-													setSelectedLead(lead);
-												}
-											}}
-											className={"cursor-pointer " +
-												"flex w-full flex-col gap-3 p-4 text-left transition-all duration-300 hover:neu-pressed-sm sm:flex-row sm:gap-5 sm:p-5 " +
-												// A matched row gets a left rail in the accent
-												// colour. Deliberately not a filled background: in
-												// this design depth is shadow, and a tinted row
-												// would read as a different material.
-												(matched ? "border-l-[3px] border-editorial" : "border-l-[3px] border-transparent")
-											}>
-											<div className="min-w-0 flex-1">
-												<div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-													<span className="label-eyebrow text-editorial">{categoryLabel(lead.category)}</span>
-													{matched && (
-														<span className="inline-flex items-center gap-1">
-															<Badge tone="accent">
-																{/* Names WHY it matched, so the ranking is
-                                    explainable rather than magic. */}
-																Potrivire · {lead.match?.reasons.join(", ")}
-															</Badge>
-															<Explain k="matchReasons" />
-														</span>
-													)}
-													{lead.metadata?.seap_cross_reference && (
-														// Deliberately a different tone than the match
-														// badge above — this is a best-effort heuristic
-														// (find_seap_cross_reference needs 2 of 3
-														// signals to agree), never a verified identity,
-														// so it must not read as the same kind of claim.
-														<span className="inline-flex items-center gap-1">
-															<Badge tone="neutral">Potrivire SEAP: posibilă</Badge>
-															<Explain k="seapCrossReference" />
-														</span>
-													)}
-													{lead.sub_category && <span className="label-eyebrow text-stock-500">{lead.sub_category}</span>}
-													<span className="label-eyebrow text-stock-400">{[lead.locality, lead.county].filter(Boolean).join(", ")}</span>
-												</div>
-
-												<h2 className={"font-display mt-2 text-xl font-bold leading-snug tracking-tight sm:text-2xl"}>{lead.project_title}</h2>
-
-												<p className="font-body mt-1 text-sm text-stock-600">
-													{lead.entity_name}
-													{lead.authority_cui && (
-														// The CUI is the only unambiguous handle on an
-														// authority — names vary between sources for
-														// one institution — so it's shown on the card,
-														// not just in the drawer.
-														<span className="font-mono text-stock-400"> · CUI {lead.authority_cui}</span>
-													)}
-													{lead.source_type && <span className="text-stock-400"> · {lead.source_type}</span>}
-												</p>
-
-												{(lead.procedure_type || lead.award_criterion) && (
-													<div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
-														{lead.procedure_type && <span className="label-eyebrow text-stock-500">{PROCEDURE_TYPE_LABELS[lead.procedure_type] ?? lead.procedure_type}</span>}
-														{lead.award_criterion && <span className="label-eyebrow text-stock-500">Criteriu: {lead.award_criterion}</span>}
-													</div>
-												)}
-
-												{lead.executive_summary && <p className={"font-body mt-2 line-clamp-2 text-sm leading-relaxed text-stock-700"}>{lead.executive_summary}</p>}
-
-												<div className="font-mono mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] uppercase tracking-wider text-stock-500">
-													<span>Publicat: {formatDate(lead.published_date)}</span>
-													{lead.action_deadline && <span>Termen: {lead.action_deadline}</span>}
-												</div>
-											</div>
-
-											<div className="flex shrink-0 items-center justify-between gap-4 border-t border-divider pt-3 sm:w-40 sm:flex-col sm:items-end sm:justify-start sm:border-l sm:border-t-0 sm:pl-5 sm:pt-0">
-												{lead.financial_value_ron ? (
-													<span className="tabular font-display text-base font-semibold leading-none sm:text-right sm:text-lg">{formatRon(lead.financial_value_ron)}</span>
-												) : (
-													// A missing budget is absent data, not a large
-													// number — it gets the muted italic treatment a
-													// blank field takes elsewhere, not bold display
-													// type sized for a real currency figure.
-													<span className="font-body text-sm italic text-stock-400 sm:text-right">{formatLeadValue(lead.financial_value_ron)}</span>
-												)}
-												{lead.opportunity_score != null && (
-													<span className="flex flex-col items-end gap-0.5">
-														<span className="label-eyebrow inline-flex items-center gap-1 whitespace-nowrap text-stock-600">Scor proiect</span>
-														<span className="tabular font-display text-sm font-semibold leading-none text-stock-700">
-															<Explain k="opportunityScore" />
-															{lead.opportunity_score}/10
-														</span>
-													</span>
-												)}
-												<span className="label-eyebrow whitespace-nowrap text-editorial">Deschide →</span>
-											</div>
-										</div>
-									</li>
-								);
-							})}
-						</ul>
-					)}
-				</section>
-			</div>
-
-			{/* Dossier drawer */}
-			{selectedLead && <LeadDossierPanel key={selectedLead.source_id} lead={selectedLead} onClose={closeDossier} />}
-
-			{toast && (
-				<div role="status" aria-live="polite" className="neu-flat fixed inset-x-4 bottom-24 z-50 rounded-2xl bg-paper px-4 py-3 font-body text-sm text-ink sm:left-auto sm:right-6 sm:max-w-sm">
-					{toast}
-				</div>
-			)}
-		</main>
-	);
+      {toast && (
+        <div role="status" aria-live="polite" className="fixed bottom-24 left-1/2 z-50 max-w-[calc(100%-2rem)] -translate-x-1/2 rounded-lg bg-cerneala px-4 py-2.5 text-[14px] text-cerneala-text shadow-float">
+          {toast}
+        </div>
+      )}
+    </main>
+  );
 }
 
-export default function CautareAvansataPage() {
-	return (
-		<AuthGate title="Căutarea avansată este disponibilă în contul gratuit" description="Registrul complet, filtrele și dosarul fiecărei licitații. Creați un cont gratuit (doar emailul, fără card) — vă întoarceți exact pe această pagină.">
-			<Suspense fallback={<Loading label="Se încarcă…" />}>
-				<CautareAvansataContent />
-			</Suspense>
-		</AuthGate>
-	);
+export default function LicitatiiPage() {
+  return (
+    <AuthGate title="Licitații" description="Registrul complet, filtrele și dosarul fiecărei licitații.">
+      <Suspense fallback={<Loading label="Se încarcă" />}>
+        <LicitatiiContent />
+      </Suspense>
+    </AuthGate>
+  );
 }

@@ -5,7 +5,7 @@ export const metadata = { title: "Politica de Confidențialitate — RO-INTEL" }
 
 export default function PrivacyPage() {
   return (
-    <main className="mx-auto w-full max-w-screen-xl flex-1 px-4 py-6 sm:py-8">
+    <main className="mx-auto w-full max-w-[1264px] flex-1 px-5 pb-16 pt-8 sm:px-8 sm:pt-12">
       <PageHeader
         eyebrow="Document legal"
         title="Politica de Confidențialitate"
@@ -130,7 +130,7 @@ export default function PrivacyPage() {
               Din aplicație: deschideți <b>Cont &amp; alerte</b> din meniul lateral și alegeți opțiunea de
               ștergere a contului. Acțiunea este ireversibilă și este confirmată explicit înainte de execuție.
               Vedeți și{" "}
-              <Link href="/terms" className="text-editorial underline underline-offset-2">
+              <Link href="/terms" className="text-accent underline underline-offset-2">
                 Termenii și Condițiile
               </Link>
               , secțiunea 7.

@@ -307,7 +307,7 @@ function ContactCard() {
 		<Panel className="p-5 sm:p-6">
 			<div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
 				<div className="flex items-start gap-3">
-					<span className="neu-flat-sm flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-editorial-soft text-editorial">
+					<span className="neu-flat-sm flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-editorial-soft text-accent">
 						<Mail size={18} />
 					</span>
 					<div>
@@ -317,14 +317,14 @@ function ContactCard() {
 							// A standalone contact CTA, not an inline prose link, so the
 							// 44px minimum applies to it (WCAG 2.5.8 exempts only targets
 							// inside a sentence).
-							className="mt-1 flex min-h-[44px] items-center break-all font-display text-[15px] font-bold text-ink hover:text-editorial">
+							className="mt-1 flex min-h-[44px] items-center break-all font-display text-[15px] font-bold text-ink hover:text-accent">
 							{SUPPORT_EMAIL}
 						</a>
 					</div>
 				</div>
 
 				<div className="flex items-start gap-3">
-					<span className="neu-flat-sm flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-editorial-soft text-editorial">
+					<span className="neu-flat-sm flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-editorial-soft text-accent">
 						<Clock size={18} />
 					</span>
 					<div>
@@ -335,7 +335,7 @@ function ContactCard() {
 				</div>
 
 				<div className="flex items-start gap-3">
-					<span className="neu-flat-sm flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-editorial-soft text-editorial">
+					<span className="neu-flat-sm flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-editorial-soft text-accent">
 						<Wrench size={18} />
 					</span>
 					<div>

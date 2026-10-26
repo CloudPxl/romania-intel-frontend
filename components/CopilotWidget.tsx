@@ -290,10 +290,10 @@ export default function CopilotWidget() {
           aria-label="Deschide Copilotul"
           title="Copilot RO-INTEL"
           style={{ bottom: "max(1.25rem, env(safe-area-inset-bottom))" }}
-          className="neu-flat fixed right-5 z-[55] flex h-14 items-center gap-2 rounded-2xl bg-editorial px-4 text-white transition-all duration-[var(--duration-base)] ease-[var(--ease-glide)] hover:-translate-y-0.5 hover:brightness-110 active:scale-95"
+          className="fixed right-4 z-[55] flex h-12 items-center gap-2 rounded-full bg-editorial px-4 text-white shadow-float transition-colors duration-[var(--duration-base)] hover:bg-editorial-light active:translate-y-px sm:right-5"
         >
-          <Sparkles size={20} strokeWidth={1.75} />
-          <span className="hidden font-sans text-sm font-semibold sm:inline">Copilot</span>
+          <Sparkles size={18} strokeWidth={1.9} />
+          <span className="hidden text-[15px] font-semibold sm:inline">Copilot</span>
           {activeTender && (
             <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-paper bg-positive" aria-hidden="true" />
           )}
@@ -305,16 +305,16 @@ export default function CopilotWidget() {
           role="dialog"
           aria-label="Copilot RO-INTEL"
           className={cn(
-            "neu-flat fixed z-[55] flex flex-col overflow-hidden bg-paper",
-            "inset-x-0 bottom-0 top-[8svh] rounded-t-3xl",
-            "sm:inset-auto sm:bottom-5 sm:right-5 sm:h-[min(680px,calc(100svh-2.5rem))] sm:w-[420px] sm:rounded-3xl",
+            "fixed z-[55] flex flex-col overflow-hidden border border-divider bg-paper shadow-float",
+            "inset-x-0 bottom-0 top-[8svh] rounded-t-xl",
+            "sm:inset-auto sm:bottom-5 sm:right-5 sm:h-[min(680px,calc(100svh-2.5rem))] sm:w-[420px] sm:rounded-xl",
             "animate-[fade-in_var(--duration-base)_var(--ease-glide)_both]"
           )}
         >
           <header className="flex items-start justify-between gap-3 border-b border-divider px-4 py-3">
             <div className="min-w-0">
               <p className="flex items-center gap-1.5 font-display text-sm font-bold text-ink">
-                <Sparkles size={15} className="text-editorial" /> Copilot
+                <Sparkles size={15} className="text-accent" /> Copilot
               </p>
               <p className="font-mono mt-0.5 truncate text-[10px] uppercase tracking-wider text-stock-500">
                 {activeTender ? `Dosar activ · ${activeTender.title || activeTender.source_id}` : "Fără dosar activ · întreaga piață"}
@@ -360,7 +360,7 @@ export default function CopilotWidget() {
                       key={s}
                       type="button"
                       onClick={() => send(s)}
-                      className="neu-flat-sm rounded-xl bg-paper px-3 py-2 text-left font-body text-[13px] text-ink transition-all hover:text-editorial active:neu-pressed-sm"
+                      className="neu-flat-sm rounded-xl bg-paper px-3 py-2 text-left font-body text-[13px] text-ink transition-all hover:text-accent active:neu-pressed-sm"
                     >
                       {s}
                     </button>
@@ -377,7 +377,7 @@ export default function CopilotWidget() {
                     m.role === "user"
                       ? "bg-editorial text-white"
                       : m.degraded
-                        ? "neu-pressed-sm border-l-[3px] border-warning bg-paper text-ink"
+                        ? "rounded-lg border border-warning/25 bg-warning-soft text-ink"
                         : "neu-pressed-sm bg-paper text-ink"
                   )}
                 >
@@ -390,7 +390,7 @@ export default function CopilotWidget() {
                           <button
                             type="button"
                             onClick={() => openDossier(t.source_id).catch(() => undefined)}
-                            className="neu-flat-sm w-full rounded-xl bg-paper px-3 py-2 text-left transition-all hover:text-editorial"
+                            className="neu-flat-sm w-full rounded-xl bg-paper px-3 py-2 text-left transition-all hover:text-accent"
                           >
                             <span className="block truncate text-[13px] font-semibold">{t.project_title || t.source_id}</span>
                             <span className="font-mono block truncate text-[10px] text-stock-500">

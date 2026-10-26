@@ -402,6 +402,31 @@ export async function saveCompanyProfile(profile: CompanyProfile): Promise<{ sta
   return apiFetch("/api/v1/me/company-profile", { method: "PUT", body: profile });
 }
 
+/** Multi-CUI: the account's saved bidder firms and which one is active.
+ *  `max` is the plan's limit (1, or 5 on Ofertant Complet Pro). */
+export interface CompanyLibrary {
+  available: boolean;
+  active_cui: string | null;
+  profiles: CompanyProfile[];
+  max: number;
+}
+
+export async function fetchCompanyLibrary(): Promise<CompanyLibrary> {
+  return apiFetch("/api/v1/me/company-profiles");
+}
+
+export async function addCompanyToLibrary(profile: CompanyProfile): Promise<{ status: string }> {
+  return apiFetch("/api/v1/me/company-profiles", { method: "POST", body: profile });
+}
+
+export async function activateCompany(cui: string): Promise<{ status: string; profile: CompanyProfile }> {
+  return apiFetch(`/api/v1/me/company-profiles/${encodeURIComponent(cui)}/activate`, { method: "POST" });
+}
+
+export async function deleteCompanyFromLibrary(cui: string): Promise<{ status: string }> {
+  return apiFetch(`/api/v1/me/company-profiles/${encodeURIComponent(cui)}`, { method: "DELETE" });
+}
+
 /** Price percentiles of awarded / estimated value over comparable real
  *  awards (SEAP award notices), at the most specific CPV level and
  *  geography with a usable sample. */
@@ -524,6 +549,27 @@ export interface DataFreshness {
 
 export async function fetchDataFreshness(): Promise<DataFreshness> {
   return apiFetch("/api/v1/system/freshness", { anonymous: true });
+}
+
+/** The landing page's live counters (GET /system/public-stats — public,
+ *  aggregates only). A count the database could not give is null: the page
+ *  hides it rather than showing 0. */
+export interface PublicStats {
+  generated_at: string;
+  available: boolean;
+  open_procedures: number | null;
+  pre_seap_signals: number | null;
+  new_last_24h: number | null;
+  registry_rows: number | null;
+  award_outcomes: number | null;
+  last_sync_at: string | null;
+  legal_acts: number;
+  legal_articles: number;
+  legal_checked_at: string | null;
+}
+
+export async function fetchPublicStats(): Promise<PublicStats> {
+  return apiFetch("/api/v1/system/public-stats", { anonymous: true });
 }
 
 export async function fetchSystemStatus(): Promise<{
@@ -656,7 +702,12 @@ export async function fetchMyPreferences(): Promise<AlertPreferences> {
 export interface Entitlements {
   plan: string;
   plan_label: string;
-  features: { pipeline_max_deals: number | null; csv_export: boolean };
+  features: {
+    pipeline_max_deals: number | null;
+    csv_export: boolean;
+    caiet_semantic_ai?: boolean;
+    company_profiles_max?: number;
+  };
 }
 
 /** The plan and what it includes beyond AI credits (pipeline size, CSV). */

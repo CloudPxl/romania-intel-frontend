@@ -67,7 +67,7 @@ export default function ResetPasswordPage() {
   return (
     <main className="mx-auto flex w-full max-w-screen-xl flex-1 items-center justify-center px-4 py-16">
       <div className="w-full max-w-md neu-flat rounded-3xl bg-paper p-6 sm:p-8">
-        <Eyebrow className="text-editorial">Resetare parolă</Eyebrow>
+        <Eyebrow className="text-accent">Resetare parolă</Eyebrow>
 
         {linkError ? (
           <>
