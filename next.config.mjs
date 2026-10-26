@@ -40,6 +40,10 @@ const SECURITY_HEADERS = [
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // The deploy builds into .next-staging while the live server keeps
+  // serving .next, then swaps the two directories (scripts/deploy-build.sh).
+  // `next start` always runs without NEXT_DIST_DIR, so it reads .next.
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   // No "X-Powered-By: Next.js" advertising the framework and its version.
   poweredByHeader: false,
   async headers() {

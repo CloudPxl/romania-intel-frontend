@@ -144,6 +144,18 @@ function CautareAvansataContent() {
 		return () => clearTimeout(t);
 	}, [toast]);
 
+	const closeDossier = () => {
+		setSelectedLead(null);
+		// Drop the id from the address, so a refresh shows the list rather
+		// than reopening the dossier that was just closed.
+		if (initialOpenLead && typeof window !== "undefined") {
+			const url = new URL(window.location.href);
+			url.searchParams.delete("openLead");
+			url.searchParams.delete("source_id");
+			window.history.replaceState(null, "", url.pathname + url.search);
+		}
+	};
+
 	useEffect(() => {
 		if (!selectedLead) return;
 		const onKey = (e: KeyboardEvent) => e.key === "Escape" && closeDossier();
@@ -183,18 +195,6 @@ function CautareAvansataContent() {
 			mounted = false;
 		};
 	}, [initialOpenLead]);
-
-	const closeDossier = () => {
-		setSelectedLead(null);
-		// Drop the id from the address, so a refresh shows the list rather
-		// than reopening the dossier that was just closed.
-		if (initialOpenLead && typeof window !== "undefined") {
-			const url = new URL(window.location.href);
-			url.searchParams.delete("openLead");
-			url.searchParams.delete("source_id");
-			window.history.replaceState(null, "", url.pathname + url.search);
-		}
-	};
 
 	const counties = useMemo(() => {
 		const set = new Set<string>();

@@ -6,7 +6,11 @@ on:
   workflow_dispatch: {}
 
 jobs:
+  check:
+    uses: ./.github/workflows/ci.yml
+
   deploy:
+    needs: check
     runs-on: ubuntu-latest
     steps:
       - name: Deploy over SSH
@@ -15,26 +19,19 @@ jobs:
           host: ro-intel.xyz
           username: root
           key: ${{ secrets.VPS_DEPLOY_KEY }}
+          command_timeout: 20m
           script: |
             set -e
+            # /root/ro-intel is a symlink to /srv/ro-intel once
+            # deploy/vps/harden.sh (root repo) has run; the path works either way.
             cd /root/ro-intel/romania-intel-frontend
             # fetch + checkout rather than pull: this directory is also the
-            # monorepo's submodule, so it can be on a detached HEAD, and
-            # `next build` rewrites the tracked next-env.d.ts, which -f
-            # discards. Untracked files (.env.production) are kept.
+            # monorepo's submodule, so it can be on a detached HEAD.
+            # Untracked files (.env.production) are kept.
             git fetch -q origin main
             git checkout -q -f -B main origin/main
             git log --oneline -1
-            npm ci
-            npm run build
-            systemctl restart ro-intel-frontend
-            for i in $(seq 1 30); do
-              if curl -sf -o /dev/null 127.0.0.1:3000; then
-                systemctl is-active ro-intel-frontend
-                exit 0
-              fi
-              sleep 1
-            done
-            echo "frontend did not answer on :3000 within 30s"
-            journalctl -u ro-intel-frontend -n 30 --no-pager
-            exit 1
+            # Builds into .next-staging while the live build keeps serving,
+            # swaps it in, restarts, and rolls back if the new build does not
+            # answer. `scripts/deploy-build.sh rollback` undoes a deploy by hand.
+            bash scripts/deploy-build.sh

@@ -14,3 +14,7 @@ node_modules/
 .next/
 .DS_Store
 *.tsbuildinfo
+# Deploy builds (scripts/deploy-build.sh)
+.next-staging/
+.next-prev/
+.next.swap/

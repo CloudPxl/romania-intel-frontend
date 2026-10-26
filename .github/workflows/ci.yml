@@ -1,0 +1,25 @@
+name: CI
+
+# Type check and lint. Runs on every push except main and on pull requests;
+# on main, deploy-frontend.yml calls this same workflow and deploys only
+# when it passes, so main is not checked twice.
+on:
+  push:
+    branches-ignore: [main]
+  pull_request:
+  workflow_call:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22 # the VPS runs Node 22
+          cache: npm
+      - run: npm ci
+      - name: Type check
+        run: npx tsc --noEmit
+      - name: Lint (errors fail; warnings are reported)
+        run: npm run lint
