@@ -525,7 +525,9 @@ export default function LandingPage() {
           l: `acte normative cu ${n(stats?.legal_articles) ?? "—"} articole, reverificate săptămânal pe portalul legislativ`,
           src: "legislatie.just.ro",
         },
-        { v: n(stats?.pre_seap_signals), l: "semnale pre-SEAP: acorduri de mediu și investiții înainte de licitație", src: "ANMAP, registre județene" },
+        // Shown only once the register holds some: until the ANMAP feed runs
+        // in production a "0" would read as "the product finds nothing".
+        { v: stats?.pre_seap_signals ? n(stats.pre_seap_signals) : null, l: "semnale pre-SEAP: acorduri de mediu și investiții înainte de licitație", src: "ANMAP, registre județene" },
       ].filter((c) => c.v !== null),
     [stats]
   );
