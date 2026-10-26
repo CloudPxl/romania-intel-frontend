@@ -17,7 +17,7 @@ import {
   type CopilotTurn,
   type Lead,
 } from "@/lib/api";
-import { analyticsHref, draftingHref, stashClauses, type AnalyticsTool } from "@/lib/toolLinks";
+import { PRE_SEAP_FOIA_PRESETS, analyticsHref, draftingHref, stashClauses, type AnalyticsTool } from "@/lib/toolLinks";
 import { formatRon, stageLabel } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import AiCredits from "@/components/AiCredits";
@@ -225,6 +225,12 @@ export default function CopilotWidget() {
         if (p.document === "propunere_tehnica") tab = "propunere";
         else if (p.document === "justificare_pret") extra.letter = "abnormally_low_price";
         else if (p.document === "acces_dosar") extra.letter = "dossier_access";
+        else if (p.document === "cerere_544") {
+          // A pre-SEAP signal: the Legea 544/2001 request for SF/DALI,
+          // indicators and the procurement calendar.
+          extra.letter = "foia";
+          extra.presets = PRE_SEAP_FOIA_PRESETS.join(",");
+        }
         else extra.letter = "clarification";
         if (p.points?.length && tab === "clarificari" && extra.letter === "clarification") {
           extra.clauses = stashClauses(p.source_id, {

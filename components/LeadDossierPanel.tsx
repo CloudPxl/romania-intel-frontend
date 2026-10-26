@@ -12,10 +12,11 @@ import {
   generateTenderBrief,
   triggerEmailAlert,
   type Lead,
+  type PreSeapMode,
   type TenderBrief,
 } from "@/lib/api";
 import { formatDate, formatLeadValue, formatNumber } from "@/lib/format";
-import { analyticsHref, draftingHref } from "@/lib/toolLinks";
+import { PRE_SEAP_FOIA_PRESETS, analyticsHref, draftingHref, foiaHref } from "@/lib/toolLinks";
 import { Button, Eyebrow } from "@/components/newsprint";
 import AuthorityProfilePanel from "@/components/AuthorityProfilePanel";
 
@@ -75,7 +76,7 @@ function TenderBriefSection({ sourceId }: { sourceId: string }) {
   return (
     <div className="mt-5">
       <Eyebrow className="mb-1.5">Brief AI al licitației</Eyebrow>
-      {regime?.procedure_name && (
+      {regime?.procedure_name && !regime.not_applicable && (
         <p className="font-mono mb-2 text-[11px] text-stock-500">
           {regime.applicable_law} · {regime.procedure_name} ·{" "}
           {regime.cnsc_deadline_days ? `contestație CNSC ${regime.cnsc_deadline_days} zile` : "contestare în instanță (L554/2004)"}
@@ -101,12 +102,69 @@ function TenderBriefSection({ sourceId }: { sourceId: string }) {
   );
 }
 
+/**
+ * A permit, an environmental agreement, a council decision, a budget or a
+ * programme: the investment exists, the procedure does not. Instead of the
+ * price tools (80% threshold, cauțiune, guarantees — none of which exists
+ * before the tender is published), the dossier says who issued it, where the
+ * investment stands, and opens the Legea 544/2001 request for the
+ * feasibility study, the indicators and the procurement calendar.
+ */
+function PreSeapSection({ mode, onRequest }: { mode: PreSeapMode; onRequest: () => void }) {
+  const rows: [string, string | null][] = [
+    ["Tip semnal", mode.signal_label],
+    ["Emitent", mode.issuing_authority],
+    ["Beneficiar", mode.beneficiary_authority],
+    ["Stadiul investiției", mode.investment_stage],
+  ];
+  return (
+    <div className="neu-pressed mt-5 rounded-2xl border-l-2 border-editorial bg-paper px-4 py-4">
+      <Eyebrow className="text-editorial">Semnal pre-SEAP — încă nu este licitație</Eyebrow>
+      <dl className="mt-3 grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">
+        {rows
+          .filter(([, v]) => v)
+          .map(([label, value]) => (
+            <div key={label}>
+              <dt className="font-sans text-[10px] font-semibold uppercase tracking-widest text-stock-500">{label}</dt>
+              <dd className="font-body text-sm leading-snug">{value}</dd>
+            </div>
+          ))}
+      </dl>
+      <p className="font-body mt-3 text-sm leading-relaxed text-stock-600">{mode.next_step}</p>
+      <div className="mt-3">
+        <Button onClick={onRequest} fullWidth>
+          Cerere informații interes public — Legea 544/2001
+        </Button>
+      </div>
+      <p className="font-body mt-2 text-xs leading-relaxed text-stock-500">{mode.not_applicable}</p>
+    </div>
+  );
+}
+
+/** For a lead from a slimmer projection that carries the kind but not the mode. */
+const DEFAULT_PRE_SEAP: PreSeapMode = {
+  signal_type: null,
+  signal_label: "Semnal de investiție (pre-SEAP)",
+  issuing_authority: null,
+  beneficiary_authority: null,
+  investment_stage: null,
+  next_step:
+    "Cereți autorității, în temeiul Legii nr. 544/2001, studiul de fezabilitate / DALI, indicatorii tehnico-economici aprobați și calendarul estimat al procedurii — înainte ca licitația să apară în SEAP.",
+  foia_presets: PRE_SEAP_FOIA_PRESETS,
+  not_applicable:
+    "Semnal pre-SEAP: nu există încă o procedură de atribuire, deci nici prag de 80%, cauțiune CNSC sau garanții.",
+};
+
 export default function LeadDossierPanel({ lead, onClose }: { lead: Lead; onClose: () => void }) {
   const { user } = useAuth();
   const router = useRouter();
   const { ask } = useCopilot();
   // While this panel is open, "acest dosar" in the copilot means this one.
   useActiveTender(lead.source_id, lead.project_title);
+  const preSeap: PreSeapMode | null =
+    lead.record_kind === "PRE_TENDER_SIGNAL"
+      ? { ...DEFAULT_PRE_SEAP, beneficiary_authority: lead.entity_name ?? null, ...(lead.pre_seap ?? {}) }
+      : null;
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   // Plays the exit animation, then unmounts once it's done — closing was
@@ -199,7 +257,9 @@ export default function LeadDossierPanel({ lead, onClose }: { lead: Lead; onClos
         >
           <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-divider bg-paper/95 p-4 backdrop-blur sm:p-6">
             <div className="min-w-0">
-              <Eyebrow className="text-editorial">Dosar strategic · {lead.source_id}</Eyebrow>
+              <Eyebrow className="text-editorial">
+                {preSeap ? "Semnal pre-SEAP" : "Dosar strategic"} · {lead.source_id}
+              </Eyebrow>
               <h2 className="font-display mt-2 text-xl font-semibold leading-tight tracking-tight sm:text-2xl">
                 {lead.project_title}
               </h2>
@@ -228,7 +288,7 @@ export default function LeadDossierPanel({ lead, onClose }: { lead: Lead; onClos
           <div className="flex-1 p-4 sm:p-6">
             <div className="grid grid-cols-2 divide-x divide-divider neu-pressed overflow-hidden rounded-2xl bg-paper">
               <div className="p-4">
-                <Eyebrow>Buget estimat</Eyebrow>
+                <Eyebrow>{preSeap ? "Valoare investiție" : "Buget estimat"}</Eyebrow>
                 <p
                   className={
                     "mt-1 leading-snug " +
@@ -253,7 +313,7 @@ export default function LeadDossierPanel({ lead, onClose }: { lead: Lead; onClos
                 <tbody>
                   {[
                     ["Data publicării", formatDate(lead.published_date)],
-                    ["Termen dialog tehnic", lead.action_deadline || "Nespecificat"],
+                    [preSeap ? "Termen" : "Termen dialog tehnic", lead.action_deadline || "Nespecificat"],
                     ["CUI autoritate", lead.authority_cui || "Nepublicat"],
                     [
                       "Tip procedură",
@@ -293,6 +353,13 @@ export default function LeadDossierPanel({ lead, onClose }: { lead: Lead; onClos
               </p>
             )}
 
+            {preSeap && (
+              <PreSeapSection
+                mode={preSeap}
+                onRequest={() => router.push(foiaHref(lead.source_id, preSeap.foia_presets, fallback))}
+              />
+            )}
+
             {lead.source_id && <TenderBriefSection sourceId={lead.source_id} />}
 
             {lead.sales_pitch_angle && (
@@ -318,36 +385,41 @@ export default function LeadDossierPanel({ lead, onClose }: { lead: Lead; onClos
                 <Button variant="outline" onClick={handleSendEmailAlert} disabled={busyAction === "email"}>
                   {busyAction === "email" ? "Se expediază…" : "Trimite alertă email"}
                 </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => router.push(draftingHref(lead.source_id, "propunere", fallback))}
-                >
-                  Propunere tehnică
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => router.push(draftingHref(lead.source_id, "clarificari", fallback))}
-                >
-                  Clarificări & acces dosar
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => router.push(analyticsHref(lead.source_id, "caiet", fallback))}
-                >
-                  Scanează caietul de sarcini
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => router.push(analyticsHref(lead.source_id, "win", fallback))}
-                >
-                  Poziționare preț
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => router.push(analyticsHref(lead.source_id, "competitor", fallback))}
-                >
-                  Profil de piață
-                </Button>
+                {/* Bid tools need a procedure: hidden for a pre-SEAP signal. */}
+                {!preSeap && (
+                  <>
+                    <Button
+                      variant="outline"
+                      onClick={() => router.push(draftingHref(lead.source_id, "propunere", fallback))}
+                    >
+                      Propunere tehnică
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => router.push(draftingHref(lead.source_id, "clarificari", fallback))}
+                    >
+                      Clarificări & acces dosar
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => router.push(analyticsHref(lead.source_id, "caiet", fallback))}
+                    >
+                      Scanează caietul de sarcini
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => router.push(analyticsHref(lead.source_id, "win", fallback))}
+                    >
+                      Poziționare preț
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => router.push(analyticsHref(lead.source_id, "competitor", fallback))}
+                    >
+                      Profil de piață
+                    </Button>
+                  </>
+                )}
                 <Button variant="outline" onClick={() => ask()}>
                   <span className="inline-flex items-center gap-1.5">
                     <Sparkles size={15} strokeWidth={1.75} /> Întreabă Copilotul

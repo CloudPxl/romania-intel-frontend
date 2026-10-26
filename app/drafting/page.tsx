@@ -27,6 +27,7 @@ import {
   type DeclarationId,
   type LegalMetadata,
   type LegalRegime,
+  type PreSeapMode,
   type LetterType,
   type TechnicalProposalRequest,
   type TechnicalProposalResult,
@@ -124,6 +125,8 @@ const LETTERS: { id: LetterType; title: string; stage: string; pointsLabel: stri
 const FOIA_PRESETS = [
   { id: "paap", label: "PAAP" },
   { id: "studiu_fezabilitate", label: "SF / DALI" },
+  { id: "indicatori_tehnico_economici", label: "Indicatori tehnico-economici" },
+  { id: "calendar_achizitie", label: "Calendarul procedurii" },
   { id: "rapoarte_atribuire", label: "Rapoarte de atribuire" },
   { id: "contracte_anterioare", label: "Contracte anterioare" },
 ];
@@ -703,6 +706,12 @@ const EMPTY_LETTER: LetterState = {
   useAi: false,
 };
 
+/** The Legea 544 presets named in the URL, or the default when none is valid. */
+function presetsFromParam(value: string | null): string[] {
+  const ids = (value || "").split(",").filter((p) => FOIA_PRESETS.some((x) => x.id === p));
+  return ids.length ? ids : EMPTY_LETTER.presets;
+}
+
 function LetterTool({
   initial,
   onChange,
@@ -970,6 +979,9 @@ function DraftingContent() {
   useActiveTender(form.source_id || null, form.project_title || null);
   const [tenderLoading, setTenderLoading] = useState(false);
   const [tenderNotice, setTenderNotice] = useState<string | null>(null);
+  // A permit, an environmental agreement, a council decision: no procedure
+  // yet, so the regime strip (procedure, CNSC term, cauțiune) does not apply.
+  const [preSeap, setPreSeap] = useState<PreSeapMode | null>(null);
   const [declarationsNote, setDeclarationsNote] = useState<string | null>(null);
 
   // What the two tools start from — restored from an autosave, a reopened
@@ -980,6 +992,8 @@ function DraftingContent() {
     ...EMPTY_LETTER,
     type: letterParam && LETTER_IDS.has(letterParam) ? letterParam : "clarification",
     offeredPrice: Number(searchParams.get("offered") || 0) || 0,
+    // ?presets= comes from a pre-SEAP signal's "Cerere Legea 544" button.
+    presets: presetsFromParam(searchParams.get("presets")),
   });
   const [toolsKey, setToolsKey] = useState(0);
   const [handoffNote, setHandoffNote] = useState<string | null>(null);
@@ -1043,6 +1057,7 @@ function DraftingContent() {
     try {
       const tender = await fetchOpportunity(sourceId);
       apply(tender);
+      setPreSeap(tender.record_kind === "PRE_TENDER_SIGNAL" ? tender.pre_seap ?? null : null);
       const missing = (tender.suggested_declarations || []).filter((d) => !latest.current.proposal.declarations.includes(d));
       if (missing.length) {
         setProposalInit({ ...latest.current.proposal, declarations: [...latest.current.proposal.declarations, ...missing] });
@@ -1302,7 +1317,15 @@ function DraftingContent() {
             </Field>
           </div>
 
-          <LegalRegimeStrip meta={legalMeta} loading={legalLoading} form={form} setForm={setForm} />
+          {preSeap ? (
+            <div className="mt-4">
+              <Notice tone="neutral" title={`Semnal pre-SEAP · ${preSeap.signal_label}`}>
+                {preSeap.not_applicable} Scrisoarea potrivită este „Informații publice” (Legea nr. 544/2001).
+              </Notice>
+            </div>
+          ) : (
+            <LegalRegimeStrip meta={legalMeta} loading={legalLoading} form={form} setForm={setForm} />
+          )}
         </Panel>
 
         <BidderCard bidder={bidder} setBidder={setBidder} />

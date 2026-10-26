@@ -118,8 +118,33 @@ function qs(params: Record<string, string | number | boolean | string[] | undefi
 
 /* ---------------------------------------------------------------- types */
 
+/** What the dossier shows for a pre-SEAP signal instead of price and remedy
+ *  figures (record_kind.py:pre_seap_mode). */
+export interface PreSeapMode {
+  signal_type: string | null;
+  signal_label: string;
+  issuing_authority: string | null;
+  beneficiary_authority: string | null;
+  investment_stage: string | null;
+  next_step: string;
+  /** Legea 544/2001 presets for Redactare's "Informații publice" letter. */
+  foia_presets: string[];
+  not_applicable: string;
+}
+
+export type RecordKind = "ACTIVE_TENDER" | "PRE_TENDER_SIGNAL";
+
 export interface Lead {
   source_id: string;
+  /**
+   * ACTIVE_TENDER: a procurement procedure. PRE_TENDER_SIGNAL: a building
+   * permit, an environmental agreement, a council decision, a budget or a
+   * programme — no procedure yet, so no 80% threshold, cauțiune or
+   * guarantees. Set by the backend on every lead.
+   */
+  record_kind?: RecordKind;
+  is_procurement_procedure?: boolean;
+  pre_seap?: PreSeapMode;
   source_type?: string;
   source_url?: string;
   project_title: string;
@@ -788,7 +813,7 @@ export interface CopilotAction {
     source_id?: string | null;
     deal_id?: string;
     stage?: string;
-    document?: "propunere_tehnica" | "clarificari" | "justificare_pret" | "acces_dosar";
+    document?: "propunere_tehnica" | "clarificari" | "justificare_pret" | "acces_dosar" | "cerere_544";
     points?: string[];
     project_title?: string;
     tool?: "profil_piata" | "scanner_caiet" | "pozitionare_pret";
@@ -867,8 +892,9 @@ export interface TenderBrief {
   status: "ready" | "pending" | "missing" | "unavailable";
   brief: string | null;
   legal_issues?: LegalIssue[];
-  /** Deterministic — computed from the law, never by the model. */
-  legal_regime: LegalMetadata;
+  /** Deterministic — computed from the law, never by the model. For a
+   *  pre-SEAP signal only `not_applicable` and `note` are set. */
+  legal_regime: LegalMetadata & { not_applicable?: boolean; note?: string };
   /** True when another user's generation or the nightly batch paid for it. */
   shared?: boolean;
   model?: string;

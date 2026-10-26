@@ -14,6 +14,16 @@ export function draftingHref(sourceId: string | null | undefined, tab: DraftingT
   return `/drafting?${params.toString()}`;
 }
 
+/** The presets a pre-SEAP signal calls for (record_kind.PRE_SEAP_FOIA_PRESETS). */
+export const PRE_SEAP_FOIA_PRESETS = ["studiu_fezabilitate", "indicatori_tehnico_economici", "calendar_achizitie"];
+
+/** Redactare's Legea 544/2001 letter, with its presets ticked — the bridge
+ *  from a pre-SEAP signal to the request for SF/DALI, indicators and the
+ *  procurement calendar. */
+export function foiaHref(sourceId: string | null | undefined, presets: string[], extra: Record<string, string> = {}) {
+  return draftingHref(sourceId, "clarificari", { ...extra, letter: "foia", presets: presets.join(",") });
+}
+
 export function analyticsHref(sourceId: string | null | undefined, tool: AnalyticsTool, extra: Record<string, string> = {}) {
   const params = new URLSearchParams({ tool, ...extra });
   if (sourceId) params.set("source_id", sourceId);

@@ -29,7 +29,7 @@ import {
   type LegalRegime,
   type WinOdds,
 } from "@/lib/api";
-import { draftingHref, stashClauses } from "@/lib/toolLinks";
+import { PRE_SEAP_FOIA_PRESETS, draftingHref, foiaHref, stashClauses } from "@/lib/toolLinks";
 import { CATEGORIES, formatDate, formatNumber, formatRon } from "@/lib/format";
 import {
   Badge,
@@ -1280,6 +1280,7 @@ function AnalyticsContent() {
     TOOLS.find((t) => t.id === requested)?.id ?? "competitor"
   );
   const { ask } = useCopilot();
+  const router = useRouter();
   // Old links and bookmarks to the copilot tab open the floating copilot.
   useEffect(() => {
     if (requested === "copilot") ask();
@@ -1304,6 +1305,7 @@ function AnalyticsContent() {
   }, [sourceId]);
 
   const tender = tenderFrom(lead, new URLSearchParams(searchParams.toString()));
+  const preSeap = lead?.record_kind === "PRE_TENDER_SIGNAL";
   // Re-mount the tools once the record arrives so their inputs start from
   // the tender rather than from the fallback URL parameters.
   const toolKey = `${tender.source_id ?? "none"}-${leadState}`;
@@ -1325,9 +1327,32 @@ function AnalyticsContent() {
             </div>
           )}
           <TenderBanner tender={tender} />
-          {activeTool === "competitor" && <CompetitorTool key={toolKey} tender={tender} />}
-          {activeTool === "caiet" && <CaietTool key={toolKey} tender={tender} artifactId={searchParams.get("artifact")} />}
-          {activeTool === "win" && <WinOddsTool key={toolKey} tender={tender} />}
+          {preSeap && (activeTool === "competitor" || activeTool === "win") ? (
+            // A permit or a council decision has no contract estimate and no
+            // offer to position: the 80% threshold, the cauțiune and the
+            // guarantees start with the procedure, not before it.
+            <Panel>
+              <Notice tone="neutral" title="Semnal pre-SEAP — instrumentele de preț nu se aplică încă">
+                {lead?.pre_seap?.not_applicable ??
+                  "Nu există încă o procedură de atribuire, deci nici prag de 80%, cauțiune CNSC sau garanții."}
+              </Notice>
+              <div className="mt-4">
+                <Button
+                  onClick={() =>
+                    router.push(foiaHref(lead?.source_id, lead?.pre_seap?.foia_presets ?? PRE_SEAP_FOIA_PRESETS))
+                  }
+                >
+                  Cerere informații interes public — Legea 544/2001
+                </Button>
+              </div>
+            </Panel>
+          ) : (
+            <>
+              {activeTool === "competitor" && <CompetitorTool key={toolKey} tender={tender} />}
+              {activeTool === "caiet" && <CaietTool key={toolKey} tender={tender} artifactId={searchParams.get("artifact")} />}
+              {activeTool === "win" && <WinOddsTool key={toolKey} tender={tender} />}
+            </>
+          )}
         </>
       )}
     </main>
