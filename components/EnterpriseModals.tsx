@@ -22,7 +22,7 @@ import { CATEGORIES, COUNTIES, DOMAIN_OPTIONS } from "@/lib/format";
 import { CountyCombobox } from "@/components/registry";
 import { Badge, Button, Eyebrow, Field, Input, Notice, Select } from "@/components/newsprint";
 import NotificationToggle from "@/components/NotificationToggle";
-import { PAID_PLANS, formatLei } from "@/lib/plans";
+import { FOUNDER_PROGRAM, PAID_PLANS, PRICE_REASSURANCE, formatLei } from "@/lib/plans";
 
 /* ------------------------------------------------------------ modal shell */
 
@@ -224,11 +224,20 @@ export function PricingModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
       isOpen={isOpen}
       onClose={onClose}
       size="lg"
-      title="Abonament & Factură proformă"
-      subtitle="Plata se face prin ordin de plată (OP) pe baza facturii proforme generate mai jos."
+      title="Abonament"
+      subtitle={PRICE_REASSURANCE.slice(0, 2).join(" · ")}
     >
       {!proforma ? (
         <div className="space-y-6">
+          <div className="flex flex-col gap-3 rounded-xl border border-editorial-line bg-editorial-soft p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="text-[14px] font-semibold text-accent">{FOUNDER_PROGRAM.title}</p>
+              <p className="mt-1 text-[14px] leading-snug text-stock-600">{FOUNDER_PROGRAM.text}</p>
+            </div>
+            <a href={FOUNDER_PROGRAM.href} className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-lg border border-editorial bg-paper px-3.5 text-[14px] font-semibold text-accent hover:bg-editorial-soft">
+              {FOUNDER_PROGRAM.cta}
+            </a>
+          </div>
           <div className="neu-pressed flex w-full gap-1.5 rounded-2xl bg-paper p-1.5" role="tablist"
                aria-label="Perioadă de facturare">
             {(["monthly", "annual"] as const).map((key) => (

@@ -240,7 +240,9 @@ export default function LeadDossierPanel({ lead, onClose }: { lead: Lead; onClos
     { label: preSeap ? "Valoare investiție" : "Valoare estimată", value: value ? `${formatNumber(Math.round(value))} lei` : "nepublicată", sub: "fără TVA" },
     preSeap
       ? { label: "Sursă finanțare", value: lead.funding_source || "nespecificată" }
-      : { label: "Prag 80% · art. 210", value: value ? `${formatNumber(Math.round(value * 0.8))} lei` : "—", sub: "sub el se cere justificarea" },
+      : lead.procedure_type === "cumparare_directa"
+        ? { label: "Prag 80% · art. 210", value: "nu se aplică", sub: "achiziție directă — nu e procedură de atribuire" }
+        : { label: "Prag 80% · art. 210", value: value ? `${formatNumber(Math.round(value * 0.8))} lei` : "—", sub: "sub el se cere justificarea" },
     { label: "Termen depunere", value: lead.action_deadline ? formatDate(lead.action_deadline) : "nespecificat", sub: deadlineLabel(days), tone: deadlineTone(days) },
     { label: "Publicat", value: formatDate(lead.published_date), sub: lead.source_type || undefined },
     { label: "Procedură", value: lead.procedure_type ? PROCEDURE_TYPE_LABELS[lead.procedure_type] ?? lead.procedure_type : "nespecificată", sub: lead.award_criterion ? `criteriu: ${lead.award_criterion}` : undefined },

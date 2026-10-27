@@ -114,7 +114,7 @@ const FAQS: FaqItem[] = [
 		blocks: [
 			{
 				kind: "p",
-				text: "Politica RO-INTEL este de zero date fabricate. Dacă o primărie, un consiliu județean sau un anunț de consultare nu publică o estimare financiară precisă în documentul sursă, sistemul afișează valoarea ca „Nepublicată” (0.0 RON) și marchează acest lucru explicit. Nu aproximăm și nu inventăm niciodată bugete pe care autoritatea contractantă nu le-a aprobat oficial.",
+				text: "Politica RO-INTEL este de zero date fabricate. Dacă o primărie, un consiliu județean sau un anunț de consultare nu publică o estimare financiară precisă în documentul sursă, sistemul afișează valoarea ca „Nepublicată” — niciodată ca 0 lei — și nu o include în calculele de prag sau de preț. Nu aproximăm și nu inventăm niciodată bugete pe care autoritatea contractantă nu le-a aprobat oficial.",
 			},
 		],
 	},
@@ -137,11 +137,11 @@ const FAQS: FaqItem[] = [
 		],
 	},
 	{
-		question: "Cum solicit un plan Enterprise, acoperire pe comune/orașe specifice sau suport pentru consorții?",
+		question: "Pot cere monitorizarea unei surse noi (o primărie, un consiliu județean)?",
 		blocks: [
 			{
 				kind: "p",
-				text: `Pentru companii cu volume mari de ofertare, furnizăm planuri Enterprise dedicate: lărgirea frecvenței de scraping la cerere, construirea de adaptoare personalizate pentru UAT-uri de interes specific, acces la webhook-uri și asistență strategică la ofertare. Contactați direct echipa tehnică la \`${SUPPORT_EMAIL}\` sau discutați mai jos cu Consilierul Strategic RO-INTEL.`,
+				text: `Da — scrieți-ne la ${SUPPORT_EMAIL} ce sursă vă interesează. O evaluăm și adăugăm sursele publice care pot fi citite automat fără a ocoli protecțiile site-ului; nu promitem un termen. Câteva portaluri românești blochează serverele din afara țării, iar acestea sunt acoperite deocamdată doar prin anunțurile lor din SEAP.`,
 			},
 		],
 	},
@@ -224,7 +224,7 @@ function SupportChat() {
 	const [messages, setMessages] = useState<{ sender: "user" | "ai"; text: string; degraded?: boolean }[]>([
 		{
 			sender: "ai",
-			text: "Bună ziua. Sunt consilierul strategic RO-INTEL. Vă pot ajuta cu întrebări despre achiziții publice, funcționarea platformei sau planurile Enterprise. Cu ce vă pot fi de folos?",
+			text: `Bună ziua. Sunt asistentul AI al RO-INTEL și răspund automat la întrebări despre platformă și achiziții publice — verificați orice regulă în textul oficial. Pentru cineva din echipă, scrieți la ${SUPPORT_EMAIL}.`,
 		},
 	]);
 	const [input, setInput] = useState("");
@@ -250,7 +250,7 @@ function SupportChat() {
 				...prev,
 				{
 					sender: "ai",
-					text: e instanceof ApiError ? e.detail : `Consilierul nu a putut răspunde. Scrieți-ne la ${SUPPORT_EMAIL}.`,
+					text: e instanceof ApiError ? e.detail : `Asistentul nu a putut răspunde. Scrieți-ne la ${SUPPORT_EMAIL}.`,
 					degraded: true,
 				},
 			]);
@@ -265,7 +265,7 @@ function SupportChat() {
 				{messages.map((m, i) => (
 					<div key={i} className={"flex " + (m.sender === "user" ? "justify-end" : "justify-start")}>
 						<div className={"max-w-[88%] rounded-2xl px-3.5 py-2.5 font-body text-sm leading-relaxed " + (m.sender === "user" ? "neu-flat-sm bg-editorial text-white" : m.degraded ? "neu-pressed border-l-[3px] border-warning bg-paper" : "neu-flat-sm bg-paper")}>
-							{m.sender === "ai" && <span className="label-eyebrow mb-1 block text-stock-500">{m.degraded ? "Răspuns indisponibil" : "Consilier Strategic"}</span>}
+							{m.sender === "ai" && <span className="label-eyebrow mb-1 block text-stock-500">{m.degraded ? "Răspuns indisponibil" : "Asistent AI"}</span>}
 							<p className="whitespace-pre-wrap">{m.text}</p>
 						</div>
 					</div>
@@ -273,7 +273,7 @@ function SupportChat() {
 				{loading && (
 					<div className="flex items-center gap-2" role="status" aria-live="polite">
 						<span className="h-2 w-2 animate-pulse rounded-full bg-editorial" aria-hidden="true" />
-						<span className="label-eyebrow text-stock-500">Consilierul redactează răspunsul…</span>
+						<span className="label-eyebrow text-stock-500">Asistentul redactează răspunsul…</span>
 					</div>
 				)}
 			</div>
@@ -288,8 +288,8 @@ function SupportChat() {
 							handleSend();
 						}
 					}}
-					placeholder="Întrebați despre legislație, scor de oportunitate sau planuri Enterprise…"
-					aria-label="Întrebare pentru consilierul strategic"
+					placeholder="Întrebați despre platformă, legislație sau planuri…"
+					aria-label="Întrebare pentru asistentul AI"
 					className="flex-1"
 				/>
 				<Button onClick={handleSend} disabled={loading || !input.trim()}>
@@ -329,8 +329,8 @@ function ContactCard() {
 					</span>
 					<div>
 						<Eyebrow className="text-stock-500">Program asistență</Eyebrow>
-						<p className="mt-1 font-body text-sm leading-relaxed text-ink">Luni – Vineri, 08:30 – 18:00</p>
-						<p className="font-body text-[13px] leading-relaxed text-stock-500">Răspuns garantat sub 2 ore pentru conturile active.</p>
+						<p className="mt-1 font-body text-sm leading-relaxed text-ink">Luni – Vineri, pe email</p>
+						<p className="font-body text-[13px] leading-relaxed text-stock-500">Răspundem cât de repede putem; asistentul AI de mai jos răspunde imediat.</p>
 					</div>
 				</div>
 
@@ -339,12 +339,12 @@ function ContactCard() {
 						<Wrench size={18} />
 					</span>
 					<div>
-						<Eyebrow className="text-stock-500">Servicii dedicate</Eyebrow>
+						<Eyebrow className="text-stock-500">Ne puteți scrie pentru</Eyebrow>
 						<ul className="mt-1 space-y-1 font-body text-[13px] leading-relaxed text-ink">
-							<li>Configurare scraper-e dedicate pe UAT-uri/județe specifice</li>
-							<li>Integrări API/ERP personalizate</li>
-							<li>Onboarding pentru consorții de ofertare</li>
-							<li>Solicitări proforme/facturare</li>
+							<li>Un loc în Programul Parteneri Fondatori</li>
+							<li>O sursă publică pe care nu o acoperim încă</li>
+							<li>Probleme cu contul sau cu un document generat</li>
+							<li>Facturare</li>
 						</ul>
 					</div>
 				</div>
@@ -358,19 +358,19 @@ function ContactCard() {
 export default function SupportPage() {
 	return (
 		<div className="mx-auto w-full max-w-screen-xl px-4 py-8 sm:py-10">
-			<PageHeader eyebrow="Asistență RO-INTEL" title="Suport & Consiliere Strategică" standfirst="Răspunsuri la cele mai frecvente întrebări despre platformă și legislația achizițiilor publice, un consilier strategic disponibil non-stop și o linie directă către echipa tehnică." />
+			<PageHeader eyebrow="Asistență RO-INTEL" title="Suport" standfirst="Răspunsuri la întrebările frecvente, un asistent AI care răspunde imediat și adresa echipei RO-INTEL." />
 
 			<section className="mb-10">
 				<ContactCard />
 			</section>
 
 			<section className="mb-10">
-				<SectionTitle note={`${FAQS.length} întrebări`}>FAQ Interactiv</SectionTitle>
+				<SectionTitle note={`${FAQS.length} întrebări`}>Întrebări frecvente</SectionTitle>
 				<FaqAccordion />
 			</section>
 
 			<section>
-				<SectionTitle>Consilier Strategic RO-INTEL</SectionTitle>
+				<SectionTitle note="răspunsuri automate">Asistentul AI RO-INTEL</SectionTitle>
 				<SupportChat />
 			</section>
 		</div>

@@ -95,3 +95,12 @@ export const PRICE_REASSURANCE = [
   "Dezabonare cu un click",
   "Ștergere cont oricând",
 ];
+
+/** The tester phase, stated the same way wherever a plan can be chosen:
+ *  the landing page's Founder card, the pricing dialog and /abonament. */
+export const FOUNDER_PROGRAM = {
+  title: "Programul Parteneri Fondatori · 10 locuri",
+  text: "În perioada de testare, firmele care licitează activ primesc 14 zile de Ofertant Complet Pro gratuit, în schimbul feedbackului. Contul gratuit rămâne gratuit.",
+  cta: "Aplică pentru un loc",
+  href: "mailto:cloudpxlsupport@gmail.com?subject=Program%20Parteneri%20Fondatori%20RO-INTEL",
+};

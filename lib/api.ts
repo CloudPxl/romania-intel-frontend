@@ -983,9 +983,9 @@ export async function generateTenderBrief(sourceId: string): Promise<TenderBrief
 /* -------------------------------------------------------------- support */
 
 /**
- * The Consilier Strategic on /suport. Distinct from askCopilotChat: this
+ * The AI support assistant on /suport. Distinct from askCopilotChat: this
  * one carries no feed context (it's guest-accessible) and is grounded in
- * legal/procedural guidance plus Enterprise-plan qualification rather than
+ * guidance about what RO-INTEL actually does rather than
  * the caller's own registry. `degraded: true` means no LLM provider
  * answered — the reply is still safe to show (it points to direct email
  * support) rather than something the caller must special-case.

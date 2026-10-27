@@ -94,6 +94,10 @@ export default function PrivacyPage() {
                 <b>Resend</b> — trimite emailurile cu alerte. Fiecare alertă conține un link de dezabonare cu un singur
                 clic; alertele se pot reporni din Setări cont.
               </li>
+              <li>
+                <b>Stripe</b> — procesează plățile cu cardul pentru planurile plătite. Datele cardului sunt introduse
+                direct la Stripe și nu ajung la noi; primim doar confirmarea plății și identificatorul clientului.
+              </li>
             </ul>
           </section>
 

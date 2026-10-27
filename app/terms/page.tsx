@@ -65,10 +65,11 @@ export default function TermsPage() {
           <section>
             <SectionTitle>4. Plata serviciului</SectionTitle>
             <p>
-              Accesul la anumite funcționalități poate fi condiționat de un abonament plătit. Facturarea se
-              face pe bază de proformă, cu plata prin transfer bancar; nu procesăm plăți cu cardul direct pe
-              Platformă. Detaliile de facturare (denumire/nume, CUI sau alt identificator fiscal aplicabil) se
-              colectează separat, la momentul generării facturii.
+              Contul gratuit nu necesită card. Planurile plătite (Strategie &amp; Monitorizare — 490 lei/lună;
+              Ofertant Complet Pro — 990 lei/lună; prețuri în RON, fără TVA) se plătesc cu cardul, prin
+              procesatorul Stripe — datele cardului nu ajung la noi —, sau prin transfer bancar pe bază de
+              factură proformă, atunci când această opțiune este afișată în cont. Detaliile de facturare
+              (denumire, CUI) se colectează la momentul plății.
             </p>
           </section>
 

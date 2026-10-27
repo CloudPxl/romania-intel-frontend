@@ -6,6 +6,7 @@ import { CheckCircle2, CircleAlert, CreditCard } from "lucide-react";
 import AuthGate from "@/components/AuthGate";
 import { ApiError, fetchMySubscription, type SubscriptionState } from "@/lib/api";
 import { PricingModal } from "@/components/EnterpriseModals";
+import { FOUNDER_PROGRAM } from "@/lib/plans";
 import { Button, ButtonLink, Eyebrow, Loading, Notice, PageHeader, Panel } from "@/components/newsprint";
 
 const PLAN_LABELS: Record<string, string> = {
@@ -82,6 +83,18 @@ function SubscriptionContent() {
         title="Abonament"
         standfirst="Starea abonamentului dvs. și opțiunile de plată."
       />
+
+      {!active && (
+        <div className="mb-6 flex flex-col gap-3 rounded-xl border border-editorial-line bg-editorial-soft p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-[14px] font-semibold text-accent">{FOUNDER_PROGRAM.title}</p>
+            <p className="mt-1 text-[14px] leading-snug text-stock-600">{FOUNDER_PROGRAM.text}</p>
+          </div>
+          <a href={FOUNDER_PROGRAM.href} className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-lg border border-editorial bg-paper px-3.5 text-[14px] font-semibold text-accent hover:bg-editorial-soft">
+            {FOUNDER_PROGRAM.cta}
+          </a>
+        </div>
+      )}
 
       {outcome === "anulat" && (
         <div className="mb-6">
