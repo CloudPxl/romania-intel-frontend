@@ -213,7 +213,10 @@ export function PageHeader({
           <h1 className="text-2xl font-semibold leading-[30px] tracking-[-0.015em] text-ink sm:text-[32px] sm:leading-[38px]">{title}</h1>
           {standfirst && <p className="mt-3 max-w-2xl text-base leading-relaxed text-stock-500 sm:text-[17px]">{standfirst}</p>}
         </div>
-        {action && <div className="flex shrink-0 flex-wrap items-center gap-2">{action}</div>}
+        {/* Capped and allowed to wrap: a long action (the AI credits meter
+            with its "AI suspendat azi" line) once took the whole row and
+            squeezed the title to zero width, one word per line. */}
+        {action && <div className="flex min-w-0 flex-wrap items-center gap-2 lg:max-w-[45%] lg:shrink-0">{action}</div>}
       </div>
     </header>
   );

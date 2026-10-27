@@ -708,7 +708,31 @@ export interface Entitlements {
     caiet_semantic_ai?: boolean;
     company_profiles_max?: number;
   };
+  /** "code" = a tester/promotional code grant (ends at access_expires_at). */
+  source?: "code" | "subscription" | "free";
+  access_expires_at?: string | null;
+  is_tester?: boolean;
 }
+
+export interface RedeemResult {
+  success: boolean;
+  plan: string;
+  plan_id: string;
+  plan_label: string;
+  duration_days: number;
+  expires_at: string;
+  message: string;
+  code: string;
+}
+
+/** A tester / promotional access code (POST /me/redeem-code). Never a
+ *  payment: it grants its plan for its number of days. */
+export async function redeemAccessCode(code: string): Promise<RedeemResult> {
+  return apiFetch("/api/v1/me/redeem-code", { method: "POST", body: { code } });
+}
+
+/** Fired after anything that changes the plan, so every meter re-reads it. */
+export const PLAN_CHANGED_EVENT = "ro-intel:plan-changed";
 
 /** The plan and what it includes beyond AI credits (pipeline size, CSV). */
 export async function fetchEntitlements(): Promise<Entitlements> {
@@ -1392,7 +1416,7 @@ export interface PriceStrategy {
    *  audit at any discount (alin. (1)). */
   abnormally_low_risk?: {
     level: string;
-    code: "over_budget" | "presumption" | "near_threshold" | "no_presumption";
+    code: "over_budget" | "presumption" | "near_threshold" | "no_presumption" | "not_applicable";
     detail: string;
     presumption_pct: number;
     threshold_ron: number | null;
@@ -1437,6 +1461,7 @@ export interface WinRateOptions {
   annualOperatingCostRon?: number | null;
   lifecycleYears?: number | null;
   stateBudgetFunded?: boolean;
+  procedureType?: string | null;
 }
 
 export async function predictWinRate(
@@ -1465,6 +1490,7 @@ export async function predictWinRate(
       annual_operating_cost_ron: opts.annualOperatingCostRon || undefined,
       lifecycle_years: opts.lifecycleYears || undefined,
       state_budget_funded: opts.stateBudgetFunded ?? true,
+      procedure_type: opts.procedureType || undefined,
     },
   });
 }
@@ -2113,6 +2139,8 @@ export async function sendTestPush(): Promise<{ status: string; delivered: numbe
 
 export interface BillingConfig {
   stripe_enabled: boolean;
+  /** Proforma / bank transfer: off until the seller details are set. */
+  bank_transfer_available?: boolean;
   annual_months_charged: number;
   currency: string;
 }

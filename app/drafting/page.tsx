@@ -345,7 +345,7 @@ function LegalRegimeStrip({
           )}
           <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-divider pt-2.5">
             <Select
-              className="min-h-8 w-auto py-1 text-xs"
+              className="min-h-8 w-auto min-w-0 max-w-full py-1 text-xs"
               value={form.regime}
               onChange={(e) => setForm({ ...form, regime: e.target.value as LegalRegime | "" })}
               aria-label="Regim juridic"

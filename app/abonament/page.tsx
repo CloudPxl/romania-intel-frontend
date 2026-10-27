@@ -4,15 +4,13 @@ import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { CheckCircle2, CircleAlert, CreditCard } from "lucide-react";
 import AuthGate from "@/components/AuthGate";
-import { ApiError, fetchMySubscription, type SubscriptionState } from "@/lib/api";
+import { ApiError, PLAN_CHANGED_EVENT, fetchEntitlements, fetchMySubscription, type Entitlements, type SubscriptionState } from "@/lib/api";
+import RedeemCodeCard from "@/components/RedeemCodeCard";
 import { PricingModal } from "@/components/EnterpriseModals";
-import { FOUNDER_PROGRAM } from "@/lib/plans";
+import { FOUNDER_PROGRAM, PLANS } from "@/lib/plans";
 import { Button, ButtonLink, Eyebrow, Loading, Notice, PageHeader, Panel } from "@/components/newsprint";
 
-const PLAN_LABELS: Record<string, string> = {
-  plan_acces_complet: "Acces Complet",
-  plan_founder_vip: "VIP Multi-Divizie",
-};
+const PLAN_LABELS: Record<string, string> = Object.fromEntries(PLANS.map((p) => [p.id, p.name]));
 
 const STATUS_LABELS: Record<string, string> = {
   active: "Activ",
@@ -44,6 +42,21 @@ function SubscriptionContent() {
   const [error, setError] = useState<string | null>(null);
   const [stillPending, setStillPending] = useState(false);
   const [pricingOpen, setPricingOpen] = useState(false);
+  const [access, setAccess] = useState<Entitlements | null>(null);
+
+  // A code grant is not a subscription: it is read from the entitlements,
+  // and re-read the moment a code is redeemed on this page.
+  useEffect(() => {
+    const load = () => fetchEntitlements().then(setAccess).catch(() => {});
+    load();
+    window.addEventListener(PLAN_CHANGED_EVENT, load);
+    return () => window.removeEventListener(PLAN_CHANGED_EVENT, load);
+  }, []);
+  const codeAccess = access?.source === "code" && access.access_expires_at ? access : null;
+  // The subscription endpoint reports the effective plan (a code grant
+  // counts as active), so whether a PAID subscription exists is read from
+  // its Stripe status, not from is_active.
+  const viaCode = Boolean(codeAccess) && !["active", "trialing", "provisional", "past_due"].includes(subscription?.status || "");
 
   useEffect(() => {
     let cancelled = false;
@@ -84,7 +97,19 @@ function SubscriptionContent() {
         standfirst="Starea abonamentului dvs. și opțiunile de plată."
       />
 
-      {!active && (
+      {codeAccess && (
+        <div className="mb-6">
+          <Notice title={`${codeAccess.plan_label} — acces de testare activ`}>
+            Activat cu un cod de acces · valabil până la{" "}
+            <b className="tabular">{new Date(codeAccess.access_expires_at as string).toLocaleDateString("ro-RO")}</b>. După această dată
+            contul revine la planul gratuit, fără nicio plată.
+          </Notice>
+        </div>
+      )}
+
+      {!active && !codeAccess && <RedeemCodeCard className="mb-6" />}
+
+      {!active && !codeAccess && (
         <div className="mb-6 flex flex-col gap-3 rounded-xl border border-editorial-line bg-editorial-soft p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             <p className="text-[14px] font-semibold text-accent">{FOUNDER_PROGRAM.title}</p>
@@ -145,14 +170,21 @@ function SubscriptionContent() {
               <div>
                 <Eyebrow className="text-stock-500">Stare</Eyebrow>
                 <p className="font-display mt-1 text-xl font-bold text-ink">
-                  {STATUS_LABELS[subscription?.status || "inactive"] || subscription?.status}
+                  {viaCode
+                    ? "Acces de testare activ"
+                    : STATUS_LABELS[subscription?.status || "inactive"] || subscription?.status}
                 </p>
-                {subscription?.plan_id && (
+                {viaCode && codeAccess && (
+                  <p className="font-body mt-1 text-sm text-stock-600">
+                    Plan: {codeAccess.plan_label} · fără abonament plătit
+                  </p>
+                )}
+                {!viaCode && subscription?.plan_id && (
                   <p className="font-body mt-1 text-sm text-stock-600">
                     Plan: {PLAN_LABELS[subscription.plan_id] || subscription.plan_id}
                   </p>
                 )}
-                {subscription?.current_period_end && (
+                {!viaCode && subscription?.current_period_end && (
                   <p className="font-body mt-1 text-sm text-stock-500">
                     {active ? "Se reînnoiește" : "Valabil până"} la{" "}
                     {new Date(subscription.current_period_end).toLocaleDateString("ro-RO")}

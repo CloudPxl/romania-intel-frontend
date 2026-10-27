@@ -90,6 +90,8 @@ interface Tender {
   cpv_code: string | null;
   budget: number;
   contract_type: ContractType | null;
+  /** The tender's procedure: a direct purchase gets no 80% presumption. */
+  procedure_type: string | null;
 }
 
 function tenderFrom(lead: Lead | null, params: URLSearchParams): Tender {
@@ -105,6 +107,7 @@ function tenderFrom(lead: Lead | null, params: URLSearchParams): Tender {
     cpv_code: cpv,
     budget,
     contract_type: contractTypeFromCpv(cpv),
+    procedure_type: lead?.procedure_type || params.get("procedure_type") || null,
   };
 }
 
@@ -937,6 +940,7 @@ const RISK_BORDER: Record<string, string> = {
   near_threshold: "border-warning/25 bg-warning-soft",
   presumption: "border-negative/25 bg-negative-soft",
   over_budget: "border-negative/25 bg-negative-soft",
+  not_applicable: "border-line-strong bg-surface-2",
 };
 
 function WinOddsTool({ tender }: { tender: Tender }) {
@@ -983,6 +987,7 @@ function WinOddsTool({ tender }: { tender: Tender }) {
           annualOperatingCostRon: costBased ? annualCost : null,
           lifecycleYears: costBased ? years : null,
           stateBudgetFunded: stateBudget,
+          procedureType: tender.procedure_type,
         })
       );
     } catch (e) {
@@ -1110,7 +1115,9 @@ function WinOddsTool({ tender }: { tender: Tender }) {
                 {[
                   ["Garanție participare", `max ${formatRon(strategy.guarantees.participation_max_ron)}`, "≤ 1% din estimare"],
                   ["Garanție bună execuție", `max ${formatRon(strategy.guarantees.performance_max_ron)}`, "≤ 10% din prețul ofertat"],
-                  ["Prag 80% · art. 136(4)", formatRon(risk?.threshold_ron), "sub el: prezumție"],
+                  risk?.code === "not_applicable"
+                    ? ["Prag 80% · art. 136(4)", "nu se aplică", "achiziție directă"]
+                    : ["Prag 80% · art. 136(4)", formatRon(risk?.threshold_ron), "sub el: prezumție"],
                   [
                     "Cauțiune CNSC 2%",
                     meta?.cautiune ? formatRon(meta.cautiune.pre_submission_ron) : "—",
@@ -1201,7 +1208,7 @@ function WinOddsTool({ tender }: { tender: Tender }) {
           {risk && (
             <section className={"rounded-xl border p-5 sm:p-6 " + (RISK_BORDER[risk.code] ?? "border-divider bg-paper")}>
               <span className="flex items-center gap-1.5">
-                <Eyebrow className={risk.code === "no_presumption" ? "text-positive" : risk.code === "near_threshold" ? "text-warning" : "text-negative"}>
+                <Eyebrow className={risk.code === "no_presumption" ? "text-positive" : risk.code === "not_applicable" ? "text-stock-600" : risk.code === "near_threshold" ? "text-warning" : "text-negative"}>
                   {risk.level} · art. {meta?.regime === "L99" ? "222" : "210"} / art. 136 alin. (1) și (4)
                 </Eyebrow>
                 <Explain k="abnormallyLowPrice" />

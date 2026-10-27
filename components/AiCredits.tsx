@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { fetchAiUsage, type AiUsage } from "@/lib/api";
+import { PLAN_CHANGED_EVENT, fetchAiUsage, type AiUsage } from "@/lib/api";
 
 /**
  * The account's AI credits for this month, shown beside the actions that
@@ -26,11 +26,15 @@ export default function AiCredits({
 
   useEffect(() => {
     let mounted = true;
-    fetchAiUsage()
-      .then((u) => mounted && setUsage(u))
-      .catch(() => mounted && setUsage(null));
+    const load = () =>
+      fetchAiUsage()
+        .then((u) => mounted && setUsage(u))
+        .catch(() => mounted && setUsage(null));
+    load();
+    window.addEventListener(PLAN_CHANGED_EVENT, load);
     return () => {
       mounted = false;
+      window.removeEventListener(PLAN_CHANGED_EVENT, load);
     };
   }, [refreshKey]);
 

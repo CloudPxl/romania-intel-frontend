@@ -23,6 +23,7 @@ import { CountyCombobox } from "@/components/registry";
 import { Badge, Button, Eyebrow, Field, Input, Notice, Select } from "@/components/newsprint";
 import NotificationToggle from "@/components/NotificationToggle";
 import { FOUNDER_PROGRAM, PAID_PLANS, PRICE_REASSURANCE, formatLei } from "@/lib/plans";
+import RedeemCodeCard from "@/components/RedeemCodeCard";
 
 /* ------------------------------------------------------------ modal shell */
 
@@ -135,7 +136,7 @@ export function PricingModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
     // path instead of a button that cannot complete.
     fetchBillingConfig()
       .then(setBilling)
-      .catch(() => setBilling({ stripe_enabled: false, annual_months_charged: 10, currency: "RON" }));
+      .catch(() => setBilling({ stripe_enabled: false, bank_transfer_available: false, annual_months_charged: 10, currency: "RON" }));
   }, [isOpen, profile, user]);
 
   const plan = PLANS.find((p) => p.id === selectedPlan);
@@ -301,6 +302,17 @@ export function PricingModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
             })}
           </div>
 
+          {billing && !billing.stripe_enabled && !billing.bank_transfer_available && (
+            <>
+              <RedeemCodeCard />
+              <Notice title="Plata nu este activă în perioada de testare">
+                Planurile plătite se activează deocamdată cu un cod de acces sau prin Programul Parteneri Fondatori.
+                Contul gratuit rămâne gratuit, fără card.
+              </Notice>
+            </>
+          )}
+
+          {billing?.stripe_enabled && (
           <div className="neu-flat rounded-3xl bg-paper p-4 sm:p-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="min-w-0">
@@ -318,16 +330,10 @@ export function PricingModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
                 <Notice tone="warning">{checkoutNotice}</Notice>
               </div>
             )}
-            {billing && !billing.stripe_enabled && !checkoutNotice && (
-              <div className="mt-3">
-                <Notice tone="neutral">
-                  Plata prin card în curs de activare — folosiți factura proformă de mai jos sau
-                  contactați suportul.
-                </Notice>
-              </div>
-            )}
           </div>
+          )}
 
+          {billing?.bank_transfer_available && (
           <div className="neu-flat rounded-3xl bg-paper p-4 sm:p-5">
             <Eyebrow className="mb-4">Date de facturare (factură proformă / OP)</Eyebrow>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -357,6 +363,7 @@ export function PricingModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
                 : `Emite proformă — ${formatLei(billingInterval === "annual" ? plan?.annual ?? 0 : plan?.monthly ?? 0)} lei, fără TVA`}
             </Button>
           </div>
+          )}
         </div>
       ) : (
         <div className="space-y-5">

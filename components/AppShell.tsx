@@ -7,7 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useCompanyProfile } from "@/context/CompanyProfileContext";
 import { AccountSettingsModal, PricingModal, ProfileCriteriaModal } from "@/components/EnterpriseModals";
 import FreshnessLine from "@/components/FreshnessLine";
-import { fetchEntitlements } from "@/lib/api";
+import { PLAN_CHANGED_EVENT, fetchEntitlements } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 /**
@@ -81,9 +81,14 @@ function AccountMenu({ onSettings, onCriteria, onPricing }: { onSettings: () => 
 
   useEffect(() => {
     if (!user) return;
-    fetchEntitlements()
-      .then((e) => setPlan(e.plan))
-      .catch(() => {});
+    const load = () =>
+      fetchEntitlements()
+        .then((e) => setPlan(e.plan))
+        .catch(() => {});
+    load();
+    // A redeemed access code changes the plan without a reload.
+    window.addEventListener(PLAN_CHANGED_EVENT, load);
+    return () => window.removeEventListener(PLAN_CHANGED_EVENT, load);
   }, [user]);
 
   if (!user) return null;
@@ -324,7 +329,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-svh flex-col">
       <AppHeader />
-      <div id="main" className="flex min-w-0 flex-1 flex-col">
+      {/* A full screen below the 64px header: while a page is still
+          loading, the footer starts under the fold instead of jumping down
+          when the content arrives (it was ~0.1 of layout shift). */}
+      <div id="main" className="flex min-h-[calc(100svh-4rem)] min-w-0 flex-1 flex-col">
         {children}
       </div>
       <AppFooter />
