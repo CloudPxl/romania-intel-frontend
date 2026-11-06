@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Check, Loader2, RotateCcw, Sparkles, X } from "lucide-react";
+import { Check, GripHorizontal, Loader2, LocateFixed, RotateCcw, Sparkles, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useCompanyProfile } from "@/context/CompanyProfileContext";
 import { PIPELINE_CHANGED_EVENT, useCopilot } from "@/context/CopilotContext";
@@ -10,9 +10,12 @@ import {
   addLeadToPipeline,
   askCopilotAgent,
   fetchOpportunity,
+  isAgentActionLimit,
   triggerEmailAlert,
   updatePipelineDeal,
   type CopilotAction,
+  type CopilotAgentReply,
+  type CopilotExecutionMode,
   type CopilotTenderCard,
   type CopilotTurn,
   type Lead,
@@ -33,6 +36,16 @@ import { userKey } from "@/lib/userStorage";
  * bidder's company) and answers with buttons as well as words: every action
  * the server proposes is performed from here, by the signed-in user, only
  * when they press it — the same API calls the rest of the app makes.
+ *
+ * "Auto-execuție" lets one opening or navigation action per turn run without
+ * the click — only one the server marked `auto` after spending one of the
+ * month's autonomous actions (ai_budget.agent_action). Anything that writes
+ * stays a button in every mode.
+ *
+ * On a wide screen the window floats: it steps to the bottom-left while a
+ * right-hand drawer is open (CopilotContext.rightDrawerOpen), and the user
+ * can drag it by its header anywhere in the viewport — a position they chose
+ * wins over the docking until they reset it, for the rest of the session.
  */
 
 interface Message {
@@ -47,6 +60,60 @@ interface Message {
 type ActionState = { status: "busy" | "done" | "error"; message?: string };
 
 const THREAD_BASE = "ro_intel_copilot_thread";
+const MODE_BASE = "ro_intel_copilot_mode";
+const POSITION_KEY = "ro_intel_copilot_position";
+// The floating window, from the `sm` breakpoint up. Below it the copilot is
+// a bottom sheet and nothing here applies.
+const DESKTOP_MIN_WIDTH = 640;
+const PANEL_WIDTH = 420;
+const PANEL_MAX_HEIGHT = 680;
+const DOCK_MARGIN = 24;
+const EDGE = 8;
+const KEY_STEP = 32;
+const TOAST_MS = 4500;
+
+type Point = { x: number; y: number };
+
+const AUTO_TOAST: Partial<Record<CopilotAction["type"], string>> = {
+  open_tender: "Copilotul a deschis dosarul automat.",
+  open_drafting: "Copilotul a deschis documentul automat.",
+  open_strategy: "Copilotul a deschis instrumentul automat.",
+  open_pipeline: "Copilotul a deschis Pipeline ofertare automat.",
+};
+
+const actionKey = (messageIndex: number, action: CopilotAction) => `${messageIndex}:${action.id}`;
+
+function readJson<T>(storage: () => Storage, key: string): T | null {
+  try {
+    const raw = storage().getItem(key);
+    return raw ? (JSON.parse(raw) as T) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeJson(storage: () => Storage, key: string, value: unknown) {
+  try {
+    if (value === null) storage().removeItem(key);
+    else storage().setItem(key, JSON.stringify(value));
+  } catch {
+    // Storage blocked: the choice lasts for this page only.
+  }
+}
+
+function useViewport() {
+  const read = () =>
+    typeof window === "undefined"
+      ? { w: 1280, h: 800 }
+      : { w: document.documentElement.clientWidth, h: window.innerHeight };
+  const [viewport, setViewport] = useState(read);
+  useEffect(() => {
+    const onResize = () => setViewport(read());
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+  return viewport;
+}
 const HIDDEN_ON = ["/login", "/auth"];
 const STRATEGY_TOOL: Record<string, AnalyticsTool> = {
   profil_piata: "competitor",
@@ -92,7 +159,8 @@ export default function CopilotWidget() {
   // shown to the next account in the same tab.
   const threadKey = userKey(THREAD_BASE, user?.user_id);
   const { profile: company, save: saveCompany } = useCompanyProfile();
-  const { activeTender, open, setOpen, takePendingPrompt, pendingPrompt } = useCopilot();
+  const { activeTender, open, setOpen, takePendingPrompt, pendingPrompt, rightDrawerOpen } = useCopilot();
+  const modeKey = userKey(MODE_BASE, user?.user_id);
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -101,8 +169,96 @@ export default function CopilotWidget() {
   const [creditsKey, setCreditsKey] = useState(0);
   const [actionState, setActionState] = useState<Record<string, ActionState>>({});
   const [dossier, setDossier] = useState<Lead | null>(null);
+  const [mode, setModeState] = useState<CopilotExecutionMode>("ask");
+  const [agentLeft, setAgentLeft] = useState<number | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const panelRef = useRef<HTMLElement>(null);
+
+  // ------------------------------------------------------------ placement
+  const viewport = useViewport();
+  const desktop = viewport.w >= DESKTOP_MIN_WIDTH;
+  const panelHeight = Math.min(PANEL_MAX_HEIGHT, viewport.h - 2 * DOCK_MARGIN);
+  const dockLeft = rightDrawerOpen;
+  const [manualPos, setManualPos] = useState<Point | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const drag = useRef<{ dx: number; dy: number } | null>(null);
+
+  useEffect(() => setManualPos(readJson<Point>(() => sessionStorage, POSITION_KEY)), []);
+
+  const clamp = useCallback(
+    (p: Point): Point => ({
+      x: Math.round(Math.min(Math.max(p.x, EDGE), Math.max(EDGE, viewport.w - PANEL_WIDTH - EDGE))),
+      y: Math.round(Math.min(Math.max(p.y, EDGE), Math.max(EDGE, viewport.h - panelHeight - EDGE))),
+    }),
+    [viewport.w, viewport.h, panelHeight]
+  );
+  const docked: Point = {
+    x: dockLeft ? DOCK_MARGIN : viewport.w - PANEL_WIDTH - DOCK_MARGIN,
+    y: viewport.h - panelHeight - DOCK_MARGIN,
+  };
+  // Clamped on every render, so a window resized smaller pulls it back in.
+  const position = manualPos ? clamp(manualPos) : docked;
+
+  const place = (p: Point | null) => {
+    setManualPos(p);
+    writeJson(() => sessionStorage, POSITION_KEY, p);
+  };
+
+  // While dragging, the element is moved directly — re-rendering the whole
+  // thread on every pointermove is what makes a drag stutter. The position
+  // is committed to state once, on release.
+  const onDragStart = (e: React.PointerEvent<HTMLElement>) => {
+    if (!desktop || e.button !== 0 || (e.target as HTMLElement).closest("button:not([data-drag-handle])")) return;
+    drag.current = { dx: e.clientX - position.x, dy: e.clientY - position.y };
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setDragging(true);
+  };
+  const onDragMove = (e: React.PointerEvent<HTMLElement>) => {
+    if (!drag.current || !panelRef.current) return;
+    const p = clamp({ x: e.clientX - drag.current.dx, y: e.clientY - drag.current.dy });
+    panelRef.current.style.left = `${p.x}px`;
+    panelRef.current.style.top = `${p.y}px`;
+  };
+  const onDragEnd = (e: React.PointerEvent<HTMLElement>) => {
+    if (!drag.current) return;
+    const p = clamp({ x: e.clientX - drag.current.dx, y: e.clientY - drag.current.dy });
+    drag.current = null;
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+    setDragging(false);
+    place(p);
+  };
+  const onHandleKey = (e: React.KeyboardEvent) => {
+    const step: Record<string, Point> = {
+      ArrowLeft: { x: -KEY_STEP, y: 0 },
+      ArrowRight: { x: KEY_STEP, y: 0 },
+      ArrowUp: { x: 0, y: -KEY_STEP },
+      ArrowDown: { x: 0, y: KEY_STEP },
+    };
+    const d = step[e.key];
+    if (!d) return;
+    e.preventDefault();
+    place(clamp({ x: position.x + d.x, y: position.y + d.y }));
+  };
+
+  // ------------------------------------------------------------ mode
+  useEffect(() => {
+    setModeState(readJson<CopilotExecutionMode>(() => localStorage, modeKey) === "auto" ? "auto" : "ask");
+  }, [modeKey]);
+  const setMode = useCallback(
+    (next: CopilotExecutionMode) => {
+      setModeState(next);
+      writeJson(() => localStorage, modeKey, next);
+    },
+    [modeKey]
+  );
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), TOAST_MS);
+    return () => clearTimeout(timer);
+  }, [toast]);
 
   // The thread survives a reload of the tab, not a new tab: it is a working
   // conversation, not a history.
@@ -141,17 +297,30 @@ export default function CopilotWidget() {
       const history: CopilotTurn[] = messages.map((m) => ({ role: m.role, content: m.text }));
       setMessages((prev) => [...prev, { role: "user", text: question }]);
       setLoading(true);
+      const screen = {
+        route: pathname || "/",
+        source_id: activeTender?.source_id ?? null,
+        company: { cui: company?.cui ?? null, company_name: company?.company_name ?? null },
+      };
       try {
-        const res = await askCopilotAgent(
-          question,
-          history,
-          {
-            route: pathname || "/",
-            source_id: activeTender?.source_id ?? null,
-            company: { cui: company?.cui ?? null, company_name: company?.company_name ?? null },
-          },
-          deep
-        );
+        let res: CopilotAgentReply;
+        try {
+          res = await askCopilotAgent(question, history, screen, deep, mode);
+        } catch (e) {
+          // No autonomous actions left: refused before any model call, so
+          // nothing was spent — back to "Cere permisiune" and ask again.
+          if (mode !== "auto" || !isAgentActionLimit(e)) throw e;
+          setMode("ask");
+          setAgentLeft(0);
+          setToast(e.detail);
+          res = await askCopilotAgent(question, history, screen, deep, "ask");
+        }
+        if (res.agent_actions) setAgentLeft(res.agent_actions.remaining);
+        if (res.auto_quota_exhausted) {
+          setMode("ask");
+          setAgentLeft(0);
+          setToast(res.auto_quota_exhausted);
+        }
         setMessages((prev) => [
           ...prev,
           {
@@ -164,6 +333,12 @@ export default function CopilotWidget() {
           },
         ]);
         setCreditsKey((k) => k + 1);
+        const auto = res.actions.find((a) => a.auto);
+        if (auto) {
+          setToast(AUTO_TOAST[auto.type] || `Copilotul a executat automat: ${auto.label}`);
+          // The user's message, then this answer.
+          runAction(auto, messages.length + 1);
+        }
       } catch (e) {
         setMessages((prev) => [
           ...prev,
@@ -173,7 +348,8 @@ export default function CopilotWidget() {
         setLoading(false);
       }
     },
-    [loading, messages, pathname, activeTender, company, deep]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [loading, messages, pathname, activeTender, company, deep, mode, setMode]
   );
 
   // "Întreabă Copilotul" elsewhere in the app opens this with a question.
@@ -186,9 +362,10 @@ export default function CopilotWidget() {
   const openDossier = async (sourceId: string) => {
     const lead = await fetchOpportunity(sourceId);
     setDossier(lead);
-    // The dossier is a full-height drawer on the same side: the chat steps
-    // aside instead of covering it, and the button brings it back.
-    setOpen(false);
+    // On a wide screen the window docks to the left of the drawer. A phone
+    // has room for one of them: the chat steps aside, and the button brings
+    // it back.
+    if (!desktop) setOpen(false);
   };
 
   const perform = async (action: CopilotAction): Promise<string> => {
@@ -232,6 +409,12 @@ export default function CopilotWidget() {
           extra.presets = PRE_SEAP_FOIA_PRESETS.join(",");
         }
         else extra.letter = "clarification";
+        // Auto mode also compiles the first draft — the template only, never
+        // the AI expansion, which would spend a document credit unasked.
+        if (action.auto) extra.generate = "1";
+        // A new arrival even when Redactare is already open on the same
+        // tender (app/drafting/page.tsx: ARRIVAL_PARAMS).
+        extra.handoff = Date.now().toString(36);
         if (p.points?.length && tab === "clarificari" && extra.letter === "clarification") {
           extra.clauses = stashClauses(p.source_id, {
             project_title: p.project_title,
@@ -246,6 +429,9 @@ export default function CopilotWidget() {
       case "open_strategy":
         router.push(analyticsHref(p.source_id, STRATEGY_TOOL[p.tool || ""] || "win"));
         return "Instrumentul s-a deschis.";
+      case "open_pipeline":
+        router.push("/pipeline");
+        return "Pipeline ofertare s-a deschis.";
       case "send_email_alert": {
         const res = await triggerEmailAlert(p.source_id!);
         if (res.status !== "success") throw new Error("Serverul nu are configurat un canal de e-mail.");
@@ -254,14 +440,17 @@ export default function CopilotWidget() {
     }
   };
 
-  const runAction = async (action: CopilotAction) => {
-    setActionState((s) => ({ ...s, [action.id + action.label]: { status: "busy" } }));
+  // Keyed by message too: ids restart at A1 every turn, so a repeated
+  // request used to show the previous turn's button as already done.
+  const runAction = async (action: CopilotAction, messageIndex: number) => {
+    const key = actionKey(messageIndex, action);
+    setActionState((s) => ({ ...s, [key]: { status: "busy" } }));
     try {
-      const message = await perform(action);
-      setActionState((s) => ({ ...s, [action.id + action.label]: { status: "done", message } }));
+      const message = (action.auto ? "Automat · " : "") + (await perform(action));
+      setActionState((s) => ({ ...s, [key]: { status: "done", message } }));
     } catch (e) {
       const message = e instanceof ApiError ? e.detail : e instanceof Error ? e.message : "Acțiunea a eșuat.";
-      setActionState((s) => ({ ...s, [action.id + action.label]: { status: "error", message } }));
+      setActionState((s) => ({ ...s, [key]: { status: "error", message } }));
     }
   };
 
@@ -290,7 +479,11 @@ export default function CopilotWidget() {
           aria-label="Deschide Copilotul"
           title="Copilot RO-INTEL"
           style={{ bottom: "max(1.25rem, env(safe-area-inset-bottom))" }}
-          className="fixed right-4 z-[55] flex h-12 items-center gap-2 rounded-full bg-editorial px-4 text-white shadow-float transition-colors duration-[var(--duration-base)] hover:bg-editorial-light active:translate-y-px sm:right-5"
+          className={cn(
+            "fixed z-[55] flex h-12 items-center gap-2 rounded-full bg-editorial px-4 text-white shadow-float transition-colors duration-[var(--duration-base)] hover:bg-editorial-light active:translate-y-px",
+            // Beside a right-hand drawer, not on top of its buttons.
+            dockLeft ? "left-4 sm:left-6" : "right-4 sm:right-6"
+          )}
         >
           <Sparkles size={18} strokeWidth={1.9} />
           <span className="hidden text-[15px] font-semibold sm:inline">Copilot</span>
@@ -302,16 +495,32 @@ export default function CopilotWidget() {
 
       {open && (
         <section
+          ref={panelRef}
           role="dialog"
           aria-label="Copilot RO-INTEL"
+          style={desktop ? { left: position.x, top: position.y, width: PANEL_WIDTH, height: panelHeight } : undefined}
           className={cn(
             "fixed z-[55] flex flex-col overflow-hidden border border-divider bg-paper shadow-float",
             "inset-x-0 bottom-0 top-[8svh] rounded-t-xl",
-            "sm:inset-auto sm:bottom-5 sm:right-5 sm:h-[min(680px,calc(100svh-2.5rem))] sm:w-[420px] sm:rounded-xl",
-            "animate-[fade-in_var(--duration-base)_var(--ease-glide)_both]"
+            "sm:inset-auto sm:rounded-xl",
+            "animate-[fade-in_var(--duration-base)_var(--ease-glide)_both]",
+            // Docking glides; a drag follows the pointer exactly.
+            dragging
+              ? "transition-none"
+              : "sm:transition-[left,top] sm:duration-[var(--duration-base)] sm:ease-[var(--ease-glide)] motion-reduce:transition-none"
           )}
         >
-          <header className="flex items-start justify-between gap-3 border-b border-divider px-4 py-3">
+          <header
+            onPointerDown={onDragStart}
+            onPointerMove={onDragMove}
+            onPointerUp={onDragEnd}
+            onPointerCancel={onDragEnd}
+            className={cn(
+              "flex items-start justify-between gap-3 border-b border-divider px-4 py-3",
+              "sm:touch-none sm:select-none",
+              dragging ? "sm:cursor-grabbing" : "sm:cursor-grab"
+            )}
+          >
             <div className="min-w-0">
               <p className="flex items-center gap-1.5 font-display text-sm font-bold text-ink">
                 <Sparkles size={15} className="text-accent" /> Copilot
@@ -321,6 +530,27 @@ export default function CopilotWidget() {
               </p>
             </div>
             <div className="flex shrink-0 items-center gap-1">
+              <button
+                type="button"
+                data-drag-handle
+                onKeyDown={onHandleKey}
+                aria-label="Mută Copilotul — trageți de antet sau folosiți săgețile"
+                title="Trageți de antet pentru a muta fereastra (sau săgețile)"
+                className="hidden h-9 w-9 cursor-grab items-center justify-center rounded-xl text-stock-500 hover:neu-pressed-sm hover:text-ink sm:flex"
+              >
+                <GripHorizontal size={16} />
+              </button>
+              {manualPos && desktop && (
+                <button
+                  type="button"
+                  onClick={() => place(null)}
+                  aria-label="Resetează poziția"
+                  title="Resetează poziția"
+                  className="flex h-9 w-9 items-center justify-center rounded-xl text-stock-500 hover:neu-pressed-sm hover:text-ink"
+                >
+                  <LocateFixed size={16} />
+                </button>
+              )}
               {messages.length > 0 && (
                 <button
                   type="button"
@@ -351,8 +581,11 @@ export default function CopilotWidget() {
               <div>
                 <p className="font-body text-sm leading-relaxed text-stock-600">
                   {activeTender
-                    ? "Văd dosarul de pe ecran. Întrebați despre el sau cereți o acțiune — o confirmați dintr-un buton."
-                    : "Caut în registru, citesc dosare, gestionez pipeline-ul și pregătesc documente. Acțiunile le confirmați dintr-un buton."}
+                    ? "Văd dosarul de pe ecran. Întrebați despre el sau cereți o acțiune."
+                    : "Caut în registru, citesc dosare, gestionez pipeline-ul și pregătesc documente."}{" "}
+                  {mode === "auto"
+                    ? "În Auto-execuție deschid singur dosare, documente și pagini; ce modifică date confirmați dintr-un buton."
+                    : "Acțiunile le confirmați dintr-un buton."}
                 </p>
                 <div className="mt-3 flex flex-col gap-1.5">
                   {suggestions.map((s) => (
@@ -407,13 +640,13 @@ export default function CopilotWidget() {
                   {m.actions && m.actions.length > 0 && (
                     <div className="mt-2.5 flex flex-col gap-1.5">
                       {m.actions.map((a) => {
-                        const state = actionState[a.id + a.label];
+                        const state = actionState[actionKey(i, a)];
                         return (
                           <div key={a.id}>
                             <button
                               type="button"
                               disabled={state?.status === "busy" || state?.status === "done"}
-                              onClick={() => runAction(a)}
+                              onClick={() => runAction(a, i)}
                               className={cn(
                                 "flex min-h-[36px] w-full items-center gap-2 rounded-xl px-3 py-1.5 text-left font-sans text-[12px] font-semibold transition-all",
                                 state?.status === "done"
@@ -478,16 +711,49 @@ export default function CopilotWidget() {
                 Trimite
               </button>
             </div>
-            <div className="mt-2 flex items-center justify-between gap-2">
-              <label className="flex cursor-pointer items-center gap-1.5 font-sans text-[11px] text-stock-500">
-                <input
-                  type="checkbox"
-                  checked={deep}
-                  onChange={(e) => setDeep(e.target.checked)}
-                  className="h-3.5 w-3.5 accent-[var(--color-editorial)]"
-                />
-                Analiză aprofundată
-              </label>
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                <label className="flex cursor-pointer items-center gap-1.5 font-sans text-[11px] text-stock-500">
+                  <input
+                    type="checkbox"
+                    checked={deep}
+                    onChange={(e) => setDeep(e.target.checked)}
+                    className="h-3.5 w-3.5 accent-[var(--color-editorial)]"
+                  />
+                  Analiză aprofundată
+                </label>
+                <div role="radiogroup" aria-label="Mod de execuție" className="flex rounded-lg border border-divider p-0.5">
+                  {(
+                    [
+                      ["ask", "Cere permisiune", "Fiecare acțiune așteaptă confirmarea dvs."],
+                      [
+                        "auto",
+                        "Auto-execuție",
+                        "Deschiderile și navigarea rulează singure (o acțiune pe mesaj, din cota lunară); ce modifică date rămâne de confirmat." +
+                          (agentLeft !== null ? ` Rămase luna aceasta: ${agentLeft}.` : ""),
+                      ],
+                    ] as const
+                  ).map(([value, label, hint]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      role="radio"
+                      aria-checked={mode === value}
+                      title={hint}
+                      onClick={() => setMode(value)}
+                      className={cn(
+                        "min-h-[28px] rounded-md px-2 font-sans text-[11px] font-semibold transition-colors",
+                        mode === value ? "bg-editorial text-white" : "text-stock-500 hover:text-ink"
+                      )}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {mode === "auto" && agentLeft !== null && (
+                  <span className="tabular font-mono text-[10px] text-stock-500">{agentLeft} auto rămase</span>
+                )}
+              </div>
               <AiCredits refreshKey={creditsKey} compact />
             </div>
           </div>
@@ -495,6 +761,20 @@ export default function CopilotWidget() {
       )}
 
       {dossier && <LeadDossierPanel lead={dossier} onClose={() => setDossier(null)} />}
+
+      {toast && (
+        <div
+          role="status"
+          aria-live="polite"
+          className={cn(
+            "fixed top-20 z-[60] max-w-[calc(100%-2rem)] rounded-lg bg-cerneala px-4 py-2.5 text-[14px] text-cerneala-text shadow-float animate-[fade-in_var(--duration-base)_var(--ease-glide)_both]",
+            // Over a right-hand drawer's title otherwise.
+            dockLeft ? "left-4 sm:left-6 sm:max-w-[420px]" : "left-1/2 -translate-x-1/2"
+          )}
+        >
+          {toast}
+        </div>
+      )}
     </>
   );
 }

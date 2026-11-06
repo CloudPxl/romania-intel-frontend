@@ -825,6 +825,11 @@ function CaietTool({ tender, artifactId }: { tender: Tender; artifactId: string 
           {allFlags.length > 0 ? (
             <section>
               <SectionTitle note={`${selected.size} din ${allFlags.length} selectate`}>Clauze restrictive și capcane</SectionTitle>
+              {allFlags.some((f) => f.legal_status_note) && (
+                <p className="font-body mb-3 text-xs leading-relaxed text-stock-500">
+                  {allFlags.find((f) => f.legal_status_note)?.legal_status_note}
+                </p>
+              )}
               <div className="divide-y divide-divider neu-flat overflow-hidden rounded-3xl bg-paper">
                 {allFlags.map((flag, i) => {
                   const key = flagKey(flag, i);
@@ -849,6 +854,9 @@ function CaietTool({ tender, artifactId }: { tender: Tender; artifactId: string 
                           <h3 className="font-display text-base font-semibold leading-snug first-letter:uppercase">{flag.pattern}</h3>
                           <span className="flex shrink-0 gap-1.5">
                             <Badge tone="neutral">{fromAi ? "AI" : "Verificare legală"}</Badge>
+                            {flag.risk_classification === "POTENTIAL_RESTRICTIVE_SPECIFICATION_RISK" && (
+                              <Badge tone="warning">Risc potențial</Badge>
+                            )}
                             <Badge tone={SEVERITY_TONE[flag.severity] ?? "neutral"}>{flag.severity}</Badge>
                           </span>
                         </div>
@@ -1199,6 +1207,12 @@ function WinOddsTool({ tender }: { tender: Tender }) {
               ) : (
                 <p className="font-body text-sm text-stock-600">
                   {strategy.lifecycle.note || "Introduceți costul anual și durata pentru a calcula costul pe ciclul de viață."}
+                </p>
+              )}
+              {strategy.lifecycle.discount_rate && (
+                <p className="font-mono mt-2 flex items-center gap-1.5 text-[11px] text-stock-500" title={strategy.lifecycle.methodology_note || undefined}>
+                  Metodologie: rată {String(strategy.lifecycle.discount_rate.rate_pct).replace(".", ",")}% · Ord. ANAP nr. 12/2026 · doar cost ciclu de viață, nu discount
+                  <Explain k="lccDiscountRate" />
                 </p>
               )}
             </section>

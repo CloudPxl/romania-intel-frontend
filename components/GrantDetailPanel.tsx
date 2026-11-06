@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { useRightDrawer } from "@/context/CopilotContext";
 import { X } from "lucide-react";
 import { ApiError, addLeadToPipeline, type EligibilityGrant } from "@/lib/api";
 import { formatRon } from "@/lib/format";
@@ -21,6 +22,7 @@ const CLOSE_ANIMATION_MS = 320;
  * carries it forward: tracking the application in Pipeline ofertare.
  */
 export default function GrantDetailPanel({ grant, onClose }: { grant: EligibilityGrant; onClose: () => void }) {
+	useRightDrawer();
 	const [closing, setClosing] = useState(false);
 	const [saveState, setSaveState] = useState<string | null>(null);
 	const [saving, setSaving] = useState(false);

@@ -21,6 +21,12 @@ export const EXPLAINERS = {
 			"Calculat din valoarea estimată fără TVA, tipul contractului și autoritatea, pe baza textelor consolidate de pe legislatie.just.ro: legea aplicabilă (98/2016 clasic sau 99/2016 sectorial), procedura, termenul de contestare la CNSC (7 zile sub pragurile UE, 10 zile peste — art. 8 din Legea 101/2016) și cauțiunea (2% din valoarea estimată, plafonată — art. 61^1). " +
 			"Pragurile UE s-au schimbat la 1 ianuarie 2026. Confirmați întotdeauna procedura din anunțul publicat; nu este asistență juridică.",
 	},
+	lccDiscountRate: {
+		title: "Rata de actualizare 8,2% (Ordinul ANAP nr. 12/2026)",
+		body:
+			"Ordinul ANAP nr. 12/2026 și CNSP nr. 1/2026 (M. Of. nr. 38 din 20.01.2026) fixează 8,2% pentru 2026. Rata aduce costurile anuale viitoare (energie, mentenanță, piese) la valoarea din anul achiziției, în calculul costului pe ciclul de viață — doar când criteriul este costul cel mai scăzut sau cel mai bun raport calitate-cost și contractul e finanțat exclusiv de la bugetul de stat. " +
+			"La fonduri europene nerambursabile se folosește rata din documentația de atribuire. Nu este un discount de aplicat prețului și nu are legătură cu pragul de 80% (art. 210).",
+	},
 	/* ------------------------------------------------------ feed & scoring */
 	relevanceScore: {
 		title: "Scorul de potrivire",

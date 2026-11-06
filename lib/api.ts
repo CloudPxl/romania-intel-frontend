@@ -896,6 +896,7 @@ export type CopilotActionType =
   | "set_company_profile"
   | "open_drafting"
   | "open_strategy"
+  | "open_pipeline"
   | "send_email_alert";
 
 /** An action the copilot proposes. Never executed by the server: the
@@ -904,6 +905,10 @@ export interface CopilotAction {
   id: string;
   type: CopilotActionType;
   label: string;
+  /** "Auto-execuție": the server reserved one autonomous action for this
+   *  one, and the browser runs it without a click. Only ever an opening or
+   *  navigation action (copilot_agent.AUTO_ACTION_TYPES). */
+  auto?: boolean;
   params: {
     source_id?: string | null;
     deal_id?: string;
@@ -940,6 +945,24 @@ export interface CopilotAgentReply {
    *  then the deterministic one, and this says why. */
   ai_quota?: string | null;
   degraded?: boolean;
+  /** Auto mode: this month's autonomous actions after this turn. */
+  agent_actions?: AgentActionUsage;
+  /** Auto mode, none left: the action stayed a button, and this says why. */
+  auto_quota_exhausted?: string | null;
+}
+
+export type CopilotExecutionMode = "ask" | "auto";
+
+export interface AgentActionUsage {
+  limit: number;
+  used: number;
+  remaining: number;
+}
+
+/** The 429 the agent route answers in auto mode with no autonomous actions
+ *  left — before any model call, so the message can be re-sent in ask mode. */
+export function isAgentActionLimit(e: unknown): e is ApiError {
+  return e instanceof ApiError && e.status === 429 && e.detail.startsWith("Limita de acțiuni autonome Copilot");
 }
 
 /** `history` is the prior turns, oldest first; the backend keeps 12. */
@@ -947,11 +970,12 @@ export async function askCopilotAgent(
   query: string,
   history: CopilotTurn[],
   context: CopilotScreenContext,
-  deep = false
+  deep = false,
+  executionMode: CopilotExecutionMode = "ask"
 ): Promise<CopilotAgentReply> {
   return apiFetch("/api/v1/copilot/agent", {
     method: "POST",
-    body: { query, history: history.slice(-12), context, deep },
+    body: { query, history: history.slice(-12), context, deep, execution_mode: executionMode },
   });
 }
 
@@ -965,6 +989,7 @@ export interface AiUsage {
   used: { deliverable: number; copilot: number };
   remaining: { deliverable: number; copilot: number };
   deep_copilot: boolean;
+  agent_actions?: AgentActionUsage;
   resets_at: string;
   free_pool_exhausted: boolean;
   platform_paused: boolean;
@@ -1253,6 +1278,12 @@ export interface CaietFlag {
   legal_citations?: string[];
   clarification_paragraph?: string;
   legal_basis?: { citation: string; text: string; source_url: string }[];
+  /** "POTENTIAL_RESTRICTIVE_SPECIFICATION_RISK" — a risk to clarify, never a finding of illegality. */
+  risk_classification?: string;
+  legal_status_note?: string;
+  /** Counsel-reviewed CNSC decisions only, each with its outcome and factual
+   *  limits. Empty: RO-INTEL has no CNSC dataset. */
+  cnsc_precedents?: { reference: string; source_url: string; outcome: string; reasoning: string; factual_limits: string; caveat: string }[];
 }
 
 export interface CaietContext {
@@ -1402,6 +1433,9 @@ export interface PriceStrategy {
     present_value_operating_ron?: number;
     lifecycle_cost_ron?: number;
     formula?: string;
+    /** Always "LIFE_CYCLE_COST": the rate never enters the 80% test. */
+    scope?: string;
+    methodology_note?: string | null;
   };
   market_position?: {
     your_ratio_pct: number;
@@ -1793,14 +1827,21 @@ export interface LegalMetadata {
     direct_award_ron: number;
     direct_award_basis: string;
     eu_ron: number;
+    /** The directive amount the lei figure transposes — display only. */
+    eu_eur?: number;
     eu_basis: string;
     effective_from: string;
+    /** "Prag oficial fixat în lei prin lege … fără conversie la cursul BNR." */
+    memo?: string;
   };
   estimated_value_ron: number | null;
   band: "direct" | "simplified" | "eu" | null;
   procedure_name: string | null;
   procedure_basis: string | null;
   above_eu_threshold: boolean | null;
+  /** Above the EU threshold the notice must go to the EU Official Journal. */
+  joue_publication_required?: boolean | null;
+  joue_basis?: string;
   /** Null for a direct award: its acts go to the administrative court
    *  (Legea 554/2004), not to the CNSC — see `direct_award`. */
   cnsc_deadline_days: number | null;
@@ -1844,7 +1885,7 @@ export interface LegalMetadata {
   lowest_price_allowed?: boolean;
   lowest_price_basis?: string;
   /** Rata de actualizare (Ord. ANAP 12/2026) — life-cycle cost only. */
-  discount_rate?: { year: number; rate_pct: number; basis: string; scope: string };
+  discount_rate?: { year: number; rate_pct: number; basis: string; scope: string; methodology_note?: string };
   /** When the legal data behind this strip was last verified against the
    *  portal, and whether the thresholds still match the law's text. */
   verification?: {

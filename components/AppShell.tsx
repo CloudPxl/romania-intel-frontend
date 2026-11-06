@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Check, ChevronDown, Menu, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useCompanyProfile } from "@/context/CompanyProfileContext";
+import { RightDrawerMarker } from "@/context/CopilotContext";
 import { AccountSettingsModal, PricingModal, ProfileCriteriaModal } from "@/components/EnterpriseModals";
 import FreshnessLine from "@/components/FreshnessLine";
 import { PLAN_CHANGED_EVENT, fetchEntitlements } from "@/lib/api";
@@ -265,6 +266,7 @@ function AppHeader() {
 
       {menu && (
         <div className="fixed inset-0 z-50 xl:hidden" role="dialog" aria-modal="true" aria-label="Meniu">
+          <RightDrawerMarker />
           <div className="absolute inset-0 animate-[fade-in_var(--duration-base)_both] bg-overlay" onClick={() => setMenu(false)} aria-hidden />
           <div className="absolute inset-y-0 right-0 flex w-[320px] max-w-[88vw] animate-[slide-over-right_var(--duration-base)_both] flex-col bg-canvas px-5 pb-6">
             <div className="flex h-16 items-center justify-between">

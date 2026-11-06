@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useRightDrawer } from "@/context/CopilotContext";
 import { X } from "lucide-react";
 import { ApiError, fetchAuthorityProfile, type AuthorityProfile } from "@/lib/api";
 import { formatDate, formatRon } from "@/lib/format";
@@ -23,6 +24,7 @@ export default function AuthorityProfilePanel({
   name?: string | null;
   onClose: () => void;
 }) {
+  useRightDrawer();
   const [profile, setProfile] = useState<AuthorityProfile | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [closing, setClosing] = useState(false);

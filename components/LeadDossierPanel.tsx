@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Sparkles, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { useActiveTender, useCopilot } from "@/context/CopilotContext";
+import { useActiveTender, useCopilot, useRightDrawer } from "@/context/CopilotContext";
 import {
   ApiError,
   PROCEDURE_TYPE_LABELS,
@@ -20,6 +20,7 @@ import { PRE_SEAP_FOIA_PRESETS, analyticsHref, draftingHref, foiaHref } from "@/
 import { Button, Disclosure } from "@/components/newsprint";
 import { daysLeft, deadlineLabel, deadlineTone } from "@/components/registry";
 import AuthorityProfilePanel from "@/components/AuthorityProfilePanel";
+import ProcedureThresholdCard from "@/components/ProcedureThresholdCard";
 
 // Matches --duration-base in globals.css. The exit keyframes are that
 // long; onClose (which actually unmounts this component, via the
@@ -88,6 +89,7 @@ function TenderBriefSection({ sourceId }: { sourceId: string }) {
           {regime.cautiune && ` · cauțiune ${formatNumber(regime.cautiune.pre_submission_ron)} lei`}
         </p>
       )}
+      {regime?.thresholds && !regime.not_applicable && <ProcedureThresholdCard meta={regime} compact />}
       {brief.status === "ready" && brief.brief ? (
         <>
           <p className="whitespace-pre-wrap text-[15px] leading-6 text-stock-600">{brief.brief}</p>
@@ -164,6 +166,7 @@ export default function LeadDossierPanel({ lead, onClose }: { lead: Lead; onClos
   const { ask } = useCopilot();
   // While this panel is open, "acest dosar" in the copilot means this one.
   useActiveTender(lead.source_id, lead.project_title);
+  useRightDrawer();
   const preSeap: PreSeapMode | null =
     lead.record_kind === "PRE_TENDER_SIGNAL"
       ? { ...DEFAULT_PRE_SEAP, beneficiary_authority: lead.entity_name ?? null, ...(lead.pre_seap ?? {}) }

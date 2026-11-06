@@ -8,6 +8,7 @@ import AuthGate from "@/components/AuthGate";
 import AiCredits from "@/components/AiCredits";
 import Explain from "@/components/Explain";
 import DocumentPreviewPanel from "@/components/DocumentPreviewPanel";
+import ProcedureThresholdCard from "@/components/ProcedureThresholdCard";
 import {
   ApiError,
   exportClarificationDocx,
@@ -334,7 +335,7 @@ function LegalRegimeStrip({
               <div>
                 <dt className="font-sans text-[10px] font-semibold uppercase tracking-widest text-stock-500">Rată de actualizare {meta.discount_rate.year}</dt>
                 <dd className="font-display text-sm font-semibold tabular">{String(meta.discount_rate.rate_pct).replace(".", ",")}%</dd>
-                <dd className="font-mono text-[10px] text-stock-500" title={meta.discount_rate.scope}>Ord. ANAP 12/2026 · cost ciclu de viață</dd>
+                <dd className="font-mono text-[10px] text-stock-500" title={meta.discount_rate.methodology_note || meta.discount_rate.scope}>Ord. ANAP 12/2026 · doar cost ciclu de viață</dd>
               </div>
             )}
           </dl>
@@ -366,11 +367,8 @@ function LegalRegimeStrip({
                 <option value="local">Autoritate locală (CJ, CL, subordonate)</option>
               </Select>
             )}
-            <span className="font-mono text-[10px] text-stock-500">
-              Prag UE {formatNumber(meta.thresholds.eu_ron)} lei · în vigoare din{" "}
-              {meta.thresholds.effective_from.split("-").reverse().join(".")}
-            </span>
           </div>
+          <ProcedureThresholdCard meta={meta} compact />
           {meta.warnings.map((w) => (
             <p key={w} className="font-body mt-2 text-xs leading-relaxed text-warning">
               {w}
@@ -544,11 +542,19 @@ function ProposalTool({
   onChange,
   buildBase,
   onPreview,
+  autoGenerate,
+  onAutoGenerate,
 }: {
   initial: ProposalState;
   onChange: (state: ProposalState) => void;
   buildBase: () => Omit<TechnicalProposalRequest, "include_declarations">;
   onPreview: (result: TechnicalProposalResult, payload: TechnicalProposalRequest) => void;
+  /** Set once when the copilot opened this page in "Auto-execuție": compile
+   *  the first draft from the template (never the AI expansion, which
+   *  spends a document credit), quietly skipping it when required fields
+   *  are still empty. */
+  autoGenerate?: boolean;
+  onAutoGenerate?: () => void;
 }) {
   const [declarations, setDeclarations] = useState<DeclarationId[]>(initial.declarations);
   const [decisionMakers, setDecisionMakers] = useState(initial.decisionMakers);
@@ -567,10 +573,10 @@ function ProposalTool({
   const toggle = (id: DeclarationId) =>
     setDeclarations((prev) => (prev.includes(id) ? prev.filter((d) => d !== id) : [...prev, id]));
 
-  const handleGenerate = async () => {
+  const handleGenerate = async (auto = false) => {
     const base = buildBase();
     if (!base.project_title.trim() || !base.authority_name.trim()) {
-      setError("Titlul proiectului și autoritatea contractantă sunt obligatorii.");
+      if (!auto) setError("Titlul proiectului și autoritatea contractantă sunt obligatorii.");
       return;
     }
     const payload: TechnicalProposalRequest = {
@@ -580,7 +586,7 @@ function ProposalTool({
       beneficial_owners: declarations.includes("beneficial_owner") ? parseOwners(beneficialOwners) : [],
       sanctions_partners: declarations.includes("sanctions_5k") ? parsePartners(sanctionsPartners) : [],
       cerinte_caiet: requirements.trim() || undefined,
-      use_ai_expansion: aiMode,
+      use_ai_expansion: auto ? false : aiMode,
     };
     setLoading(true);
     setError(null);
@@ -592,6 +598,19 @@ function ProposalTool({
       setLoading(false);
     }
   };
+
+
+  useEffect(() => {
+    if (!autoGenerate) return;
+    // After the render that filled the form; the cleanup also keeps a
+    // double-run effect (React's dev StrictMode) from compiling twice.
+    const timer = setTimeout(() => {
+      onAutoGenerate?.();
+      handleGenerate(true);
+    }, 0);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoGenerate]);
 
   return (
     <Panel className="p-4 sm:p-5">
@@ -656,7 +675,7 @@ function ProposalTool({
             </button>
           ))}
         </div>
-        <Button className={ACTION_BUTTON} onClick={handleGenerate} disabled={loading}>
+        <Button className={ACTION_BUTTON} onClick={() => handleGenerate()} disabled={loading}>
           {loading ? "Se redactează…" : "Previzualizează propunerea"}
         </Button>
       </div>
@@ -718,6 +737,8 @@ function LetterTool({
   handoffNote,
   buildBase,
   onPreview,
+  autoGenerate,
+  onAutoGenerate,
 }: {
   initial: LetterState;
   onChange: (state: LetterState) => void;
@@ -726,6 +747,12 @@ function LetterTool({
   handoffNote?: string | null;
   buildBase: () => Omit<ClarificationRequest, "clarification_points" | "request_type">;
   onPreview: (result: ClarificationResult, payload: ClarificationRequest) => void;
+  /** Set once when the copilot opened this page in "Auto-execuție": compile
+   *  the first draft from the template (never the AI expansion, which
+   *  spends a document credit), quietly skipping it when required fields
+   *  are still empty. */
+  autoGenerate?: boolean;
+  onAutoGenerate?: () => void;
 }) {
   const [type, setType] = useState<LetterType>(initial.type);
   const [points, setPoints] = useState(initial.points);
@@ -747,14 +774,14 @@ function LetterTool({
   const spec = LETTERS.find((l) => l.id === type)!;
   const breakdownTotal = Object.values(breakdown).reduce((a, b) => a + (b || 0), 0);
 
-  const handleGenerate = async () => {
+  const handleGenerate = async (auto = false) => {
     const base = buildBase();
     if (!base.authority_name.trim()) {
-      setError("Autoritatea contractantă este obligatorie.");
+      if (!auto) setError("Autoritatea contractantă este obligatorie.");
       return;
     }
     if ((type === "clarification" || type === "evaluation_response") && !points.trim()) {
-      setError("Completați punctele pe care le conține adresa.");
+      if (!auto) setError("Completați punctele pe care le conține adresa.");
       return;
     }
     const payload: ClarificationRequest = {
@@ -767,7 +794,7 @@ function LetterTool({
       offered_price_ron: type === "abnormally_low_price" ? offeredPrice || undefined : undefined,
       price_breakdown: type === "abnormally_low_price" ? breakdown : undefined,
       foia_presets: type === "foia" ? presets : [],
-      use_ai_expansion: useAi,
+      use_ai_expansion: auto ? false : useAi,
     };
     setLoading(true);
     setError(null);
@@ -779,6 +806,19 @@ function LetterTool({
       setLoading(false);
     }
   };
+
+
+  useEffect(() => {
+    if (!autoGenerate) return;
+    // After the render that filled the form; the cleanup also keeps a
+    // double-run effect (React's dev StrictMode) from compiling twice.
+    const timer = setTimeout(() => {
+      onAutoGenerate?.();
+      handleGenerate(true);
+    }, 0);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoGenerate]);
 
   return (
     <Panel className="p-4 sm:p-5">
@@ -898,7 +938,7 @@ function LetterTool({
             </button>
           ))}
         </div>
-        <Button className={ACTION_BUTTON} onClick={handleGenerate} disabled={loading}>
+        <Button className={ACTION_BUTTON} onClick={() => handleGenerate()} disabled={loading}>
           {loading ? "Se redactează…" : "Previzualizează adresa"}
         </Button>
       </div>
@@ -996,6 +1036,7 @@ function DraftingContent() {
     presets: presetsFromParam(searchParams.get("presets")),
   });
   const [toolsKey, setToolsKey] = useState(0);
+  const [autoGenerate, setAutoGenerate] = useState(false);
   const [handoffNote, setHandoffNote] = useState<string | null>(null);
   const [restoredNote, setRestoredNote] = useState<string | null>(null);
   const latest = useRef<{ proposal: ProposalState; letter: LetterState }>({ proposal: proposalInit, letter: letterInit });
@@ -1089,7 +1130,7 @@ function DraftingContent() {
     const sourceId = searchParams.get("source_id");
     const artifactId = searchParams.get("artifact");
     const clausesKey = searchParams.get("clauses");
-    (async () => {
+    const arrive = async () => {
       if (artifactId) {
         try {
           const art = await fetchArtifact(artifactId);
@@ -1171,6 +1212,18 @@ function DraftingContent() {
         }
       }
       if (sourceId) await loadTender(sourceId);
+    };
+    (async () => {
+      await arrive();
+      // ?generate=1: the copilot opened this page by itself — compile from
+      // whatever the arrival filled in (a restored draft included). Consumed
+      // once: dropped from the address so a reload does not compile again.
+      if (searchParams.get("generate") === "1") {
+        const url = new URL(window.location.href);
+        url.searchParams.delete("generate");
+        window.history.replaceState(window.history.state, "", url);
+        setAutoGenerate(true);
+      }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -1350,6 +1403,8 @@ function DraftingContent() {
             }}
             buildBase={buildProposalBase}
             onPreview={(result, payload) => openPreview({ kind: "proposal", result, payload })}
+            autoGenerate={autoGenerate && activeTool === "proposal"}
+            onAutoGenerate={() => setAutoGenerate(false)}
           />
         </div>
         <div hidden={activeTool !== "clarification"}>
@@ -1363,6 +1418,8 @@ function DraftingContent() {
             }}
             buildBase={buildLetterBase}
             onPreview={(result, payload) => openPreview({ kind: "letter", result, payload })}
+            autoGenerate={autoGenerate && activeTool === "clarification"}
+            onAutoGenerate={() => setAutoGenerate(false)}
           />
         </div>
       </div>
@@ -1409,6 +1466,19 @@ function DraftingContent() {
   );
 }
 
+// What a hand-off to this page names. A new hand-off while the page is
+// already open (the copilot opening Redactare from Redactare) remounts it,
+// so the arrival logic runs again instead of keeping the old form. `generate`
+// is deliberately absent: the page drops it from the address itself.
+// `handoff` is a per-click marker the copilot adds, so even an identical
+// hand-off (the same tender and document again) is a new arrival.
+const ARRIVAL_PARAMS = ["source_id", "tab", "tool", "letter", "clauses", "presets", "artifact", "offered", "handoff"];
+
+function DraftingArrival() {
+  const searchParams = useSearchParams();
+  return <DraftingContent key={ARRIVAL_PARAMS.map((k) => searchParams.get(k) ?? "").join("|")} />;
+}
+
 export default function DraftingPage() {
   return (
     <AuthGate
@@ -1422,7 +1492,7 @@ export default function DraftingPage() {
           </main>
         }
       >
-        <DraftingContent />
+        <DraftingArrival />
       </Suspense>
     </AuthGate>
   );

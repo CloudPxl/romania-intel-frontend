@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { useRightDrawer } from "@/context/CopilotContext";
 import { X } from "lucide-react";
 import type { ComplianceRow, DocumentSection, LegalIssue, LegalMetadata, StatutoryCitation } from "@/lib/api";
 import { Badge, Button, Eyebrow, Notice } from "@/components/newsprint";
@@ -104,6 +105,7 @@ export default function DocumentPreviewPanel({
   onExport: () => Promise<void>;
   onClose: () => void;
 }) {
+  useRightDrawer();
   const [closing, setClosing] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
