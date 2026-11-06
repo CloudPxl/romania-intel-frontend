@@ -2222,3 +2222,216 @@ export interface SubscriptionState {
 export async function fetchMySubscription(): Promise<SubscriptionState> {
   return apiFetch("/api/v1/billing/subscription");
 }
+
+/* ------------------------------------------------- operations console */
+/*
+ * /api/v1/ops/* (romania-intel-engine/routers/ops.py). Every route is
+ * authorized on the server from staff_members; a non-staff caller gets a
+ * plain 404. Nothing here decides what the operator may do — the UI only
+ * hides controls the server would refuse anyway.
+ */
+
+export interface OpsMe {
+  user_id: string;
+  email: string;
+  role: string;
+  role_label: string;
+  capabilities: string[];
+  expires_at: string | null;
+}
+
+export interface OpsMetric {
+  key: string;
+  label: string;
+  value: number | null;
+  definition: string;
+  window: string;
+  source: string;
+  limitation: string | null;
+}
+
+export interface OpsBlock<T> {
+  available: boolean;
+  data: T | null;
+  detail?: string;
+}
+
+export interface OpsSource {
+  source_name: string;
+  last_run_at: string | null;
+  last_success_at: string | null;
+  consecutive_failures: number | null;
+  circuit_state: string;
+  records_last_run: number | null;
+  health_state: string | null;
+  last_failure_kind: string | null;
+  last_error: string | null;
+  poll_interval_minutes: number | null;
+}
+
+export interface OpsAuditEvent {
+  id: number;
+  occurred_at: string;
+  actor_user_id: string | null;
+  actor_email: string | null;
+  actor_role: string | null;
+  actor_kind: string;
+  action: string;
+  target_type: string | null;
+  target_id: string | null;
+  outcome: "success" | "denied" | "failed";
+  reason: string | null;
+  request_id: string | null;
+  details: Record<string, unknown>;
+}
+
+export interface OpsOverview {
+  generated_at: string;
+  health: {
+    ingestion: OpsBlock<{ last_completed_at: string | null; metrics: OpsMetric[] }>;
+    sources: OpsBlock<{ items: OpsSource[]; metrics: OpsMetric[] }>;
+    documents: OpsBlock<{ metrics: OpsMetric[] }>;
+    ai: OpsBlock<{ metrics: OpsMetric[] }>;
+    undelivered_alerts: OpsBlock<{ id: number; created_at: string; message: string }[]>;
+  };
+  usage: null | {
+    accounts: OpsBlock<OpsMetric[]>;
+    work: OpsBlock<OpsMetric[]>;
+    commercial: OpsBlock<{
+      metrics: OpsMetric[];
+      subscriptions_by_plan: { plan: string | null; n: number }[];
+      code_grants_by_plan: { plan: string | null; n: number }[];
+      proformas_by_status: { status: string; n: number }[];
+    }>;
+    not_measured: { label: string; reason: string }[];
+  };
+  recent_audit: OpsAuditEvent[] | null;
+}
+
+export interface OpsUser {
+  id: string;
+  email: string;
+  company_name: string | null;
+  cui: string | null;
+  domain: string | null;
+  created_at: string | null;
+  onboarded_at: string | null;
+  suspended_at: string | null;
+  suspended_reason?: string | null;
+  subscription_status: string | null;
+  plan: string;
+  plan_label: string;
+  granted_plan: string | null;
+  granted_plan_expires_at: string | null;
+  is_tester: boolean;
+  is_staff: boolean;
+  last_ai_at: string | null;
+}
+
+export interface OpsUserDetail extends OpsUser {
+  display_name: string | null;
+  target_counties: string[] | null;
+  email_alerts_enabled: boolean | null;
+  has_stripe_customer: boolean;
+  subscription_current_period_end: string | null;
+  activity: { deals: number; artifacts: number; ai_calls_30d: number; ai_cost_30d: number; alerts_30d: number };
+  redemptions: { code: string; redeemed_at: string; plan_granted: string; access_expires_at: string }[];
+  proformas: { invoice_number: string; plan_id: string; amount_ron: number; status: string; created_at: string; paid_at: string | null }[];
+}
+
+export interface OpsPromoCode {
+  id: string;
+  code_masked: string;
+  assigned_to: string | null;
+  plan_granted: string;
+  duration_days: number;
+  max_redemptions: number;
+  times_redeemed: number;
+  is_active: boolean;
+  expires_at: string | null;
+  created_at: string;
+  last_redeemed_at: string | null;
+  live_grants: number;
+  status: "active" | "expired" | "exhausted" | "revoked";
+}
+
+export interface OpsStaffMember {
+  user_id: string;
+  email: string;
+  role: string;
+  granted_at: string;
+  expires_at: string | null;
+  revoked_at: string | null;
+  revoke_reason: string | null;
+  note: string | null;
+}
+
+export interface OpsInvitation {
+  id: string;
+  email: string;
+  role: string;
+  note: string | null;
+  created_at: string;
+  expires_at: string;
+  access_expires_at: string | null;
+  accepted_at: string | null;
+  revoked_at: string | null;
+}
+
+export interface OpsRole {
+  id: string;
+  label: string;
+  capabilities: string[];
+  invitable: boolean;
+}
+
+export const fetchOpsMe = () => apiFetch<OpsMe>("/api/v1/ops/me");
+export const fetchOpsOverview = () => apiFetch<OpsOverview>("/api/v1/ops/overview");
+
+export const fetchOpsUsers = (params: { q?: string; status?: string; before?: string }) =>
+  apiFetch<{ users: OpsUser[]; pii: boolean }>(`/api/v1/ops/users${qs(params)}`);
+export const fetchOpsUser = (id: string) =>
+  apiFetch<{ user: OpsUserDetail; history: OpsAuditEvent[] | null }>(`/api/v1/ops/users/${encodeURIComponent(id)}`);
+export const suspendOpsUser = (id: string, reason: string, confirm: string) =>
+  apiFetch<{ suspended: boolean }>(`/api/v1/ops/users/${encodeURIComponent(id)}/suspend`, { method: "POST", body: { reason, confirm } });
+export const restoreOpsUser = (id: string, reason: string, confirm: string) =>
+  apiFetch<{ suspended: boolean }>(`/api/v1/ops/users/${encodeURIComponent(id)}/restore`, { method: "POST", body: { reason, confirm } });
+
+export const fetchOpsAudit = (params: { action?: string; target_type?: string; target_id?: string; outcome?: string; before_id?: number }) =>
+  apiFetch<{ events: OpsAuditEvent[] }>(`/api/v1/ops/audit${qs(params)}`);
+
+export const fetchOpsStaff = () =>
+  apiFetch<{ members: OpsStaffMember[]; invitations: OpsInvitation[]; roles: OpsRole[] }>("/api/v1/ops/staff");
+export const createOpsInvitation = (body: { email: string; role: string; note?: string; access_days?: number }) =>
+  apiFetch<{ id: string; email: string; role: string; expires_at: string; invite_url: string }>("/api/v1/ops/staff/invitations", { method: "POST", body });
+export const revokeOpsInvitation = (id: string) =>
+  apiFetch<{ revoked: boolean }>(`/api/v1/ops/staff/invitations/${encodeURIComponent(id)}/revoke`, { method: "POST" });
+export const revokeOpsStaff = (userId: string, reason: string) =>
+  apiFetch<{ revoked: boolean }>(`/api/v1/ops/staff/${encodeURIComponent(userId)}/revoke`, { method: "POST", body: { reason } });
+export const acceptOpsInvitation = (token: string) =>
+  apiFetch<{ role: string; role_label: string }>("/api/v1/ops/staff/invitations/accept", { method: "POST", body: { token } });
+export const claimOpsOwner = (token: string) =>
+  apiFetch<{ role: string; role_label: string }>("/api/v1/ops/bootstrap/claim", { method: "POST", body: { token } });
+
+export const fetchOpsPromoCodes = (includeInactive: boolean) =>
+  apiFetch<{ codes: OpsPromoCode[] }>(`/api/v1/ops/promo-codes${qs({ include_inactive: includeInactive })}`);
+export const fetchOpsPromoRedemptions = (id: string) =>
+  apiFetch<{ redemptions: { redeemed_at: string; plan_granted: string; access_expires_at: string; user_id: string; email: string | null }[] }>(
+    `/api/v1/ops/promo-codes/${encodeURIComponent(id)}/redemptions`
+  );
+export const createOpsPromoCode = (body: {
+  code?: string;
+  assigned_to?: string;
+  campaign?: string;
+  plan: string;
+  days: number;
+  max_uses: number;
+  code_expires_at?: string;
+}) => apiFetch<{ code: OpsPromoCode & { code: string } }>("/api/v1/ops/promo-codes", { method: "POST", body });
+export const revealOpsPromoCode = (id: string) =>
+  apiFetch<{ code: string }>(`/api/v1/ops/promo-codes/${encodeURIComponent(id)}/reveal`, { method: "POST" });
+export const revokeOpsPromoCode = (id: string, reason: string, endAccess: boolean) =>
+  apiFetch<{ id: string; accounts_ended: number }>(`/api/v1/ops/promo-codes/${encodeURIComponent(id)}/revoke`, {
+    method: "POST",
+    body: { reason, end_access: endAccess },
+  });
