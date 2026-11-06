@@ -2,7 +2,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { MarketTrends } from "@/lib/api";
-import { formatNumber, formatRon } from "@/lib/format";
+import { categoryLabel, formatNumber, formatRon } from "@/lib/format";
 import { Badge, Button, ButtonLink, Eyebrow, Panel, SectionTitle } from "@/components/newsprint";
 
 /**
@@ -51,8 +51,8 @@ function RowLink({
 	const content = (
 		<>
 			<div className="flex items-baseline justify-between gap-3">
-				<span className="font-body flex min-w-0 items-center gap-1.5 truncate text-sm font-semibold">
-					<span className="truncate">{label}</span>
+				<span className="font-body flex min-w-0 items-baseline gap-1.5 text-sm font-semibold leading-snug">
+					<span className="min-w-0 break-words">{label}</span>
 					{href && (
 						<span aria-hidden="true" className="shrink-0 text-accent opacity-0 transition-all duration-[var(--duration-base)] ease-[var(--ease-spring)] group-hover:translate-x-0.5 group-hover:opacity-100">
 							→
@@ -112,8 +112,8 @@ function TopOpportunityRow({
 		<>
 			<span className="tabular font-mono w-6 shrink-0 pt-0.5 text-sm text-stock-400">{String(rank).padStart(2, "0")}</span>
 			<div className="min-w-0 flex-1">
-				<p className="font-body flex items-center gap-1.5 truncate text-sm font-semibold">
-					<span className="truncate">{opportunity.project_title}</span>
+				<p className="font-body flex items-start gap-1.5 text-sm font-semibold leading-snug">
+					<span className="line-clamp-2 min-w-0">{opportunity.project_title}</span>
 					<span aria-hidden="true" className="shrink-0 text-accent opacity-0 transition-all duration-[var(--duration-base)] ease-[var(--ease-spring)] group-hover:translate-x-0.5 group-hover:opacity-100">
 						→
 					</span>
@@ -292,7 +292,7 @@ export default function MarketTrendsView({
 			<SectionTitle note={`${data.by_category.length} domenii`}>Distribuție pe domeniu</SectionTitle>
 			<div className={variant === "full" ? "-mr-1.25 max-h-56 overflow-y-auto pr-2.25" : undefined}>
 				{data.by_category.map((c) => (
-					<RowLink key={c.category} onSelect={() => toggleDomain(c.category)} active={selectedDomain === c.category} label={c.category} count={c.count} value={c.value_ron} maxValue={maxCategory} />
+					<RowLink key={c.category} onSelect={() => toggleDomain(c.category)} active={selectedDomain === c.category} label={categoryLabel(c.category)} count={c.count} value={c.value_ron} maxValue={maxCategory} />
 				))}
 			</div>
 		</Panel>
@@ -305,7 +305,7 @@ export default function MarketTrendsView({
 				<div className="mb-3 flex flex-wrap items-center gap-1.5">
 					{selectedDomain && (
 						<button type="button" onClick={clearDomain} className="font-mono neu-pressed-sm inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] text-accent">
-							{selectedDomain} ✕
+							{categoryLabel(selectedDomain)} ✕
 						</button>
 					)}
 					{selectedCounty && (
