@@ -9,7 +9,7 @@ const isDev = process.env.NODE_ENV === "development";
 // script in app/layout.tsx (nonces would force every page dynamic; see
 // node_modules/next/dist/docs/01-app/02-guides/content-security-policy.md).
 // Images allow https: for Google profile pictures.
-const SUPABASE = "https://upzyczsfizenlogkfvsa.supabase.co";
+const SUPABASE = "https://auth.ro-intel.xyz";
 const csp = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
